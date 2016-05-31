@@ -34,7 +34,7 @@ sealed trait MessageHeader extends NetworkElement with BitcoinSLogger {
     *
     * @return
     */
-  def payloadSize : Int
+  def payloadSize : Long
 
   /**
     * Added in protocol version 209.
@@ -52,7 +52,7 @@ sealed trait MessageHeader extends NetworkElement with BitcoinSLogger {
 object MessageHeader extends Factory[MessageHeader] {
 
   private case class MessageHeaderImpl(network : Seq[Byte], commandName : String,
-                                       payloadSize : Int, checksum : Seq[Byte]) extends MessageHeader
+                                       payloadSize : Long, checksum : Seq[Byte]) extends MessageHeader
 
   override def fromBytes(bytes : Seq[Byte]) : MessageHeader = RawMessageHeaderSerializer.read(bytes)
 
@@ -61,4 +61,8 @@ object MessageHeader extends Factory[MessageHeader] {
   def apply(hex : String) : MessageHeader = fromHex(hex)
 
   def apply(bytes : Seq[Byte]) : MessageHeader = fromBytes(bytes)
+
+  def apply(network : Seq[Byte], commandName : String, payloadSize : Long, checksum : Seq[Byte]) : MessageHeader = {
+    MessageHeaderImpl(network, commandName, payloadSize, checksum)
+  }
 }
