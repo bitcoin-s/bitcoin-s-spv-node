@@ -1,6 +1,7 @@
-package org.bitcoins.spvnode.headers
+package org.bitcoins.spvnode.serializers.headers
 
 import org.bitcoins.core.serializers.RawBitcoinSerializer
+import org.bitcoins.spvnode.headers.MessageHeader
 
 /**
   * Created by chris on 5/31/16.

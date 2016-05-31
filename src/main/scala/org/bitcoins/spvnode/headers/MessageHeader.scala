@@ -2,6 +2,7 @@ package org.bitcoins.spvnode.headers
 
 import org.bitcoins.core.protocol.NetworkElement
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil, Factory}
+import org.bitcoins.spvnode.serializers.headers.RawMessageHeaderSerializer
 
 /**
   * Created by chris on 5/31/16.
