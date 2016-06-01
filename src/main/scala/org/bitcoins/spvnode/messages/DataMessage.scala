@@ -1,16 +1,17 @@
 package org.bitcoins.spvnode.messages
 
 import org.bitcoins.core.crypto.{DoubleSha256Digest, ECDigitalSignature}
-import org.bitcoins.core.protocol.CompactSizeUInt
+import org.bitcoins.core.protocol.{CompactSizeUInt, NetworkElement}
 import org.bitcoins.core.protocol.blockchain.BlockHeader
 import org.bitcoins.spvnode.messages.control.Alert
+import org.bitcoins.spvnode.serializers.messages.data.RawGetBlocksMessageSerializer
 import org.bitcoins.spvnode.util.NetworkIpAddress
 import org.bitcoins.spvnode.versions.ProtocolVersion
 
 /**
   * Created by chris on 5/31/16.
   */
-sealed trait NetworkMessage
+sealed trait NetworkMessage extends NetworkElement
 
 /**
   * Represents a message that is sending a request to another node on the network
@@ -40,7 +41,7 @@ sealed trait BlockMessage extends DataMessage with NetworkResponse
   * it needs to request the blocks it hasn’t seen.
   * https://bitcoin.org/en/developer-reference#getblocks
   */
-sealed trait GetBlocksMessage extends DataMessage with NetworkRequest {
+trait GetBlocksMessage extends DataMessage with NetworkRequest {
   /**
     * The protocol version number; the same as sent in the version message.
     * @return
@@ -61,7 +62,7 @@ sealed trait GetBlocksMessage extends DataMessage with NetworkRequest {
     * so highest-height hashes are listed first and lowest-height hashes are listed last.
     * @return
     */
-  def blockHeadersHashes : Seq[DoubleSha256Digest]
+  def blockHeaderHashes : Seq[DoubleSha256Digest]
 
   /**
     * The header hash of the last header hash being requested;
@@ -71,8 +72,9 @@ sealed trait GetBlocksMessage extends DataMessage with NetworkRequest {
     * with a higher-height header hash as the first entry in block header hash field).
     * @return
     */
-  def stopHash : String
+  def stopHash : DoubleSha256Digest
 
+  def hex : String = RawGetBlocksMessageSerializer.write(this)
 }
 
 /**
