@@ -4,6 +4,7 @@ import org.bitcoins.core.crypto.ECDigitalSignature
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.spvnode.messages.control.Alert
 import org.bitcoins.spvnode.util.NetworkIpAddress
+import org.bitcoins.spvnode.versions.ProtocolVersion
 
 /**
   * Created by chris on 5/31/16.
@@ -16,7 +17,7 @@ sealed trait NetworkMessage
 sealed trait NetworkRequest
 
 /**
-  * Represents a message that is response to another node on the network
+  * Represents a message that is response to a request that was sent
   */
 sealed trait NetworkResponse
 /**
@@ -346,7 +347,7 @@ sealed trait VersionMessage extends ControlMessage with NetworkResponse {
     * The highest protocol version understood by the transmitting node. See the protocol version section.
     * @return
     */
-  def version : Long
+  def version : ProtocolVersion
 
   /**
     * The services supported by the transmitting node encoded as a bitfield. See the list of service codes below.
