@@ -7,6 +7,7 @@ import org.bitcoins.spvnode.serializers.messages.RawTypeIdentifierSerializer
 /**
   * Created by chris on 5/31/16.
   * This indicates the type of the object that has been hashed for an inventory
+  * https://bitcoin.org/en/developer-reference#data-messages
   */
 sealed trait TypeIdentifier extends NetworkElement {
   def num : Long
