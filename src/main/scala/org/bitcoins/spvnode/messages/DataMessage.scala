@@ -1,7 +1,8 @@
 package org.bitcoins.spvnode.messages
 
-import org.bitcoins.core.crypto.ECDigitalSignature
+import org.bitcoins.core.crypto.{DoubleSha256Digest, ECDigitalSignature}
 import org.bitcoins.core.protocol.CompactSizeUInt
+import org.bitcoins.core.protocol.blockchain.BlockHeader
 import org.bitcoins.spvnode.messages.control.Alert
 import org.bitcoins.spvnode.util.NetworkIpAddress
 import org.bitcoins.spvnode.versions.ProtocolVersion
@@ -40,7 +41,38 @@ sealed trait BlockMessage extends DataMessage with NetworkResponse
   * https://bitcoin.org/en/developer-reference#getblocks
   */
 sealed trait GetBlocksMessage extends DataMessage with NetworkRequest {
-  def inventory : Inventory
+  /**
+    * The protocol version number; the same as sent in the version message.
+    * @return
+    */
+  def protocolVersion : ProtocolVersion
+
+  /**
+    * The number of header hashes provided not including the stop hash.
+    * There is no limit except that the byte size of the entire message
+    * must be below the MAX_SIZE limit; typically from 1 to 200 hashes are sent.
+    * @return
+    */
+  def hashCount : CompactSizeUInt
+
+  /**
+    * One or more block header hashes (32 bytes each) in internal byte order.
+    * Hashes should be provided in reverse order of block height,
+    * so highest-height hashes are listed first and lowest-height hashes are listed last.
+    * @return
+    */
+  def blockHeadersHashes : Seq[DoubleSha256Digest]
+
+  /**
+    * The header hash of the last header hash being requested;
+    * set to all zeroes to request an inv message with all subsequent
+    * header hashes (a maximum of 500 will be sent as a reply to this message;
+    * if you need more than 500, you will need to send another getblocks message
+    * with a higher-height header hash as the first entry in block header hash field).
+    * @return
+    */
+  def stopHash : String
+
 }
 
 /**
@@ -65,7 +97,24 @@ sealed trait GetHeadersMessage extends DataMessage with NetworkRequest
   * which previously requested certain headers with a getheaders message.
   * https://bitcoin.org/en/developer-reference#headers
   */
-sealed trait HeadersMessage extends DataMessage with NetworkResponse
+sealed trait HeadersMessage extends DataMessage with NetworkResponse {
+  /**
+    * Number of block headers up to a maximum of 2,000.
+    * Note: headers-first sync assumes the sending node
+    * will send the maximum number of headers whenever possible.
+    * @return
+    */
+  def count : CompactSizeUInt
+
+  /**
+    * Block headers: each 80-byte block header is in the format described in the
+    * block headers section with an additional 0x00 suffixed.
+    * This 0x00 is called the transaction count, but because the headers message
+    * doesn’t include any transactions, the transaction count is always zero.
+    * @return
+    */
+  def headers : Seq[BlockHeader]
+}
 
 /**
   * The inv message (inventory message) transmits one or more inventories of objects known to the transmitting peer.
@@ -73,7 +122,19 @@ sealed trait HeadersMessage extends DataMessage with NetworkResponse
   * or it can be sent in reply to a getblocks message or mempool message.
   * https://bitcoin.org/en/developer-reference#inv
   */
-sealed trait InventoryMessage extends DataMessage with NetworkResponse
+sealed trait InventoryMessage extends DataMessage with NetworkResponse {
+  /**
+    * The number of inventory enteries
+    * @return
+    */
+  def inventoryCount : CompactSizeUInt
+
+  /**
+    * One or more inventory entries up to a maximum of 50,000 entries.
+    * @return
+    */
+  def inventories : Seq[Inventory]
+}
 
 /**
   * The mempool message requests the TXIDs of transactions that the receiving node has verified
@@ -93,7 +154,48 @@ sealed trait MemPoolMessage extends DataMessage with NetworkRequest {
   * they will be sent separately as tx messages.
   * https://bitcoin.org/en/developer-reference#merkleblock
   */
-sealed trait MerkleBlockMessage extends DataMessage with NetworkResponse
+sealed trait MerkleBlockMessage extends DataMessage with NetworkResponse {
+  /**
+    * The block header in the format described in the block header section.
+    * @return
+    */
+  def header : BlockHeader
+
+  /**
+    * The number of transactions in the block (including ones that don’t match the filter).
+    * @return
+    */
+  def transactionCount : Long
+
+  /**
+    * The number of hashes in the following field
+    * @return
+    */
+  def hashCount : CompactSizeUInt
+
+  /**
+    * One or more hashes of both transactions and merkle nodes in internal byte order. Each hash is 32 bits.
+    * @return
+    */
+  def hashes : Seq[DoubleSha256Digest]
+
+  /**
+    * The number of flag bytes in the following field.
+    * @return
+    */
+  def flagCount : CompactSizeUInt
+
+  /**
+    * A sequence of bits packed eight in a byte with the least significant bit first.
+    * May be padded to the nearest byte boundary but must not contain any more bits than that.
+    * Used to assign the hashes to particular nodes in the merkle tree as described below.
+    * @return
+    */
+  def flags : Seq[Byte]
+
+
+
+}
 
 /**
   * The notfound message is a reply to a getdata message which requested an object the receiving
