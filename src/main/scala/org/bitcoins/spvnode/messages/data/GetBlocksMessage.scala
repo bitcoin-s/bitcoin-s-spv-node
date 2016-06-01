@@ -3,12 +3,14 @@ package org.bitcoins.spvnode.messages.data
 import org.bitcoins.core.crypto.DoubleSha256Digest
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.util.Factory
-import org.bitcoins.spvnode.messages.GetBlocksMessage
+import org.bitcoins.spvnode.messages._
 import org.bitcoins.spvnode.serializers.messages.data.RawGetBlocksMessageSerializer
 import org.bitcoins.spvnode.versions.ProtocolVersion
 
 /**
   * Created by chris on 6/1/16.
+  * This is the companion object for the GetBlocks network message on the p2p network
+  * https://bitcoin.org/en/developer-reference#getblocks
   */
 object GetBlocksMessage extends Factory[GetBlocksMessage] {
 

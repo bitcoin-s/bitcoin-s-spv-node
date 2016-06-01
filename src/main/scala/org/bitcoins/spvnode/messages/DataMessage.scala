@@ -4,7 +4,8 @@ import org.bitcoins.core.crypto.{DoubleSha256Digest, ECDigitalSignature}
 import org.bitcoins.core.protocol.{CompactSizeUInt, NetworkElement}
 import org.bitcoins.core.protocol.blockchain.BlockHeader
 import org.bitcoins.spvnode.messages.control.Alert
-import org.bitcoins.spvnode.serializers.messages.data.RawGetBlocksMessageSerializer
+import org.bitcoins.spvnode.messages.data.Inventory
+import org.bitcoins.spvnode.serializers.messages.data.{RawGetBlocksMessageSerializer, RawInventoryMessageSerializer}
 import org.bitcoins.spvnode.util.NetworkIpAddress
 import org.bitcoins.spvnode.versions.ProtocolVersion
 
@@ -124,7 +125,7 @@ sealed trait HeadersMessage extends DataMessage with NetworkResponse {
   * or it can be sent in reply to a getblocks message or mempool message.
   * https://bitcoin.org/en/developer-reference#inv
   */
-sealed trait InventoryMessage extends DataMessage with NetworkResponse {
+trait InventoryMessage extends DataMessage with NetworkResponse {
   /**
     * The number of inventory enteries
     * @return
@@ -136,6 +137,8 @@ sealed trait InventoryMessage extends DataMessage with NetworkResponse {
     * @return
     */
   def inventories : Seq[Inventory]
+
+  def hex = RawInventoryMessageSerializer.write(this)
 }
 
 /**

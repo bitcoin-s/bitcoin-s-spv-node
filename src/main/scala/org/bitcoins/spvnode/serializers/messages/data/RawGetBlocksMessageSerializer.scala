@@ -12,6 +12,8 @@ import scala.annotation.tailrec
 
 /**
   * Created by chris on 6/1/16.
+  * This trait is responsible for the serialization and deserialization of
+  * getblocks messages in on the p2p network
   * https://bitcoin.org/en/developer-reference#getblocks
   */
 trait RawGetBlocksMessageSerializer extends RawBitcoinSerializer[GetBlocksMessage] {
@@ -45,7 +47,7 @@ trait RawGetBlocksMessageSerializer extends RawBitcoinSerializer[GetBlocksMessag
              remainingBytes : Seq[Byte]) : (List[DoubleSha256Digest], Seq[Byte]) = {
       if (remainingHeaders <= 0) (accum.reverse,remainingBytes)
       else loop(remainingHeaders - 1, DoubleSha256Digest(remainingBytes.slice(0,32)) :: accum,
-        remainingBytes.slice(32,bytes.size))
+        remainingBytes.slice(32,remainingBytes.size))
     }
     loop(compactSizeUInt.num, List(), bytes)
   }

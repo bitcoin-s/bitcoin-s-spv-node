@@ -1,6 +1,7 @@
 package org.bitcoins.spvnode.serializers.messages
 
 import org.bitcoins.core.serializers.RawBitcoinSerializer
+import org.bitcoins.core.util.BitcoinSUtil
 import org.bitcoins.spvnode.messages.TypeIdentifier
 
 /**
@@ -10,9 +11,13 @@ import org.bitcoins.spvnode.messages.TypeIdentifier
   */
 trait RawTypeIdentifierSerializer extends RawBitcoinSerializer[TypeIdentifier] {
 
-  override def read(bytes : List[Byte]) : TypeIdentifier = ???
+  override def read(bytes : List[Byte]) : TypeIdentifier = {
+    TypeIdentifier(BitcoinSUtil.toLong(bytes))
+  }
 
-  override def write(typeIdentifier: TypeIdentifier) : String = ???
+  override def write(typeIdentifier: TypeIdentifier) : String = {
+    addPadding(8,BitcoinSUtil.longToHex(typeIdentifier.num))
+  }
 }
 
 object RawTypeIdentifierSerializer extends RawTypeIdentifierSerializer

@@ -1,5 +1,6 @@
 package org.bitcoins.spvnode.messages
 
+import org.bitcoins.core.protocol.NetworkElement
 import org.bitcoins.core.util.{BitcoinSUtil, Factory}
 import org.bitcoins.spvnode.serializers.messages.RawTypeIdentifierSerializer
 
@@ -7,31 +8,26 @@ import org.bitcoins.spvnode.serializers.messages.RawTypeIdentifierSerializer
   * Created by chris on 5/31/16.
   * This indicates the type of the object that has been hashed for an inventory
   */
-sealed trait TypeIdentifier {
+sealed trait TypeIdentifier extends NetworkElement {
   def num : Long
+  override def hex = RawTypeIdentifierSerializer.write(this)
 }
 
-sealed trait MsgTx extends TypeIdentifier {
+case object MsgTx extends TypeIdentifier {
   override def num = 1
 }
 
-sealed trait MsgBlock extends TypeIdentifier {
+case object MsgBlock extends TypeIdentifier {
   override def num = 2
 }
 
-sealed trait MsgFilteredBlock extends TypeIdentifier {
+case object MsgFilteredBlock extends TypeIdentifier {
   override def num = 3
 }
 
 sealed trait MsgUnassigned extends TypeIdentifier
 
 object TypeIdentifier extends Factory[TypeIdentifier] {
-
-  private case object MsgTxImpl extends MsgTx
-
-  private case object MsgBlockImpl extends MsgBlock
-
-  private case object MsgFilteredBlockImpl extends MsgFilteredBlock
 
   private case class MsgUnassignedImpl(num : Long) extends MsgUnassigned
 
@@ -42,9 +38,9 @@ object TypeIdentifier extends Factory[TypeIdentifier] {
   def apply(bytes : Seq[Byte]) : TypeIdentifier = fromBytes(bytes)
 
   def apply(num : Long) : TypeIdentifier = num match {
-    case 1 => MsgTxImpl
-    case 2 => MsgBlockImpl
-    case 3 => MsgFilteredBlockImpl
+    case 1 => MsgTx
+    case 2 => MsgBlock
+    case 3 => MsgFilteredBlock
     case x : Long => MsgUnassignedImpl(x)
   }
 }
