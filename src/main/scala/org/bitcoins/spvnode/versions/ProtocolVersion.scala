@@ -23,10 +23,6 @@ object ProtocolVersion extends Factory[ProtocolVersion] {
     //TODO: Should we default to the latest protocol version if the bytes don't match???
     versions.find(_.bytes == bytes).getOrElse(ProtocolVersion70012)
   }
-
-  def apply(hex : String) : ProtocolVersion = fromHex(hex)
-
-  def apply(bytes : Seq[Byte]) : ProtocolVersion = fromBytes(bytes)
 }
 
 /**

@@ -34,10 +34,6 @@ object TypeIdentifier extends Factory[TypeIdentifier] {
 
   override def fromBytes(bytes : Seq[Byte]) : TypeIdentifier = RawTypeIdentifierSerializer.read(bytes)
 
-  def apply(hex : String) : TypeIdentifier = fromHex(hex)
-
-  def apply(bytes : Seq[Byte]) : TypeIdentifier = fromBytes(bytes)
-
   def apply(num : Long) : TypeIdentifier = num match {
     case 1 => MsgTx
     case 2 => MsgBlock

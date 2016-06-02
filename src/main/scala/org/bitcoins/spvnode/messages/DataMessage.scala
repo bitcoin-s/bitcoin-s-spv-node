@@ -3,10 +3,10 @@ package org.bitcoins.spvnode.messages
 import org.bitcoins.core.crypto.{DoubleSha256Digest, ECDigitalSignature}
 import org.bitcoins.core.protocol.{CompactSizeUInt, NetworkElement}
 import org.bitcoins.core.protocol.blockchain.BlockHeader
-import org.bitcoins.spvnode.headers.MessageHeader
+import org.bitcoins.core.protocol.transaction.Transaction
 import org.bitcoins.spvnode.messages.control.Alert
 import org.bitcoins.spvnode.messages.data.Inventory
-import org.bitcoins.spvnode.serializers.messages.data.{RawGetBlocksMessageSerializer, RawInventoryMessageSerializer}
+import org.bitcoins.spvnode.serializers.messages.data._
 import org.bitcoins.spvnode.util.NetworkIpAddress
 import org.bitcoins.spvnode.versions.ProtocolVersion
 
@@ -160,8 +160,13 @@ case object MemPoolMessage extends DataMessage with NetworkRequest {
   * they will be sent separately as tx messages.
   * https://bitcoin.org/en/developer-reference#merkleblock
   */
-sealed trait MerkleBlockMessage extends DataMessage with NetworkResponse {
+trait MerkleBlockMessage extends DataMessage with NetworkResponse {
 
+  /**
+    * The block header associated with our merkle block message
+    * @return
+    */
+  def blockHeader : BlockHeader
   /**
     * The number of transactions in the block (including ones that don’t match the filter).
     * @return
@@ -194,7 +199,7 @@ sealed trait MerkleBlockMessage extends DataMessage with NetworkResponse {
     */
   def flags : Seq[Byte]
 
-
+  def hex = RawMerkleBlockMessageSerializer.write(this)
 
 }
 
@@ -205,14 +210,19 @@ sealed trait MerkleBlockMessage extends DataMessage with NetworkResponse {
   * Nodes may also have pruned spent transactions from older blocks, making them unable to send those blocks.)
   * https://bitcoin.org/en/developer-reference#notfound
   */
-sealed trait NotFoundMessage extends DataMessage with NetworkResponse
+trait NotFoundMessage extends DataMessage with NetworkResponse with InventoryMessage {
+  override def hex = RawNotFoundMessageSerializer.write(this)
+}
 
 /**
   * The tx message transmits a single transaction in the raw transaction format.
   * It can be sent in a variety of situations;
   * https://bitcoin.org/en/developer-reference#tx
   */
-sealed trait TxMessage extends DataMessage with NetworkResponse
+trait TransactionMessage extends DataMessage with NetworkResponse {
+  def transaction : Transaction
+  override def hex = RawTransactionMessageSerializer.write(this)
+}
 
 
 

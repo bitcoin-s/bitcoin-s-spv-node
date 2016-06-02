@@ -58,10 +58,6 @@ object MessageHeader extends Factory[MessageHeader] {
 
   override def fromHex(hex : String) : MessageHeader = fromBytes(BitcoinSUtil.decodeHex(hex))
 
-  def apply(hex : String) : MessageHeader = fromHex(hex)
-
-  def apply(bytes : Seq[Byte]) : MessageHeader = fromBytes(bytes)
-
   def apply(network : Seq[Byte], commandName : String, payloadSize : Long, checksum : Seq[Byte]) : MessageHeader = {
     MessageHeaderImpl(network, commandName, payloadSize, checksum)
   }

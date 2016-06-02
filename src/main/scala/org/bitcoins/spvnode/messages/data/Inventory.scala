@@ -35,10 +35,6 @@ object Inventory extends Factory[Inventory] {
 
   override def fromBytes(bytes : Seq[Byte]) : Inventory = RawInventorySerializer.read(bytes)
 
-  def apply(bytes : Seq[Byte]) : Inventory = fromBytes(bytes)
-
-  def apply(hex : String) : Inventory = fromHex(hex)
-
   def apply(typeIdentifier: TypeIdentifier, hash : DoubleSha256Digest) : Inventory = {
     InventoryImpl(typeIdentifier,hash)
   }

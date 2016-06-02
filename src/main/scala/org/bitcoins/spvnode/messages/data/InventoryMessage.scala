@@ -17,10 +17,6 @@ object InventoryMessage extends Factory[InventoryMessage] {
 
   override def fromBytes(bytes : Seq[Byte]) : InventoryMessage = RawInventoryMessageSerializer.read(bytes)
 
-  def apply(bytes : Seq[Byte]) : InventoryMessage = fromBytes(bytes)
-
-  def apply(hex : String) : InventoryMessage = fromHex(hex)
-
   def apply(inventoryCount : CompactSizeUInt, inventories : Seq[Inventory]) : InventoryMessage = {
     InventoryMessageImpl(inventoryCount,inventories)
   }
