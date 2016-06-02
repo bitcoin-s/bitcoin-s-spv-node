@@ -3,6 +3,7 @@ package org.bitcoins.spvnode.messages
 import org.bitcoins.core.crypto.{DoubleSha256Digest, ECDigitalSignature}
 import org.bitcoins.core.protocol.{CompactSizeUInt, NetworkElement}
 import org.bitcoins.core.protocol.blockchain.BlockHeader
+import org.bitcoins.spvnode.headers.MessageHeader
 import org.bitcoins.spvnode.messages.control.Alert
 import org.bitcoins.spvnode.messages.data.Inventory
 import org.bitcoins.spvnode.serializers.messages.data.{RawGetBlocksMessageSerializer, RawInventoryMessageSerializer}
@@ -125,7 +126,7 @@ sealed trait HeadersMessage extends DataMessage with NetworkResponse {
   * or it can be sent in reply to a getblocks message or mempool message.
   * https://bitcoin.org/en/developer-reference#inv
   */
-trait InventoryMessage extends DataMessage with NetworkResponse {
+trait InventoryMessage extends DataMessage with NetworkRequest with NetworkResponse {
   /**
     * The number of inventory enteries
     * @return
@@ -148,8 +149,8 @@ trait InventoryMessage extends DataMessage with NetworkResponse {
   * The response to the mempool message is one or more inv messages containing the TXIDs in the usual inventory format.
   * https://bitcoin.org/en/developer-reference#mempool
   */
-sealed trait MemPoolMessage extends DataMessage with NetworkRequest {
-  def inventory : Inventory
+case object MemPoolMessage extends DataMessage with NetworkRequest {
+  def hex = ""
 }
 
 /**
@@ -160,11 +161,6 @@ sealed trait MemPoolMessage extends DataMessage with NetworkRequest {
   * https://bitcoin.org/en/developer-reference#merkleblock
   */
 sealed trait MerkleBlockMessage extends DataMessage with NetworkResponse {
-  /**
-    * The block header in the format described in the block header section.
-    * @return
-    */
-  def header : BlockHeader
 
   /**
     * The number of transactions in the block (including ones that don’t match the filter).

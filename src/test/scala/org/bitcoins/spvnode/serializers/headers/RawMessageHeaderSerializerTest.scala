@@ -6,9 +6,9 @@ import org.scalatest.{FlatSpec, MustMatchers}
 /**
   * Created by chris on 5/31/16.
   */
-class RawMessageSerializerTest extends FlatSpec with MustMatchers {
+class RawMessageHeaderSerializerTest extends FlatSpec with MustMatchers {
   val hex = "f9beb4d976657261636b000000000000000000005df6e0e2"
-  "RawMessageSerializer" must "read hex string into a message header" in {
+  "RawMessageHeaderSerializer" must "read hex string into a message header" in {
     //this example is from this section in the bitcoin developer reference
     //https://bitcoin.org/en/developer-reference#message-headers
 
