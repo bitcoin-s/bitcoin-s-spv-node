@@ -6,6 +6,7 @@ import org.bitcoins.core.protocol.blockchain.BlockHeader
 import org.bitcoins.core.protocol.transaction.Transaction
 import org.bitcoins.spvnode.messages.control.{Alert, ServiceIdentifier}
 import org.bitcoins.spvnode.messages.data.Inventory
+import org.bitcoins.spvnode.serializers.control.RawAddrMessageSerializer
 import org.bitcoins.spvnode.serializers.messages.data._
 import org.bitcoins.spvnode.util.NetworkIpAddress
 import org.bitcoins.spvnode.versions.ProtocolVersion
@@ -243,9 +244,10 @@ sealed trait ControlMessage extends NetworkMessage
   * any program already on the network.
   * https://bitcoin.org/en/developer-reference#addr
   */
-sealed trait AddrMessage extends ControlMessage with NetworkResponse with NetworkRequest {
+trait AddrMessage extends ControlMessage with NetworkResponse with NetworkRequest {
   def ipCount : CompactSizeUInt
   def addresses : Seq[NetworkIpAddress]
+  override def hex = RawAddrMessageSerializer.write(this)
 }
 
 /**

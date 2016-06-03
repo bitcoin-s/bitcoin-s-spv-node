@@ -1,8 +1,9 @@
-package org.bitcoins.spvnode.messages.control
+package org.bitcoins.spvnode.serializers.control
 
 import org.bitcoins.core.serializers.RawBitcoinSerializer
 import org.bitcoins.core.util.BitcoinSUtil
 import org.bitcoins.spvnode.messages.VersionMessage
+import org.bitcoins.spvnode.messages.control.ServiceIdentifier
 
 /**
   * Created by chris on 6/2/16.

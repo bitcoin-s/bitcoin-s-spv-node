@@ -2,6 +2,7 @@ package org.bitcoins.spvnode.util
 
 import java.net.InetAddress
 
+import org.bitcoins.core.protocol.NetworkElement
 import org.bitcoins.core.util.Factory
 import org.bitcoins.spvnode.messages.control.ServiceIdentifier
 import org.bitcoins.spvnode.serializers.control.RawNetworkIpAddressSerializer
@@ -11,7 +12,7 @@ import org.bitcoins.spvnode.serializers.control.RawNetworkIpAddressSerializer
   * Encapsulated network IP address currently uses the following structure
   * https://bitcoin.org/en/developer-reference#addr
   */
-sealed trait NetworkIpAddress {
+sealed trait NetworkIpAddress extends NetworkElement {
 
   /**
     * Added in protocol version 31402.
@@ -49,6 +50,8 @@ sealed trait NetworkIpAddress {
     * @return
     */
   def port : Int
+
+  override def hex = RawNetworkIpAddressSerializer.write(this)
 }
 
 

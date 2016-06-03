@@ -8,7 +8,13 @@ import org.scalatest.{FlatSpec, MustMatchers}
   */
 class RawNetworkIpAddressSerializerTest extends FlatSpec with MustMatchers {
 
-  val hex = "d91f4854010000000000000000000000000000000000ffffc0000233208d"
+  //from this bitcoin developer guide example
+  //https://bitcoin.org/en/developer-reference#addr
+  val time = "d91f4854"
+  val services = "0100000000000000"
+  val address = "00000000000000000000ffffc0000233"
+  val port = "208d"
+  val hex = time + services + address + port
   "RawNetworkIpAddressSerializer" must "read a network ip address from a hex string" in {
     val ipAddress = RawNetworkIpAddressSerializer.read(hex)
     ipAddress.time must be (1414012889)
