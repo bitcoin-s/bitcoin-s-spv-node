@@ -2,7 +2,7 @@ package org.bitcoins.spvnode.messages.data
 
 import org.bitcoins.core.protocol.transaction.Transaction
 import org.bitcoins.core.util.Factory
-import org.bitcoins.spvnode.messages.TransactionMessage
+import org.bitcoins.spvnode.messages._
 import org.bitcoins.spvnode.serializers.messages.data.RawTransactionMessageSerializer
 
 /**

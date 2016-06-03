@@ -4,7 +4,7 @@ import org.bitcoins.core.crypto.{DoubleSha256Digest, ECDigitalSignature}
 import org.bitcoins.core.protocol.{CompactSizeUInt, NetworkElement}
 import org.bitcoins.core.protocol.blockchain.BlockHeader
 import org.bitcoins.core.protocol.transaction.Transaction
-import org.bitcoins.spvnode.messages.control.Alert
+import org.bitcoins.spvnode.messages.control.{Alert, ServiceIdentifier}
 import org.bitcoins.spvnode.messages.data.Inventory
 import org.bitcoins.spvnode.serializers.messages.data._
 import org.bitcoins.spvnode.util.NetworkIpAddress
@@ -466,7 +466,7 @@ sealed trait VersionMessage extends ControlMessage with NetworkResponse {
     * The services supported by the transmitting node encoded as a bitfield. See the list of service codes below.
     * @return
     */
-  def services : BigInt
+  def services : ServiceIdentifier
 
   /**
     * The current Unix epoch time according to the transmitting node’s clock.
@@ -482,7 +482,7 @@ sealed trait VersionMessage extends ControlMessage with NetworkResponse {
     * Bitcoin Core will attempt to provide accurate information. BitcoinJ will, by default, always send 0.
     * @return
     */
-  def addressReceiveServices : BigInt
+  def addressReceiveServices : ServiceIdentifier
 
   /**
     * The IPv6 address of the receiving node as perceived by the transmitting node in big endian byte order.
@@ -502,7 +502,7 @@ sealed trait VersionMessage extends ControlMessage with NetworkResponse {
     * The services supported by the transmitting node. Should be identical to the ‘services’ field above.
     * @return
     */
-  def addressTransServices : BigInt
+  def addressTransServices : ServiceIdentifier
 
   /**
     * The IPv6 address of the transmitting node in big endian byte order.
