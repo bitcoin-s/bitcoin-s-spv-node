@@ -1,12 +1,14 @@
 package org.bitcoins.spvnode.messages
 
+import java.net.InetAddress
+
 import org.bitcoins.core.crypto.{DoubleSha256Digest, ECDigitalSignature}
-import org.bitcoins.core.protocol.{CompactSizeUInt, NetworkElement}
 import org.bitcoins.core.protocol.blockchain.BlockHeader
 import org.bitcoins.core.protocol.transaction.Transaction
+import org.bitcoins.core.protocol.{CompactSizeUInt, NetworkElement}
 import org.bitcoins.spvnode.messages.control.{Alert, ServiceIdentifier}
 import org.bitcoins.spvnode.messages.data.Inventory
-import org.bitcoins.spvnode.serializers.control.RawAddrMessageSerializer
+import org.bitcoins.spvnode.serializers.control.{RawAddrMessageSerializer, RawVersionMessageSerializer}
 import org.bitcoins.spvnode.serializers.messages.data._
 import org.bitcoins.spvnode.util.NetworkIpAddress
 import org.bitcoins.spvnode.versions.ProtocolVersion
@@ -456,7 +458,7 @@ sealed trait VerAckMessage extends ControlMessage with NetworkResponse
   * by first sending a version message.
   * https://bitcoin.org/en/developer-reference#version
   */
-sealed trait VersionMessage extends ControlMessage with NetworkResponse {
+trait VersionMessage extends ControlMessage with NetworkResponse {
 
   /**
     * The highest protocol version understood by the transmitting node. See the protocol version section.
@@ -492,7 +494,7 @@ sealed trait VersionMessage extends ControlMessage with NetworkResponse {
     * Bitcoin Core will attempt to provide accurate information
     * BitcoinJ will, by default, always return ::ffff:127.0.0.1
     */
-  def addressReceiveIpAddress : NetworkIpAddress
+  def addressReceiveIpAddress : InetAddress
 
   /**
     * The port number of the receiving node as perceived by the transmitting node in big endian byte order.
@@ -512,7 +514,7 @@ sealed trait VersionMessage extends ControlMessage with NetworkResponse {
     * Set to ::ffff:127.0.0.1 if unknown.
     * @return
     */
-  def addressTransIpAddress : NetworkIpAddress
+  def addressTransIpAddress : InetAddress
 
   /**
     * The port number of the transmitting node in big endian byte order.
@@ -536,7 +538,7 @@ sealed trait VersionMessage extends ControlMessage with NetworkResponse {
   def userAgentSize : CompactSizeUInt
 
   /**
-    * User agent as defined by BIP14. Previously called subVer.
+    * User agent as defined by BIP14. Pkqreviously called subVer.
     * @return
     */
   def userAgent : String
@@ -555,4 +557,6 @@ sealed trait VersionMessage extends ControlMessage with NetworkResponse {
     * @return
     */
   def relay : Boolean
+
+  override def hex = RawVersionMessageSerializer.write(this)
 }

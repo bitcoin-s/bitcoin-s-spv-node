@@ -9,9 +9,7 @@ import org.bitcoins.core.util.Factory
   * Here are the currently protocol versions in the network
   * https://bitcoin.org/en/developer-reference#protocol-versions
   */
-sealed trait ProtocolVersion extends NetworkElement {
-  def hex = ""
-}
+sealed trait ProtocolVersion extends NetworkElement
 
 object ProtocolVersion extends Factory[ProtocolVersion] {
 
@@ -21,7 +19,7 @@ object ProtocolVersion extends Factory[ProtocolVersion] {
 
   def fromBytes(bytes : Seq[Byte]) : ProtocolVersion = {
     //TODO: Should we default to the latest protocol version if the bytes don't match???
-    versions.find(_.bytes == bytes).getOrElse(ProtocolVersion70012)
+    versions.find(v => v.bytes == bytes).getOrElse(ProtocolVersion70012)
   }
 }
 
@@ -30,7 +28,7 @@ object ProtocolVersion extends Factory[ProtocolVersion] {
   * Bitcoin Core 0.1.6 (Oct 2009)
   */
 case object ProtocolVersion106 extends ProtocolVersion {
-  override def hex = "6a"
+  override def hex = "6a000000"
 }
 
 /**
@@ -38,7 +36,7 @@ case object ProtocolVersion106 extends ProtocolVersion {
   * Bitcoin Core 0.2.9 (May 2010)
   */
 case object ProtocolVersion209 extends ProtocolVersion {
-  override def hex = "d100"
+  override def hex = "d1000000"
 }
 
 /**
@@ -46,7 +44,7 @@ case object ProtocolVersion209 extends ProtocolVersion {
   * Bitcion Core 0.3.11 (Aug 2010)
   */
 case object ProtocolVersion311 extends ProtocolVersion {
-  override def hex = "3701"
+  override def hex = "37010000"
 }
 
 /**
@@ -54,7 +52,7 @@ case object ProtocolVersion311 extends ProtocolVersion {
   * Bitcoin Core 0.3.15 (Oct 2010)
   */
 case object ProtocolVersion31402 extends ProtocolVersion {
-  override def hex = "aa7a"
+  override def hex = "aa7a0000"
 }
 
 /**
@@ -62,7 +60,7 @@ case object ProtocolVersion31402 extends ProtocolVersion {
   * Bitcoin Core 0.3.18 (Dec 2010)
   */
 case object ProtocolVersion31800 extends ProtocolVersion {
-  override def hex = "387c"
+  override def hex = "387c0000"
 }
 
 /**
@@ -70,7 +68,7 @@ case object ProtocolVersion31800 extends ProtocolVersion {
   * Bitcoin Core 0.6.0 (Mar 2012)
   */
 case object ProtocolVersion60000 extends ProtocolVersion {
-  override def hex = "60ea00"
+  override def hex = "60ea0000"
 }
 
 /**
@@ -78,7 +76,7 @@ case object ProtocolVersion60000 extends ProtocolVersion {
   * Bitcoin Core 0.6.1 (May 2012)
   */
 case object ProtocolVersion60001 extends ProtocolVersion {
-  override def hex = "61ea00"
+  override def hex = "61ea0000"
 }
 
 /**
@@ -87,7 +85,7 @@ case object ProtocolVersion60001 extends ProtocolVersion {
   * Bitcoin Core 0.7.0 (Sep 2012)
   */
 case object ProtocolVersion60002 extends ProtocolVersion {
-  override def hex = "62ea00"
+  override def hex = "62ea0000"
 }
 
 
@@ -112,7 +110,7 @@ case object ProtocolVersion70001 extends ProtocolVersion {
   * Bitcoin Core 0.9.0 (Mar 2014)
   */
 case object ProtocolVersion70002 extends ProtocolVersion {
-  override def hex = "721101"
+  override def hex = "72110100"
 }
 
 /**
@@ -120,5 +118,5 @@ case object ProtocolVersion70002 extends ProtocolVersion {
   * Bitcoin Core 0.12.0
   */
 case object ProtocolVersion70012 extends ProtocolVersion {
-  override def hex = "7c1101"
+  override def hex = "7c110100"
 }
