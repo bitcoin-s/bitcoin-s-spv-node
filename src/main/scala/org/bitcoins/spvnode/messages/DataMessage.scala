@@ -458,7 +458,7 @@ sealed trait VerAckMessage extends ControlMessage with NetworkResponse
   * by first sending a version message.
   * https://bitcoin.org/en/developer-reference#version
   */
-trait VersionMessage extends ControlMessage with NetworkResponse {
+trait VersionMessage extends ControlMessage with NetworkRequest with NetworkResponse {
 
   /**
     * The highest protocol version understood by the transmitting node. See the protocol version section.

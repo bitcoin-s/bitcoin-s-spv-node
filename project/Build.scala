@@ -1,4 +1,6 @@
 import sbt._
+import sbtbuildinfo._
+import BuildInfoKeys._
 import Keys._ 
 object BitcoinSSpvNodeBuild extends Build {
 
@@ -13,12 +15,15 @@ object BitcoinSSpvNodeBuild extends Build {
     ("org.bitcoinj" % "bitcoinj-core" % "0.13.3").exclude("org.slf4j", "slf4j-api"),
     "org.slf4j" % "slf4j-api" % slf4jV /*% "provided"*/,
     "io.spray" %%  "spray-json" % "1.3.0" withSources() withJavadoc(),
-     "ch.qos.logback" % "logback-classic" % logbackV
+    "ch.qos.logback" % "logback-classic" % logbackV, 
+    "joda-time" % "joda-time" % "2.9.4"
   )
   
-  val main = Project(appName, file(".")).enablePlugins().settings(
+  lazy val root = Project(appName, file(".")).enablePlugins(BuildInfoPlugin).settings(
     version := appV,
     scalaVersion := scalaV,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "org.bitcoins.spvnode",
     resolvers += Resolver.sonatypeRepo("releases"),  
     libraryDependencies ++= appDependencies,
     scalacOptions ++= Seq("-unchecked", "-deprecation")  

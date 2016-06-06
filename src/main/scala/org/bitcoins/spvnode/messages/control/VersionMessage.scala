@@ -2,11 +2,15 @@ package org.bitcoins.spvnode.messages.control
 
 import java.net.InetAddress
 
+import org.bitcoins.core.config.NetworkParameters
 import org.bitcoins.core.protocol.CompactSizeUInt
-import org.bitcoins.core.util.Factory
+import org.bitcoins.core.util.{BitcoinSUtil, Factory}
 import org.bitcoins.spvnode.messages._
+import org.bitcoins.spvnode.BuildInfo
 import org.bitcoins.spvnode.serializers.control.RawVersionMessageSerializer
-import org.bitcoins.spvnode.versions.ProtocolVersion
+import org.bitcoins.spvnode.versions.{ProtocolVersion, ProtocolVersion70012}
+import org.joda.time.DateTime
+
 
 /**
   * Created by chris on 6/3/16.
@@ -34,4 +38,17 @@ object VersionMessage extends Factory[VersionMessage] {
       addressReceivePort, addressTransServices, addressTransIpAddress, addressTransPort,
       nonce, userAgentSize, userAgent, startHeight, relay)
   }
+
+  def apply(network : NetworkParameters, transmittingIpAddress : InetAddress) : VersionMessage = {
+
+    val receivingIpAddress = InetAddress.getLocalHost
+    val nonce = 0
+    val userAgent = "/bitcoin-s/" + BuildInfo.version
+    val userAgentSize = BitcoinSUtil.parseCompactSizeUInt(userAgent.map(_.toByte))
+    val startHeight = 0
+    val relay = false
+    VersionMessageImpl(ProtocolVersion70012, UnnamedService, DateTime.now.getMillis, UnnamedService, receivingIpAddress,
+      network.port, UnnamedService, transmittingIpAddress, network.port, nonce, userAgentSize, userAgent, startHeight, relay)
+  }
 }
+

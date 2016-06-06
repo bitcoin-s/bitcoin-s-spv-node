@@ -21,8 +21,6 @@ trait RawVersionMessageSerializer extends RawBitcoinSerializer[VersionMessage] w
     val services = ServiceIdentifier(bytes.slice(4,12))
     val timestamp = BitcoinSUtil.toLong(bytes.slice(12,20))
     val addressReceiveServices = ServiceIdentifier(bytes.slice(20,28))
-
-    logger.debug("Address receive ip addresS: " + BitcoinSUtil.encodeHex(bytes.slice(28,44)))
     val addressReceiveIpAddress = InetAddress.getByAddress(bytes.slice(28,44).toArray)
     val addressReceivePort = BitcoinSUtil.toLong(bytes.slice(44,46).reverse).toInt
     val addressTransServices = ServiceIdentifier(bytes.slice(46,54))
