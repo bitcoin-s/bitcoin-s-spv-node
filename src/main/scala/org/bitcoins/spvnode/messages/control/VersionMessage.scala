@@ -40,15 +40,14 @@ object VersionMessage extends Factory[VersionMessage] {
   }
 
   def apply(network : NetworkParameters, transmittingIpAddress : InetAddress) : VersionMessage = {
-
     val receivingIpAddress = InetAddress.getLocalHost
     val nonce = 0
-    val userAgent = "/bitcoin-s/" + BuildInfo.version
+    val userAgent = "/" + BuildInfo.name + "/" + BuildInfo.version
     val userAgentSize = BitcoinSUtil.parseCompactSizeUInt(userAgent.map(_.toByte))
     val startHeight = 0
     val relay = false
     VersionMessageImpl(ProtocolVersion70012, UnnamedService, DateTime.now.getMillis, UnnamedService, receivingIpAddress,
-      network.port, UnnamedService, transmittingIpAddress, network.port, nonce, userAgentSize, userAgent, startHeight, relay)
+      network.port, NodeNetwork, transmittingIpAddress, network.port, nonce, userAgentSize, userAgent, startHeight, relay)
   }
 }
 
