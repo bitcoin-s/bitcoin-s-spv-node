@@ -51,10 +51,18 @@ sealed trait Client extends Actor with BitcoinSLogger {
           listener ! data
         case "close" =>
           connection ! Tcp.Close
-        case x : Tcp.ConnectionClosed =>
-          listener ! x
+        case Tcp.ConfirmedClose =>
+          logger.debug("Client received connection closed msg: " + Tcp.ConfirmedClose)
+          listener ! Tcp.ConfirmedClose
+          connection ! Tcp.ConfirmedClose
+        case Tcp.ConfirmedClosed =>
+          logger.debug("Client received confirmed closed msg: " + Tcp.ConfirmedClosed)
+          listener ! Tcp.ConfirmedClosed
+          connection ! Tcp.ConfirmedClosed
           context stop self
+        case msg  => throw new IllegalArgumentException("Unknown message for Client inside context become: " + msg)
       }
+    case msg => throw new IllegalArgumentException("Unknown message for client: " + msg)
   }
   def sendMessage(msg : NetworkRequest, peer : NetworkIpAddress) : Future[NetworkResponse] = ???
 

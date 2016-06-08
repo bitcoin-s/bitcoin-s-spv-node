@@ -12,7 +12,9 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
     case Tcp.Received(data) =>
       logger.debug("Received data: " + data)
       //sender ! Tcp.Write(data)
-    case Tcp.PeerClosed     => context stop self
+    case Tcp.PeerClosed     =>
+      logger.debug("Peer closed on network")
+      context stop self
   }
 }
 
