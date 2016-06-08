@@ -26,7 +26,6 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike wi
     probe.expectMsg(10.seconds, Tcp.ConfirmedClose)
     //this is acknowledgement from the peer that they have closed their connection
     probe.expectMsg(10.seconds, Tcp.ConfirmedClosed)
-
   }
 
 
