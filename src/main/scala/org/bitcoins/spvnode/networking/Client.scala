@@ -2,37 +2,36 @@ package org.bitcoins.spvnode.networking
 
 import java.net.InetSocketAddress
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.io.{IO, Tcp}
 import akka.util.ByteString
+import org.bitcoins.core.util.BitcoinSLogger
 import org.bitcoins.spvnode.messages.{NetworkRequest, NetworkResponse}
 import org.bitcoins.spvnode.util.NetworkIpAddress
 
 import scala.concurrent.Future
+
 /**
-  * Created by chris on 6/6/16.
+  *
+  * @param listener
+  * @param actorSystem
+  * @param manager The manager is an actor that handles the underlying low level I/O resources (selectors, channels)
+  *                and instantiates workers for specific tasks, such as listening to incoming connections.
   */
-sealed trait Client extends Actor {
-
-  import BitcoinSActorSystem._
-
-  def listener : ActorRef
-
-  def remote : InetSocketAddress
-
-  /**
-    * The manager is an actor that handles the underlying low level I/O resources (selectors, channels)
-    * and instantiates workers for specific tasks, such as listening to incoming connections.
-    */
-  def manager = IO(Tcp)
+class Client(listener : ActorRef, actorSystem: ActorSystem, manager : ActorRef) extends Actor with BitcoinSLogger {
 
 
   def receive  = {
+
+    case Tcp.Connect(remote,_,_,_,_) => manager ! Tcp.Connect(remote)
     case Tcp.CommandFailed(_: Tcp.Connect) =>
+      logger.debug("Connection failed")
       listener ! "connect failed"
       context stop self
 
     case c @ Tcp.Connected(remote, local) =>
+      logger.debug("Tcp connection to: " + remote)
+      logger.debug("Local: " + local)
       listener ! c
       val connection = sender()
       connection ! Tcp.Register(self)
@@ -53,17 +52,17 @@ sealed trait Client extends Actor {
   }
   def sendMessage(msg : NetworkRequest, peer : NetworkIpAddress) : Future[NetworkResponse] = ???
 
-
 }
 
 
+object Client {
+  //private case class ClientImpl(remote: InetSocketAddress, listener: ActorRef, actorSystem : ActorSystem) extends Client
 
-object Client extends BitcoinSActorSystem {
-  private case class ClientImpl(remote: InetSocketAddress, listener: ActorRef) extends Client {
-    manager ! Tcp.Connect(remote)
+  def apply(listener : ActorRef, actorSystem : ActorSystem) : Props = {
+    Props(classOf[Client], listener, actorSystem, IO(Tcp)(actorSystem))
   }
 
-  def apply(remote: InetSocketAddress, listener : ActorRef) : ActorRef = {
-    actorSystem.actorOf(Props(ClientImpl(remote,listener)))
-  }
+  def actor(listener : ActorRef, actorSystem : ActorSystem) : Actor = new Client(listener, actorSystem, IO(Tcp)(actorSystem))
+
 }
+

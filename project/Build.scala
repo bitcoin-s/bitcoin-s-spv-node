@@ -16,6 +16,7 @@ object BitcoinSSpvNodeBuild extends Build {
     ("org.bitcoinj" % "bitcoinj-core" % "0.13.3").exclude("org.slf4j", "slf4j-api"),
     "org.slf4j" % "slf4j-api" % slf4jV /*% "provided"*/,
     "com.typesafe.akka" %% "akka-actor" % akkaV withSources() withJavadoc(), 
+    "com.typesafe.akka" %% "akka-testkit" % akkaV withSources() withJavadoc(), 
     "ch.qos.logback" % "logback-classic" % logbackV, 
     "joda-time" % "joda-time" % "2.9.4"
   )

@@ -25,10 +25,13 @@ trait Server extends Actor with BitcoinSLogger {
       context stop self
     case Tcp.Connected(remote, local) =>
       logger.debug("Tcp connection between " + local + " and remote " + remote)
-      val handler = context.actorOf(Props[PeerMessageHandler])
+      //this is the actor that will receive the data eventually
+      val handler = PeerMessageHandler(system)
       val connection = sender
+      //Tcp.Register defines the actor that will receive all data
+      //associated with the socket
       connection ! Tcp.Register(handler)
-    case bindMsg : Tcp.Bind=> bind(bindMsg)
+    case bindMsg : Tcp.Bind => bind(bindMsg)
     case Tcp.Unbind =>
       logger.debug("Unbinding " + boundAddress)
       manager ! Tcp.Unbind
