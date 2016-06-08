@@ -16,11 +16,9 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike wi
 
   "Client" must "connect to a node on the bitcoin network" in {
     val probe = TestProbe()
-    val hostName = "testnet-seed.bitcoin.schildbach.de"
+    val hostName = TestNet3.dnsSeeds.head
     val socket = new InetSocketAddress(hostName, TestNet3.port)
-    val peerMessageHandler = PeerMessageHandler(system)
-    val client = TestActorRef(Client(probe.ref,system))
-    //probe.send(client, Tcp.Connect(socket))
+    val client = TestActorRef(Client(socket, probe.ref,system))
     client ! Tcp.Connect(socket)
     probe.expectMsgType[Tcp.Connected](10.seconds)
   }
