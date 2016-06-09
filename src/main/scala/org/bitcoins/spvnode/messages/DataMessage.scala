@@ -136,7 +136,7 @@ sealed trait HeadersMessage extends DataMessage with NetworkResponse {
   * or it can be sent in reply to a getblocks message or mempool message.
   * https://bitcoin.org/en/developer-reference#inv
   */
-trait InventoryMessage extends DataMessage with NetworkRequest with NetworkResponse {
+sealed trait InventoryMessage extends DataMessage {
   /**
     * The number of inventory enteries
     * @return
@@ -152,6 +152,18 @@ trait InventoryMessage extends DataMessage with NetworkRequest with NetworkRespo
   def hex = RawInventoryMessageSerializer.write(this)
 }
 
+/**
+  * [[InventoryMessage]] can be both a request and a response
+  * InventoryMessageRequest signifies a built Inventory message that needs to be sent
+  * to our peer
+  */
+trait InventoryMessageRequest extends InventoryMessage with NetworkRequest
+
+/**
+  * [[InventoryMessage]] can be both a request and a response
+  * InventoryMessageResponse signifies a inventory message received from a peer
+  */
+trait InventoryMessageResponse extends InventoryMessage with NetworkResponse
 /**
   * The mempool message requests the TXIDs of transactions that the receiving node has verified
   * as valid but which have not yet appeared in a block.
@@ -465,7 +477,7 @@ sealed trait VerAckMessage extends ControlMessage with NetworkResponse
   * by first sending a version message.
   * https://bitcoin.org/en/developer-reference#version
   */
-trait VersionMessage extends ControlMessage with NetworkRequest with NetworkResponse {
+sealed trait VersionMessage extends ControlMessage  {
 
   /**
     * The highest protocol version understood by the transmitting node. See the protocol version section.
@@ -567,3 +579,13 @@ trait VersionMessage extends ControlMessage with NetworkRequest with NetworkResp
 
   override def hex = RawVersionMessageSerializer.write(this)
 }
+
+/**
+  * A [[VersionMessage]] that is sent as a request to a peer on the network
+  */
+trait VersionMessageRequest extends VersionMessage with NetworkRequest
+
+/**
+  * A [[VersionMessage]] that is sent as a response from a peer on the network
+  */
+trait VersionMessageResponse extends VersionMessage with NetworkResponse
