@@ -59,11 +59,11 @@ object VersionMessage extends Factory[VersionMessage] {
 object VersionMessageRequest extends Factory[VersionMessageRequest] {
 
   private case class VersionMessageRequestImpl(version : ProtocolVersion, services : ServiceIdentifier, timestamp : Long,
-                                               addressReceiveServices : ServiceIdentifier, addressReceiveIpAddress : InetAddress,
-                                               addressReceivePort : Int, addressTransServices : ServiceIdentifier,
-                                               addressTransIpAddress : InetAddress, addressTransPort : Int,
-                                               nonce : BigInt, userAgentSize : CompactSizeUInt, userAgent : String,
-                                               startHeight : Int, relay : Boolean) extends VersionMessageRequest
+                                        addressReceiveServices : ServiceIdentifier, addressReceiveIpAddress : InetAddress,
+                                        addressReceivePort : Int, addressTransServices : ServiceIdentifier,
+                                        addressTransIpAddress : InetAddress, addressTransPort : Int,
+                                        nonce : BigInt, userAgentSize : CompactSizeUInt, userAgent : String,
+                                        startHeight : Int, relay : Boolean) extends VersionMessageRequest
   override def fromBytes(bytes : Seq[Byte]) : VersionMessageRequest = {
     val versionMessage = RawVersionMessageSerializer.read(bytes)
     VersionMessageRequestImpl(versionMessage.version, versionMessage.services, versionMessage.timestamp,
@@ -85,10 +85,10 @@ object VersionMessageRequest extends Factory[VersionMessageRequest] {
   }
 
   def apply(network : NetworkParameters, transmittingIpAddress : InetAddress) : VersionMessageRequest = {
-    val receivingIpAddress = new InetSocketAddress(network.port).getAddress
+    val receivingIpAddress = InetAddress.getLocalHost
     val nonce = 0
     val userAgent = "/" + BuildInfo.name + "/" + BuildInfo.version
-    val userAgentSize = BitcoinSUtil.parseCompactSizeUInt(userAgent.map(_.toByte))
+    val userAgentSize = CompactSizeUInt.calculateCompactSizeUInt(userAgent.map(_.toByte))
     val startHeight = 0
     val relay = false
     VersionMessageRequestImpl(ProtocolVersion70012, UnnamedService, DateTime.now.getMillis, UnnamedService, receivingIpAddress,
@@ -99,11 +99,11 @@ object VersionMessageRequest extends Factory[VersionMessageRequest] {
 object VersionMessageResponse extends Factory[VersionMessageResponse] {
 
   private case class VersionMessageResponseImpl(version : ProtocolVersion, services : ServiceIdentifier, timestamp : Long,
-                                                addressReceiveServices : ServiceIdentifier, addressReceiveIpAddress : InetAddress,
-                                                addressReceivePort : Int, addressTransServices : ServiceIdentifier,
-                                                addressTransIpAddress : InetAddress, addressTransPort : Int,
-                                                nonce : BigInt, userAgentSize : CompactSizeUInt, userAgent : String,
-                                                startHeight : Int, relay : Boolean) extends VersionMessageResponse
+                                               addressReceiveServices : ServiceIdentifier, addressReceiveIpAddress : InetAddress,
+                                               addressReceivePort : Int, addressTransServices : ServiceIdentifier,
+                                               addressTransIpAddress : InetAddress, addressTransPort : Int,
+                                               nonce : BigInt, userAgentSize : CompactSizeUInt, userAgent : String,
+                                               startHeight : Int, relay : Boolean) extends VersionMessageResponse
   override def fromBytes(bytes : Seq[Byte]) : VersionMessageResponse = {
     val versionMessage = RawVersionMessageSerializer.read(bytes)
     VersionMessageResponseImpl(versionMessage.version, versionMessage.services, versionMessage.timestamp,
@@ -128,11 +128,10 @@ object VersionMessageResponse extends Factory[VersionMessageResponse] {
     val receivingIpAddress = InetAddress.getLocalHost
     val nonce = 0
     val userAgent = "/" + BuildInfo.name + "/" + BuildInfo.version
-    val userAgentSize = BitcoinSUtil.parseCompactSizeUInt(userAgent.map(_.toByte))
+    val userAgentSize = CompactSizeUInt.calculateCompactSizeUInt(userAgent.map(_.toByte))
     val startHeight = 0
     val relay = false
     VersionMessageResponseImpl(ProtocolVersion70012, UnnamedService, DateTime.now.getMillis, UnnamedService, receivingIpAddress,
       network.port, NodeNetwork, transmittingIpAddress, network.port, nonce, userAgentSize, userAgent, startHeight, relay)
   }
 }
-

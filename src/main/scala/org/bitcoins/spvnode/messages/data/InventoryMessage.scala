@@ -46,6 +46,7 @@ object InventoryMessageResponse extends Factory[InventoryMessageResponse] {
   private case class InventoryMessageResponseImpl(inventoryCount : CompactSizeUInt,
                                                   inventories : Seq[Inventory]) extends InventoryMessageResponse
 
+
   override def fromBytes(bytes : Seq[Byte]) : InventoryMessageResponse = {
     val invMessage = RawInventoryMessageSerializer.read(bytes)
     InventoryMessageResponseImpl(invMessage.inventoryCount, invMessage.inventories)

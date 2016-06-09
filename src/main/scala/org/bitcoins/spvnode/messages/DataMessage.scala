@@ -173,15 +173,6 @@ trait InventoryMessageResponse extends InventoryMessage with NetworkResponse
   * The response to the mempool message is one or more inv messages containing the TXIDs in the usual inventory format.
   * https://bitcoin.org/en/developer-reference#mempool
   */
-
-
-/**
-  * The mempool message requests the TXIDs of transactions that the receiving node has verified
-  * as valid but which have not yet appeared in a block.
-  * That is, transactions which are in the receiving node’s memory pool.
-  * The response to the mempool message is one or more inv messages containing the TXIDs in the usual inventory format.
-  * https://bitcoin.org/en/developer-reference#mempool
-  */
 case object MemPoolMessage extends DataMessage with NetworkRequest {
   def hex = ""
 }
@@ -600,3 +591,4 @@ trait VersionMessageRequest extends VersionMessage with NetworkRequest
   * A [[VersionMessage]] that is sent as a response from a peer on the network
   */
 trait VersionMessageResponse extends VersionMessage with NetworkResponse
+
