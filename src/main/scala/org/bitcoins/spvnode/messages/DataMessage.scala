@@ -2,6 +2,7 @@ package org.bitcoins.spvnode.messages
 
 import java.net.InetAddress
 
+import akka.io.Tcp.Event
 import org.bitcoins.core.crypto.{DoubleSha256Digest, ECDigitalSignature}
 import org.bitcoins.core.protocol.blockchain.BlockHeader
 import org.bitcoins.core.protocol.transaction.Transaction
@@ -15,6 +16,12 @@ import org.bitcoins.spvnode.versions.ProtocolVersion
 
 /**
   * Created by chris on 5/31/16.
+  */
+
+/**
+  * This is the root trait  for our messages on the p2p network
+  * It inherits from [[Event]] which is used to signify an event
+  * on the tcp actor model
   */
 sealed trait NetworkMessage extends NetworkElement
 

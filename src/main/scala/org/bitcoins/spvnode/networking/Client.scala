@@ -6,7 +6,7 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.io.{IO, Tcp}
 import akka.util.ByteString
 import org.bitcoins.core.util.BitcoinSLogger
-import org.bitcoins.spvnode.messages.{NetworkRequest, NetworkResponse}
+import org.bitcoins.spvnode.messages.{NetworkMessage, NetworkRequest, NetworkResponse, VersionMessage}
 import org.bitcoins.spvnode.util.NetworkIpAddress
 
 import scala.concurrent.Future
@@ -28,14 +28,18 @@ sealed trait Client extends Actor with BitcoinSLogger {
 
   /**
     * This actor signifies the node we are connected to on the p2p network
+    * This is set when we received a [[Tcp.Connected]] message
     */
   private var connection : Option[ActorRef] = None
 
   def receive = {
     case message : Tcp.Message => message match {
-      case event : Tcp.Event => executeEvent(event)
-      case command : Tcp.Command => executeCommand(command)
+      case event : Tcp.Event => handleEvent(event)
+      case command : Tcp.Command => handleCommand(command)
     }
+    case networkMessage : NetworkMessage =>
+      logger.debug("Recieved network message inside of Client: " + networkMessage)
+      handleNetworkMessage(networkMessage)
     case unknownMessage => throw new IllegalArgumentException("Unknown message for client: " + unknownMessage)
 
 /*    case data: ByteString =>
@@ -49,7 +53,7 @@ sealed trait Client extends Actor with BitcoinSLogger {
     * This function is responsible for handling a [[Tcp.Event]] algebraic data type
     * @param event
     */
-  private def executeEvent(event : Tcp.Event) = event match {
+  private def handleEvent(event : Tcp.Event) = event match {
     case Tcp.CommandFailed(w: Tcp.Write) =>
       logger.debug("Client command failed: " + Tcp.CommandFailed(w))
       logger.debug("O/S buffer was full")
@@ -70,13 +74,22 @@ sealed trait Client extends Actor with BitcoinSLogger {
       connection.get ! Tcp.ConfirmedClosed
       connection = None
       context stop self
+    case event : NetworkMessage => handleNetworkMessage(event)
+
   }
+
+  /**
+    * Function to handle all of our [[NetworkMessage]] on the p2p network.
+    * @param message
+    * @return
+    */
+  private def handleNetworkMessage(message : NetworkMessage) = ???
 
   /**
     * This function is responsible for handling a [[Tcp.Command]] algebraic data type
     * @param command
     */
-  private def executeCommand(command : Tcp.Command) = command match {
+  private def handleCommand(command : Tcp.Command) = command match {
     case Tcp.ConfirmedClose =>
       logger.debug("Client received connection closed msg: " + Tcp.ConfirmedClose)
       listener ! Tcp.ConfirmedClose
