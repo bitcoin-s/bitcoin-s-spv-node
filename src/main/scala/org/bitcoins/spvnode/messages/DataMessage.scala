@@ -3,6 +3,7 @@ package org.bitcoins.spvnode.messages
 import java.net.InetAddress
 
 import akka.io.Tcp.Event
+import akka.util.ByteString
 import org.bitcoins.core.crypto.{DoubleSha256Digest, ECDigitalSignature}
 import org.bitcoins.core.protocol.blockchain.BlockHeader
 import org.bitcoins.core.protocol.transaction.Transaction
@@ -28,7 +29,7 @@ sealed trait NetworkMessage extends NetworkElement
 /**
   * Represents a message that is sending a request to another node on the network
   */
-sealed trait NetworkRequest
+sealed trait NetworkRequest extends NetworkElement
 
 /**
   * Represents a message that is response to a request that was sent

@@ -1,6 +1,6 @@
 package org.bitcoins.spvnode.messages.control
 
-import java.net.InetAddress
+import java.net.{InetAddress, InetSocketAddress}
 
 import org.bitcoins.core.config.NetworkParameters
 import org.bitcoins.core.protocol.CompactSizeUInt
@@ -38,7 +38,17 @@ object VersionMessage extends Factory[VersionMessage] {
     val receivingIpAddress = InetAddress.getLocalHost
     val nonce = 0
     val userAgent = "/" + BuildInfo.name + "/" + BuildInfo.version
-    val userAgentSize = BitcoinSUtil.parseCompactSizeUInt(userAgent.map(_.toByte))
+    val userAgentSize = CompactSizeUInt.calculateCompactSizeUInt(userAgent.map(_.toByte))
+    val startHeight = 0
+    val relay = false
+    VersionMessageRequest(ProtocolVersion70012, UnnamedService, DateTime.now.getMillis, UnnamedService, receivingIpAddress,
+      network.port, NodeNetwork, transmittingIpAddress, network.port, nonce, userAgentSize, userAgent, startHeight, relay)
+  }
+
+  def apply(network : NetworkParameters, receivingIpAddress : InetAddress, transmittingIpAddress : InetAddress) : VersionMessage = {
+    val nonce = 0
+    val userAgent = "/" + BuildInfo.name + "/" + BuildInfo.version
+    val userAgentSize = CompactSizeUInt.calculateCompactSizeUInt(userAgent.map(_.toByte))
     val startHeight = 0
     val relay = false
     VersionMessageRequest(ProtocolVersion70012, UnnamedService, DateTime.now.getMillis, UnnamedService, receivingIpAddress,
@@ -75,7 +85,7 @@ object VersionMessageRequest extends Factory[VersionMessageRequest] {
   }
 
   def apply(network : NetworkParameters, transmittingIpAddress : InetAddress) : VersionMessageRequest = {
-    val receivingIpAddress = InetAddress.getLocalHost
+    val receivingIpAddress = new InetSocketAddress(network.port).getAddress
     val nonce = 0
     val userAgent = "/" + BuildInfo.name + "/" + BuildInfo.version
     val userAgentSize = BitcoinSUtil.parseCompactSizeUInt(userAgent.map(_.toByte))

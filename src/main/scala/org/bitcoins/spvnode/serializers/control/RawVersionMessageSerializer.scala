@@ -29,10 +29,18 @@ trait RawVersionMessageSerializer extends RawBitcoinSerializer[VersionMessage] w
     val addressTransPort = BitcoinSUtil.toLong(bytes.slice(70,72).reverse).toInt
     val nonce = BigInt(bytes.slice(72,80).toArray)
     val userAgentSize = BitcoinSUtil.parseCompactSizeUInt(bytes.slice(80,bytes.size))
+    logger.debug("User agent size: " + userAgentSize)
     val userAgentBytesStartIndex = 80 + userAgentSize.size.toInt
+    logger.debug("User agent start index: " + userAgentBytesStartIndex)
+    logger.debug("Remaining bytes: " + BitcoinSUtil.encodeHex(bytes.slice(userAgentBytesStartIndex, bytes.size)))
     val userAgentBytes = bytes.slice(userAgentBytesStartIndex, userAgentBytesStartIndex + userAgentSize.num.toInt)
+    logger.debug("Last user agent byte: " + userAgentBytesStartIndex + userAgentSize.num.toInt)
     val userAgent = userAgentBytes.map(_.toChar).mkString
+    logger.debug("User agent: " + userAgent)
     val startHeightStartIndex = (userAgentBytesStartIndex + userAgentSize.num).toInt
+    logger.debug("Start height start index: " + startHeightStartIndex)
+    logger.debug("Bytes size: " + bytes.size)
+    logger.debug("Start height slice: " + BitcoinSUtil.encodeHex(bytes.slice(startHeightStartIndex, startHeightStartIndex + 4)))
     val startHeight = BitcoinSUtil.toLong(bytes.slice(startHeightStartIndex, startHeightStartIndex + 4)).toInt
     val relay = bytes(startHeightStartIndex + 4) != 0
 
