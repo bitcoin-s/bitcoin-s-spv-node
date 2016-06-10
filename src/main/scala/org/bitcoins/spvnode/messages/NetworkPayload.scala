@@ -42,6 +42,7 @@ sealed trait NetworkPayload extends NetworkElement {
     * ASCII string which identifies what message type is contained in the payload.
     * Followed by nulls (0x00) to pad out byte count; for example: version\0\0\0\0\0.
     * Command names need to be 12 bytes long
+    * This is generally used to build a [[org.bitcoins.spvnode.headers.MessageHeader]]
     * @return
     */
   def commandName : String = padBytes(name)
@@ -521,8 +522,9 @@ sealed trait SendHeadersMessage extends ControlPayload with NetworkResponse {
   * see the message headers section.
   * https://bitcoin.org/en/developer-reference#verack
   */
-sealed trait VerAckMessage extends ControlPayload with NetworkResponse {
+case object VerAckMessage extends ControlPayload with NetworkResponse {
   override protected def name = "verack"
+  override def hex = ""
 }
 
 

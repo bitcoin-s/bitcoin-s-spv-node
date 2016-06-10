@@ -1,15 +1,16 @@
 package org.bitcoins.spvnode.messages.control
 
-import java.net.{InetAddress, InetSocketAddress}
+import java.net.InetAddress
 
 import org.bitcoins.core.config.NetworkParameters
 import org.bitcoins.core.protocol.CompactSizeUInt
-import org.bitcoins.core.util.{BitcoinSUtil, Factory}
+import org.bitcoins.core.util.Factory
 import org.bitcoins.spvnode.messages._
-import org.bitcoins.spvnode.BuildInfo
 import org.bitcoins.spvnode.serializers.control.RawVersionMessageSerializer
 import org.bitcoins.spvnode.versions.{ProtocolVersion, ProtocolVersion70012}
+import org.bitcoins.spvnode.BuildInfo
 import org.joda.time.DateTime
+
 
 
 /**

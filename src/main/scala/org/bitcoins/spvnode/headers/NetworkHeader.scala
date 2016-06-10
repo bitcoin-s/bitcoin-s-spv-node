@@ -1,8 +1,11 @@
 package org.bitcoins.spvnode.headers
 
+import org.bitcoins.core.config.NetworkParameters
 import org.bitcoins.core.protocol.NetworkElement
-import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil, Factory}
+import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil, CryptoUtil, Factory}
+import org.bitcoins.spvnode.messages.NetworkPayload
 import org.bitcoins.spvnode.serializers.headers.RawNetworkHeaderSerializer
+
 
 /**
   * Created by chris on 5/31/16.
@@ -51,7 +54,7 @@ sealed trait NetworkHeader extends NetworkElement with BitcoinSLogger {
 
 object NetworkHeader extends Factory[NetworkHeader] {
 
-  private case class MessageHeaderImpl(network : Seq[Byte], commandName : String,
+  private case class NetworkHeaderImpl(network : Seq[Byte], commandName : String,
                                        payloadSize : Long, checksum : Seq[Byte]) extends NetworkHeader
 
   override def fromBytes(bytes : Seq[Byte]) : NetworkHeader = RawNetworkHeaderSerializer.read(bytes)
@@ -59,6 +62,16 @@ object NetworkHeader extends Factory[NetworkHeader] {
   override def fromHex(hex : String) : NetworkHeader = fromBytes(BitcoinSUtil.decodeHex(hex))
 
   def apply(network : Seq[Byte], commandName : String, payloadSize : Long, checksum : Seq[Byte]) : NetworkHeader = {
-    MessageHeaderImpl(network, commandName, payloadSize, checksum)
+    NetworkHeaderImpl(network, commandName, payloadSize, checksum)
+  }
+
+  /**
+    * Builds a message header from a message
+    * @param message
+    * @return
+    */
+  def apply(network : NetworkParameters, message : NetworkPayload) : NetworkHeader = {
+    val checksum = CryptoUtil.doubleSHA256(message.bytes)
+    NetworkHeader(network.magicBytes, message.commandName, message.bytes.size, checksum.bytes.take(4))
   }
 }

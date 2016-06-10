@@ -17,7 +17,9 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
     case Tcp.PeerClosed     =>
       logger.debug("Peer closed on network")
       context stop self
+    case msg => throw new IllegalArgumentException("Unknown message inside of PeerMessageHandler: " + msg)
   }
+
 
 
   /**
