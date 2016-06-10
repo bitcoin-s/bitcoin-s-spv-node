@@ -3,7 +3,6 @@ package org.bitcoins.spvnode.networking
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.io.Tcp
 import org.bitcoins.core.util.BitcoinSLogger
-import org.bitcoins.spvnode.messages.NetworkMessage
 
 /**
   * Created by chris on 6/7/16.

@@ -2,16 +2,16 @@ package org.bitcoins.spvnode.headers
 
 import org.bitcoins.core.protocol.NetworkElement
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil, Factory}
-import org.bitcoins.spvnode.serializers.headers.RawMessageHeaderSerializer
+import org.bitcoins.spvnode.serializers.headers.RawNetworkHeaderSerializer
 
 /**
   * Created by chris on 5/31/16.
   * Represents a message header on the peer-to-peer network
   * https://bitcoin.org/en/developer-reference#message-headers
   */
-sealed trait MessageHeader extends NetworkElement with BitcoinSLogger {
+sealed trait NetworkHeader extends NetworkElement with BitcoinSLogger {
 
-  override def hex = RawMessageHeaderSerializer.write(this)
+  override def hex = RawNetworkHeaderSerializer.write(this)
 
   /**
     * Magic bytes indicating the originating network;
@@ -49,16 +49,16 @@ sealed trait MessageHeader extends NetworkElement with BitcoinSLogger {
 }
 
 
-object MessageHeader extends Factory[MessageHeader] {
+object NetworkHeader extends Factory[NetworkHeader] {
 
   private case class MessageHeaderImpl(network : Seq[Byte], commandName : String,
-                                       payloadSize : Long, checksum : Seq[Byte]) extends MessageHeader
+                                       payloadSize : Long, checksum : Seq[Byte]) extends NetworkHeader
 
-  override def fromBytes(bytes : Seq[Byte]) : MessageHeader = RawMessageHeaderSerializer.read(bytes)
+  override def fromBytes(bytes : Seq[Byte]) : NetworkHeader = RawNetworkHeaderSerializer.read(bytes)
 
-  override def fromHex(hex : String) : MessageHeader = fromBytes(BitcoinSUtil.decodeHex(hex))
+  override def fromHex(hex : String) : NetworkHeader = fromBytes(BitcoinSUtil.decodeHex(hex))
 
-  def apply(network : Seq[Byte], commandName : String, payloadSize : Long, checksum : Seq[Byte]) : MessageHeader = {
+  def apply(network : Seq[Byte], commandName : String, payloadSize : Long, checksum : Seq[Byte]) : NetworkHeader = {
     MessageHeaderImpl(network, commandName, payloadSize, checksum)
   }
 }

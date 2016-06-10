@@ -7,7 +7,7 @@ import akka.io.{IO, Tcp}
 import akka.util.{ByteString, CompactByteString}
 import org.bitcoins.core.config.NetworkParameters
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
-import org.bitcoins.spvnode.messages.{NetworkMessage, NetworkRequest, NetworkResponse, VersionMessage}
+import org.bitcoins.spvnode.messages._
 import org.bitcoins.spvnode.util.NetworkIpAddress
 
 import scala.concurrent.Future
@@ -56,9 +56,9 @@ sealed trait Client extends Actor with BitcoinSLogger {
       case event : Tcp.Event => handleEvent(event)
       case command : Tcp.Command => handleCommand(command)
     }
-    case networkMessage : NetworkMessage =>
+    case networkMessage : NetworkPayload =>
       logger.debug("Recieved network message inside of Client: " + networkMessage)
-      handleNetworkMessage(networkMessage)
+      handleNetworkPayload(networkMessage)
     case unknownMessage => throw new IllegalArgumentException("Unknown message for client: " + unknownMessage)
 
 /*    case data: ByteString =>
@@ -93,7 +93,7 @@ sealed trait Client extends Actor with BitcoinSLogger {
       logger.debug("Client received confirmed closed msg: " + Tcp.ConfirmedClosed)
       peer = None
       context stop self
-    case event : NetworkMessage => handleNetworkMessage(event)
+    case payload : NetworkPayload => handleNetworkPayload(payload)
   }
   /**
     * This function is responsible for handling a [[Tcp.Command]] algebraic data type
@@ -106,11 +106,11 @@ sealed trait Client extends Actor with BitcoinSLogger {
       peer.get ! Tcp.ConfirmedClose
   }
   /**
-    * Function to handle all of our [[NetworkMessage]] on the p2p network.
+    * Function to handle all of our [[NetworkPayload]] on the p2p network.
     * @param message
     * @return
     */
-  private def handleNetworkMessage(message : NetworkMessage) = message match {
+  private def handleNetworkPayload(message : NetworkPayload) = message match {
     case request : NetworkRequest => handleNetworkRequest(request)
     case response : NetworkResponse => handleNetworkResponse(response)
   }
