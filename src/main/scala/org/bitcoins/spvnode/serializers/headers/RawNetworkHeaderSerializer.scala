@@ -2,27 +2,27 @@ package org.bitcoins.spvnode.serializers.headers
 
 import org.bitcoins.core.serializers.RawBitcoinSerializer
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
-import org.bitcoins.spvnode.headers.MessageHeader
+import org.bitcoins.spvnode.headers.NetworkHeader
 
 /**
   * Created by chris on 5/31/16.
   * Reads and writes a message header on the peer-to-peer network
   * https://bitcoin.org/en/developer-reference#message-headers
   */
-trait RawMessageHeaderSerializer extends RawBitcoinSerializer[MessageHeader] with BitcoinSLogger {
+trait RawNetworkHeaderSerializer extends RawBitcoinSerializer[NetworkHeader] with BitcoinSLogger {
 
   /**
     * Transforms a sequence of bytes into a message header
     * @param bytes the byte representation for a MessageHeader on the peer-to-peer network
     * @return the native object for the MessageHeader
     */
-  def read(bytes : List[Byte]) : MessageHeader = {
+  def read(bytes : List[Byte]) : NetworkHeader = {
     val network = bytes.take(4)
     //.trim removes the null characters appended to the command name
     val commandName = bytes.slice(4,16).map(_.toChar).mkString.trim
     val payloadSize = BitcoinSUtil.toLong(bytes.slice(16,20))
     val checksum = bytes.slice(20,24)
-    MessageHeader(network,commandName,payloadSize,checksum)
+    NetworkHeader(network,commandName,payloadSize,checksum)
   }
 
   /**
@@ -30,7 +30,7 @@ trait RawMessageHeaderSerializer extends RawBitcoinSerializer[MessageHeader] wit
     * @param messageHeader the message header to be serialized
     * @return the hexadecimal representation of the message header
     */
-  def write(messageHeader: MessageHeader) : String = {
+  def write(messageHeader: NetworkHeader) : String = {
     val network = BitcoinSUtil.encodeHex(messageHeader.network)
     val commandNameNoPadding = BitcoinSUtil.encodeHex(messageHeader.commandName.map(_.toByte))
     //command name needs to be 12 bytes in size, or 24 chars in hex
@@ -44,4 +44,4 @@ trait RawMessageHeaderSerializer extends RawBitcoinSerializer[MessageHeader] wit
 
 }
 
-object RawMessageHeaderSerializer extends RawMessageHeaderSerializer
+object RawNetworkHeaderSerializer extends RawNetworkHeaderSerializer

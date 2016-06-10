@@ -18,7 +18,7 @@ import scala.annotation.tailrec
 /**
   * Created by chris on 5/31/16.
   */
-sealed trait NetworkMessage extends NetworkElement {
+sealed trait NetworkPayload extends NetworkElement {
   /**
     * Pads the command name to 12 bytes
     * @param str
@@ -60,13 +60,13 @@ sealed trait NetworkResponse
   * Represents a data message inside of bitcoin core
   * https://bitcoin.org/en/developer-reference#data-messages
   */
-sealed trait DataMessage extends NetworkMessage
+sealed trait DataPayload extends NetworkPayload
 
 /**
   * The block message transmits a single serialized block
   * https://bitcoin.org/en/developer-reference#block
   */
-sealed trait BlockMessage extends DataMessage with NetworkResponse {
+sealed trait BlockMessage extends DataPayload with NetworkResponse {
   override protected def name = "block"
 }
 
@@ -77,7 +77,7 @@ sealed trait BlockMessage extends DataMessage with NetworkResponse {
   * it needs to request the blocks it hasn’t seen.
   * https://bitcoin.org/en/developer-reference#getblocks
   */
-trait GetBlocksMessage extends DataMessage with NetworkRequest {
+trait GetBlocksMessage extends DataPayload with NetworkRequest {
   /**
     * The protocol version number; the same as sent in the version message.
     * @return
@@ -121,7 +121,7 @@ trait GetBlocksMessage extends DataMessage with NetworkRequest {
   * which the requesting node typically previously received by way of an inv message.
   * https://bitcoin.org/en/developer-reference#getdata
   */
-sealed trait GetDataMessage extends DataMessage with NetworkRequest
+sealed trait GetDataPayload extends DataPayload with NetworkRequest
 
 /**
   * The getheaders message requests a headers message that provides block headers starting
@@ -130,7 +130,7 @@ sealed trait GetDataMessage extends DataMessage with NetworkRequest
   * headers it hasn’t seen yet.
   * https://bitcoin.org/en/developer-reference#getheaders
   */
-sealed trait GetHeadersMessage extends DataMessage with NetworkRequest {
+sealed trait GetHeadersMessage extends DataPayload with NetworkRequest {
   override protected def name = "getheaders"
 }
 
@@ -139,7 +139,7 @@ sealed trait GetHeadersMessage extends DataMessage with NetworkRequest {
   * which previously requested certain headers with a getheaders message.
   * https://bitcoin.org/en/developer-reference#headers
   */
-sealed trait HeadersMessage extends DataMessage with NetworkResponse {
+sealed trait HeadersMessage extends DataPayload with NetworkResponse {
   /**
     * Number of block headers up to a maximum of 2,000.
     * Note: headers-first sync assumes the sending node
@@ -166,7 +166,7 @@ sealed trait HeadersMessage extends DataMessage with NetworkResponse {
   * or it can be sent in reply to a getblocks message or mempool message.
   * https://bitcoin.org/en/developer-reference#inv
   */
-sealed trait InventoryMessage extends DataMessage {
+sealed trait InventoryMessage extends DataPayload {
   /**
     * The number of inventory enteries
     * @return
@@ -204,7 +204,7 @@ trait InventoryMessageResponse extends InventoryMessage with NetworkResponse
   * The response to the mempool message is one or more inv messages containing the TXIDs in the usual inventory format.
   * https://bitcoin.org/en/developer-reference#mempool
   */
-case object MemPoolMessage extends DataMessage with NetworkRequest {
+case object MemPoolMessage extends DataPayload with NetworkRequest {
   override protected def name = "mempool"
   def hex = ""
 }
@@ -216,7 +216,7 @@ case object MemPoolMessage extends DataMessage with NetworkRequest {
   * they will be sent separately as tx messages.
   * https://bitcoin.org/en/developer-reference#merkleblock
   */
-trait MerkleBlockMessage extends DataMessage with NetworkResponse {
+trait MerkleBlockMessage extends DataPayload with NetworkResponse {
 
   /**
     * The block header associated with our merkle block message
@@ -268,7 +268,7 @@ trait MerkleBlockMessage extends DataMessage with NetworkResponse {
   * Nodes may also have pruned spent transactions from older blocks, making them unable to send those blocks.)
   * https://bitcoin.org/en/developer-reference#notfound
   */
-trait NotFoundMessage extends DataMessage with NetworkResponse with InventoryMessage {
+trait NotFoundMessage extends DataPayload with NetworkResponse with InventoryMessage {
   override protected def name = "notfound"
   override def hex = RawNotFoundMessageSerializer.write(this)
 }
@@ -278,7 +278,7 @@ trait NotFoundMessage extends DataMessage with NetworkResponse with InventoryMes
   * It can be sent in a variety of situations;
   * https://bitcoin.org/en/developer-reference#tx
   */
-trait TransactionMessage extends DataMessage with NetworkResponse {
+trait TransactionMessage extends DataPayload with NetworkResponse {
   def transaction : Transaction
   override protected def name = "tx"
   override def hex = RawTransactionMessageSerializer.write(this)
@@ -292,7 +292,7 @@ trait TransactionMessage extends DataMessage with NetworkResponse {
   * Represents a control message on this network
   * https://bitcoin.org/en/developer-reference#control-messages
   */
-sealed trait ControlMessage extends NetworkMessage
+sealed trait ControlPayload extends NetworkPayload
 
 /**
   * The addr (IP address) message relays connection information for peers on the network.
@@ -303,7 +303,7 @@ sealed trait ControlMessage extends NetworkMessage
   * any program already on the network.
   * https://bitcoin.org/en/developer-reference#addr
   */
-trait AddrMessage extends ControlMessage with NetworkResponse with NetworkRequest {
+trait AddrMessage extends ControlPayload with NetworkResponse with NetworkRequest {
   def ipCount : CompactSizeUInt
   def addresses : Seq[NetworkIpAddress]
   override protected def name = "addr"
@@ -315,7 +315,7 @@ trait AddrMessage extends ControlMessage with NetworkResponse with NetworkReques
   * Each alert message is signed using a key controlled by respected community members,
   * mostly Bitcoin Core developers.
   */
-sealed trait AlertMessage extends ControlMessage with NetworkResponse {
+sealed trait AlertMessage extends ControlPayload with NetworkResponse {
   def alertSize : CompactSizeUInt
   def alert : Alert
   def signatureSize : CompactSizeUInt
@@ -331,7 +331,7 @@ sealed trait AlertMessage extends ControlMessage with NetworkResponse {
   * set in the filterload message to add the element to the bloom filter.
   * https://bitcoin.org/en/developer-reference#filteradd
   */
-sealed trait FilterAddMessage extends ControlMessage with NetworkResponse {
+sealed trait FilterAddMessage extends ControlPayload with NetworkResponse {
 
   /**
     * The number of bytes in the following element field.
@@ -359,7 +359,7 @@ sealed trait FilterAddMessage extends ControlMessage with NetworkResponse {
   * allowing unfiltered access to inv messages announcing new transactions.
   * https://bitcoin.org/en/developer-reference#filterclear
   */
-sealed trait FilterClearMessage extends ControlMessage with NetworkResponse {
+sealed trait FilterClearMessage extends ControlPayload with NetworkResponse {
   override protected def name = "filterclear"
 }
 
@@ -370,7 +370,7 @@ sealed trait FilterClearMessage extends ControlMessage with NetworkResponse {
   * rate of false positive transactions which can provide plausible-deniability privacy.
   * https://bitcoin.org/en/developer-reference#filterload
   */
-sealed trait FilterLoadMessage extends ControlMessage with NetworkResponse {
+sealed trait FilterLoadMessage extends ControlPayload with NetworkResponse {
 
   /**
     * Number of bytes in the following filter bit field.
@@ -413,7 +413,7 @@ sealed trait FilterLoadMessage extends ControlMessage with NetworkResponse {
   * database of available nodes rather than waiting for unsolicited addr messages to arrive over time.
   * https://bitcoin.org/en/developer-reference#getaddr
   */
-sealed trait GetAddressMessage extends ControlMessage with NetworkRequest {
+sealed trait GetAddressMessage extends ControlPayload with NetworkRequest {
   override protected def name = "getaddr"
 }
 
@@ -424,7 +424,7 @@ sealed trait GetAddressMessage extends ControlMessage with NetworkRequest {
   * The response to a ping message is the pong message.
   * https://bitcoin.org/en/developer-reference#ping
   */
-sealed trait PingMessage extends ControlMessage with NetworkRequest {
+sealed trait PingMessage extends ControlPayload with NetworkRequest {
   /**
     * Random nonce assigned to this ping message.
     * The responding pong message will include this nonce
@@ -442,7 +442,7 @@ sealed trait PingMessage extends ControlMessage with NetworkRequest {
   * to a ping message within 20 minutes.
   * https://bitcoin.org/en/developer-reference#pong
   */
-sealed trait PongMessage extends ControlMessage with NetworkResponse {
+sealed trait PongMessage extends ControlPayload with NetworkResponse {
 
   /**
     * The nonce which is the nonce in the ping message the peer is responding too
@@ -457,7 +457,7 @@ sealed trait PongMessage extends ControlMessage with NetworkResponse {
   * The reject message informs the receiving node that one of its previous messages has been rejected.
   * https://bitcoin.org/en/developer-reference#reject
   */
-sealed trait RejectMessage extends ControlMessage with NetworkResponse {
+sealed trait RejectMessage extends ControlPayload with NetworkResponse {
   /**
     * The number of bytes in the following message field.
     * @return
@@ -509,7 +509,7 @@ sealed trait RejectMessage extends ControlMessage with NetworkResponse {
   * of a message without a payload.
   * https://bitcoin.org/en/developer-reference#sendheaders
   */
-sealed trait SendHeadersMessage extends ControlMessage with NetworkResponse {
+sealed trait SendHeadersMessage extends ControlPayload with NetworkResponse {
   override protected def name = "sendheaders"
 }
 
@@ -521,7 +521,7 @@ sealed trait SendHeadersMessage extends ControlMessage with NetworkResponse {
   * see the message headers section.
   * https://bitcoin.org/en/developer-reference#verack
   */
-sealed trait VerAckMessage extends ControlMessage with NetworkResponse {
+sealed trait VerAckMessage extends ControlPayload with NetworkResponse {
   override protected def name = "verack"
 }
 
@@ -535,7 +535,7 @@ sealed trait VerAckMessage extends ControlMessage with NetworkResponse {
   * by first sending a version message.
   * https://bitcoin.org/en/developer-reference#version
   */
-sealed trait VersionMessage extends ControlMessage  {
+sealed trait VersionMessage extends ControlPayload  {
 
   /**
     * The highest protocol version understood by the transmitting node. See the protocol version section.
