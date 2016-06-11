@@ -4,7 +4,7 @@ import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.util.BitcoinSUtil
 import org.bitcoins.spvnode.messages.control.NodeNetwork
 import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
-import org.bitcoins.spvnode.versions.ProtocolVersion
+import org.bitcoins.spvnode.versions.{ProtocolVersion, ProtocolVersion70002, ProtocolVersion70012}
 import org.scalatest.{FlatSpec, MustMatchers}
 
 /**
@@ -72,5 +72,14 @@ class RawVersionMessageSerializerTest extends FlatSpec with MustMatchers {
     val hex = "7c1101000000000000000000d805833655010000000000000000000000000000000000000000ffff0a940106479d010000000000000000000000000000000000ffff739259bb479d0000000000000000182f626974636f696e732d7370762d6e6f64652f302e302e310000000000"
     val versionMessage = RawVersionMessageSerializer.read(hex)
     RawVersionMessageSerializer.write(versionMessage) must be (hex)
+  }
+
+  it must "read a version message from a full node on the network" in {
+    val hex = "721101000100000000000000e0165b5700000000010000000000000000000000000000000000ffffad1f27a8479d010000000000000000000000000000000000ffff00000000479d68dc32a9948d149b102f5361746f7368693a302e31312e322f7f440d0001"
+    val versionMessage = RawVersionMessageSerializer.read(hex)
+    versionMessage.version must be (ProtocolVersion70002)
+
+    versionMessage.userAgent must be ("/Satoshi:0.11.2/")
+    versionMessage.relay must be (true)
   }
 }

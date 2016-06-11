@@ -6,6 +6,9 @@ import org.bitcoins.core.crypto.{DoubleSha256Digest, ECDigitalSignature}
 import org.bitcoins.core.protocol.blockchain.BlockHeader
 import org.bitcoins.core.protocol.transaction.Transaction
 import org.bitcoins.core.protocol.{CompactSizeUInt, NetworkElement}
+import org.bitcoins.core.serializers.RawBitcoinSerializer
+import org.bitcoins.core.util.BitcoinSUtil
+import org.bitcoins.spvnode.headers.NetworkHeader
 import org.bitcoins.spvnode.messages.control.{Alert, ServiceIdentifier}
 import org.bitcoins.spvnode.messages.data.Inventory
 import org.bitcoins.spvnode.serializers.control.{RawAddrMessageSerializer, RawVersionMessageSerializer}
@@ -20,32 +23,13 @@ import scala.annotation.tailrec
   */
 sealed trait NetworkPayload extends NetworkElement {
   /**
-    * Pads the command name to 12 bytes
-    * @param str
-    * @return
-    */
-  def padBytes(str : String) = {
-    @tailrec
-    def loop(accum : List[Byte]) : String = {
-      if (accum.size < 12) loop(0x0.toByte :: accum)
-      else accum.reverse.map(_.toChar).mkString
-    }
-    loop(str.map(_.toByte).reverse.toList)
-  }
-
-  /**
-    * This is the command name WITHOUT the name being padded to 12 bytes
-    * @return
-    */
-  protected def name : String
-  /**
     * ASCII string which identifies what message type is contained in the payload.
     * Followed by nulls (0x00) to pad out byte count; for example: version\0\0\0\0\0.
     * Command names need to be 12 bytes long
     * This is generally used to build a [[org.bitcoins.spvnode.headers.MessageHeader]]
     * @return
     */
-  def commandName : String = padBytes(name)
+  def commandName : String
 }
 
 /**
@@ -67,9 +51,7 @@ sealed trait DataPayload extends NetworkPayload
   * The block message transmits a single serialized block
   * https://bitcoin.org/en/developer-reference#block
   */
-sealed trait BlockMessage extends DataPayload with NetworkResponse {
-  override protected def name = "block"
-}
+sealed trait BlockMessage extends DataPayload with NetworkResponse
 
 /**
   * The getblocks message requests an inv message that provides block header hashes
@@ -111,7 +93,7 @@ trait GetBlocksMessage extends DataPayload with NetworkRequest {
     */
   def stopHash : DoubleSha256Digest
 
-  override protected def name = "getblocks"
+  override def commandName = NetworkPayload.getBlocksCommandName
 
   def hex : String = RawGetBlocksMessageSerializer.write(this)
 }
@@ -132,7 +114,7 @@ sealed trait GetDataPayload extends DataPayload with NetworkRequest
   * https://bitcoin.org/en/developer-reference#getheaders
   */
 sealed trait GetHeadersMessage extends DataPayload with NetworkRequest {
-  override protected def name = "getheaders"
+  override def commandName = NetworkPayload.getHeadersCommandName
 }
 
 /**
@@ -158,7 +140,7 @@ sealed trait HeadersMessage extends DataPayload with NetworkResponse {
     */
   def headers : Seq[BlockHeader]
 
-  override protected def name = "headers"
+  override def commandName = NetworkPayload.headersCommandName
 }
 
 /**
@@ -180,7 +162,7 @@ sealed trait InventoryMessage extends DataPayload {
     */
   def inventories : Seq[Inventory]
 
-  override protected def name = "inv"
+  override def commandName = NetworkPayload.invCommandName
 
   def hex = RawInventoryMessageSerializer.write(this)
 }
@@ -206,7 +188,7 @@ trait InventoryMessageResponse extends InventoryMessage with NetworkResponse
   * https://bitcoin.org/en/developer-reference#mempool
   */
 case object MemPoolMessage extends DataPayload with NetworkRequest {
-  override protected def name = "mempool"
+  override def commandName = NetworkPayload.memPoolCommandName
   def hex = ""
 }
 
@@ -256,7 +238,7 @@ trait MerkleBlockMessage extends DataPayload with NetworkResponse {
     */
   def flags : Seq[Byte]
 
-  override protected def name = "merkleblock"
+  override def commandName = NetworkPayload.merkleBlockCommandName
 
   def hex = RawMerkleBlockMessageSerializer.write(this)
 
@@ -270,7 +252,7 @@ trait MerkleBlockMessage extends DataPayload with NetworkResponse {
   * https://bitcoin.org/en/developer-reference#notfound
   */
 trait NotFoundMessage extends DataPayload with NetworkResponse with InventoryMessage {
-  override protected def name = "notfound"
+  override def commandName = NetworkPayload.notFoundCommandName
   override def hex = RawNotFoundMessageSerializer.write(this)
 }
 
@@ -281,7 +263,7 @@ trait NotFoundMessage extends DataPayload with NetworkResponse with InventoryMes
   */
 trait TransactionMessage extends DataPayload with NetworkResponse {
   def transaction : Transaction
-  override protected def name = "tx"
+  override def commandName = NetworkPayload.transactionCommandName
   override def hex = RawTransactionMessageSerializer.write(this)
 }
 
@@ -307,7 +289,7 @@ sealed trait ControlPayload extends NetworkPayload
 trait AddrMessage extends ControlPayload with NetworkResponse with NetworkRequest {
   def ipCount : CompactSizeUInt
   def addresses : Seq[NetworkIpAddress]
-  override protected def name = "addr"
+  override def commandName = NetworkPayload.addrCommandName
   override def hex = RawAddrMessageSerializer.write(this)
 }
 
@@ -321,7 +303,7 @@ sealed trait AlertMessage extends ControlPayload with NetworkResponse {
   def alert : Alert
   def signatureSize : CompactSizeUInt
   def signature : ECDigitalSignature
-  override protected def name = ""
+  override def commandName = ""
 }
 
 
@@ -350,7 +332,7 @@ sealed trait FilterAddMessage extends ControlPayload with NetworkResponse {
     */
   def element : Seq[Byte]
 
-  override protected def name = "filteradd"
+  override def commandName = NetworkPayload.filterAddCommandName
 }
 
 
@@ -361,7 +343,7 @@ sealed trait FilterAddMessage extends ControlPayload with NetworkResponse {
   * https://bitcoin.org/en/developer-reference#filterclear
   */
 sealed trait FilterClearMessage extends ControlPayload with NetworkResponse {
-  override protected def name = "filterclear"
+  override def commandName = NetworkPayload.filterClearCommandName
 }
 
 /**
@@ -404,7 +386,7 @@ sealed trait FilterLoadMessage extends ControlPayload with NetworkResponse {
     */
   def flags : Int
 
-  override protected def name = "filterload"
+  override def commandName = NetworkPayload.filterLoadCommandName
 }
 
 /**
@@ -415,7 +397,7 @@ sealed trait FilterLoadMessage extends ControlPayload with NetworkResponse {
   * https://bitcoin.org/en/developer-reference#getaddr
   */
 sealed trait GetAddressMessage extends ControlPayload with NetworkRequest {
-  override protected def name = "getaddr"
+  override def commandName = NetworkPayload.getAddressCommandName
 }
 
 /**
@@ -434,7 +416,7 @@ sealed trait PingMessage extends ControlPayload with NetworkRequest {
     */
   def nonce : BigInt
 
-  override protected def name = "ping"
+  override def commandName = NetworkPayload.pingCommandName
 }
 
 /**
@@ -451,7 +433,7 @@ sealed trait PongMessage extends ControlPayload with NetworkResponse {
     */
   def nonce : BigInt
 
-  override protected def name = "pong"
+  override def commandName = NetworkPayload.pongCommandName
 }
 
 /**
@@ -500,7 +482,7 @@ sealed trait RejectMessage extends ControlPayload with NetworkResponse {
     */
   def extra : String
 
-  override protected def name = "reject"
+  override def commandName = NetworkPayload.rejectCommandName
 }
 
 /**
@@ -511,7 +493,7 @@ sealed trait RejectMessage extends ControlPayload with NetworkResponse {
   * https://bitcoin.org/en/developer-reference#sendheaders
   */
 sealed trait SendHeadersMessage extends ControlPayload with NetworkResponse {
-  override protected def name = "sendheaders"
+  override def commandName = NetworkPayload.sendHeadersCommandName
 }
 
 
@@ -523,7 +505,7 @@ sealed trait SendHeadersMessage extends ControlPayload with NetworkResponse {
   * https://bitcoin.org/en/developer-reference#verack
   */
 case object VerAckMessage extends ControlPayload with NetworkResponse {
-  override protected def name = "verack"
+  override def commandName = NetworkPayload.verAckCommandName
   override def hex = ""
 }
 
@@ -639,7 +621,7 @@ sealed trait VersionMessage extends ControlPayload  {
     */
   def relay : Boolean
 
-  override protected def name = "version"
+  override def commandName = NetworkPayload.versionCommandName
 
   override def hex = RawVersionMessageSerializer.write(this)
 }
@@ -654,3 +636,81 @@ trait VersionMessageRequest extends VersionMessage with NetworkRequest
   */
 trait VersionMessageResponse extends VersionMessage with NetworkResponse
 
+
+object NetworkPayload {
+
+  def blockCommandName = "block"
+  def getBlocksCommandName = "getblocks"
+  def getHeadersCommandName = "getheaders"
+  def headersCommandName = "headers"
+  def invCommandName = "inv"
+  def memPoolCommandName = "mempool"
+  def merkleBlockCommandName = "merkleblock"
+  def notFoundCommandName = "notfound"
+  def transactionCommandName = "tx"
+  def addrCommandName = "addr"
+  def filterAddCommandName = "filteradd"
+  def filterClearCommandName = "filterclear"
+  def filterLoadCommandName = "filterload"
+  def getAddressCommandName = "getaddr"
+  def pingCommandName = "ping"
+  def pongCommandName = "pong"
+  def rejectCommandName = "reject"
+  def sendHeadersCommandName = "sendheaders"
+  def verAckCommandName = "verack"
+  def versionCommandName = "version"
+  /**
+    * Contains all the valid command names with their deserializer on the p2p protocol
+    * These commands all have the null bytes appended to the end of the string as
+    * required in [[NetworkHeader]]
+    * https://bitcoin.org/en/developer-reference#message-headers
+    *
+    * @return
+    */
+  def commandNames : Map[String, Seq[Byte] => NetworkPayload] = Map(
+    blockCommandName -> { x : Seq[Byte] => ???},
+    getBlocksCommandName -> { RawGetBlocksMessageSerializer.read(_) },
+    getHeadersCommandName -> { x : Seq[Byte] => ???},
+    headersCommandName -> { x : Seq[Byte] => ???},
+    invCommandName -> { RawInventoryMessageSerializer.read(_) },
+    memPoolCommandName -> { x : Seq[Byte] => ???},
+    merkleBlockCommandName -> { RawMerkleBlockMessageSerializer.read(_) },
+    notFoundCommandName -> { RawNotFoundMessageSerializer.read(_) },
+    transactionCommandName -> { RawTransactionMessageSerializer.read(_) },
+    addrCommandName -> { RawAddrMessageSerializer.read(_) },
+    filterAddCommandName -> { x : Seq[Byte] => ???},
+    filterClearCommandName -> { x : Seq[Byte] => ???},
+    filterLoadCommandName -> { x : Seq[Byte] => ???},
+    getAddressCommandName -> { x : Seq[Byte] => ???},
+    pingCommandName -> { x : Seq[Byte] => ???},
+    pongCommandName -> { x : Seq[Byte] => ???},
+    rejectCommandName -> { x : Seq[Byte] => ???},
+    sendHeadersCommandName -> { x : Seq[Byte] => ???},
+    verAckCommandName -> { x : Seq[Byte] => ???},
+    versionCommandName -> { RawVersionMessageSerializer.read(_) }
+  )
+
+  /**
+    * Parses a [[NetworkPayload]] from the given bytes using the [[NetworkHeader]]
+    * to determine what type of [[NetworkPayload]] this is
+    * @param networkHeader the header for the message on the p2p network
+    * @param payloadBytes the payload corresponding to the header on the p2p network
+    * @return
+    */
+  def apply(networkHeader : NetworkHeader, payloadBytes : Seq[Byte]) : NetworkPayload = {
+    //the commandName in the network header tells us what payload type this is
+    val deserializer : Seq[Byte] => NetworkPayload = commandNames(networkHeader.commandName)
+    deserializer(payloadBytes)
+  }
+
+  /**
+    * Parses a [[NetworkPayload]] from the given hex using the [[NetworkHeader]]
+    * to determine what type of [[NetworkPayload]] this is
+    * @param networkHeader the header for the message on the p2p network
+    * @param payloadHex the hexadecimal representation of the payload
+    * @return
+    */
+  def apply(networkHeader : NetworkHeader, payloadHex : String) : NetworkPayload = {
+    NetworkPayload(networkHeader, BitcoinSUtil.decodeHex(payloadHex))
+  }
+}

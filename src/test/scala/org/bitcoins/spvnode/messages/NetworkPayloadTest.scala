@@ -1,23 +1,22 @@
 package org.bitcoins.spvnode.messages
 
+import org.bitcoins.core.util.BitcoinSLogger
+import org.bitcoins.spvnode.headers.NetworkHeader
+import org.bitcoins.spvnode.util.TestUtil
 import org.scalatest.{FlatSpec, MustMatchers}
 
 /**
   * Created by chris on 6/10/16.
   */
-class NetworkPayloadTest extends FlatSpec with MustMatchers {
+class NetworkPayloadTest extends FlatSpec with MustMatchers with BitcoinSLogger {
 
-  "NetworkMessage" must "correctly pad the command name" in {
-    //all commandNames must be 12 bytes in size
-    val msg : NetworkPayload = new GetBlocksMessage {
-      override def hex: String = ""
-      def blockHeaderHashes: Seq[org.bitcoins.core.crypto.DoubleSha256Digest] = ???
-      def hashCount: org.bitcoins.core.protocol.CompactSizeUInt = ???
-      def protocolVersion: org.bitcoins.spvnode.versions.ProtocolVersion = ???
-      def stopHash: org.bitcoins.core.crypto.DoubleSha256Digest = ???
-
-    }
-
-    msg.commandName.length must be (12)
+  "NetworkMessage" must "create a payload object from it's network header and the payload bytes" in {
+    val rawNetworkMessage = TestUtil.rawNetworkMessage
+    val header = NetworkHeader(rawNetworkMessage.take(48))
+    logger.debug("Header: " + header)
+    val payloadHex = rawNetworkMessage.slice(48,rawNetworkMessage.length)
+    val payload = NetworkPayload(header,payloadHex)
+    payload.isInstanceOf[VersionMessage] must be (true)
+    payload.commandName must be (NetworkPayload.versionCommandName)
   }
 }

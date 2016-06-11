@@ -1,12 +1,14 @@
 package org.bitcoins.spvnode.serializers.headers
 
-import org.bitcoins.core.util.BitcoinSUtil
+import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
+import org.bitcoins.spvnode.messages.NetworkPayload
+import org.bitcoins.spvnode.util.TestUtil
 import org.scalatest.{FlatSpec, MustMatchers}
 
 /**
   * Created by chris on 5/31/16.
   */
-class RawNetworkHeaderSerializerTest extends FlatSpec with MustMatchers {
+class RawNetworkHeaderSerializerTest extends FlatSpec with MustMatchers with BitcoinSLogger {
   val hex = "f9beb4d976657261636b000000000000000000005df6e0e2"
   "RawMessageHeaderSerializer" must "read hex string into a message header" in {
     //this example is from this section in the bitcoin developer reference
@@ -26,6 +28,18 @@ class RawNetworkHeaderSerializerTest extends FlatSpec with MustMatchers {
   it must "write an object that was just read and get the original input" in {
     val messageHeader = RawNetworkHeaderSerializer.read(hex)
     messageHeader.hex must be (hex)
+  }
+
+  it must "read a network header from a node on the network" in {
+    val hex = TestUtil.rawNetworkMessage.take(48)
+    logger.debug("Hex: " + hex)
+    val header = RawNetworkHeaderSerializer.read(hex)
+    BitcoinSUtil.encodeHex(header.network) must be ("0B110907".toLowerCase)
+    header.commandName.size must be (NetworkPayload.versionCommandName.size)
+    header.commandName must be (NetworkPayload.versionCommandName)
+    header.payloadSize must be (102)
+    BitcoinSUtil.encodeHex(header.checksum) must be ("2f6743da")
+
   }
 
 

@@ -7,6 +7,7 @@ import akka.io.{IO, Tcp}
 import akka.util.{ByteString, CompactByteString}
 import org.bitcoins.core.config.NetworkParameters
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
+import org.bitcoins.spvnode.NetworkMessage
 import org.bitcoins.spvnode.messages._
 import org.bitcoins.spvnode.util.NetworkIpAddress
 
@@ -56,9 +57,9 @@ sealed trait Client extends Actor with BitcoinSLogger {
       case event : Tcp.Event => handleEvent(event)
       case command : Tcp.Command => handleCommand(command)
     }
-    case networkMessage : NetworkPayload =>
+    case networkMessage : NetworkMessage =>
       logger.debug("Recieved network message inside of Client: " + networkMessage)
-      handleNetworkPayload(networkMessage)
+      handleNetworkMessage(networkMessage)
     case unknownMessage => throw new IllegalArgumentException("Unknown message for client: " + unknownMessage)
 
 /*    case data: ByteString =>
@@ -93,7 +94,7 @@ sealed trait Client extends Actor with BitcoinSLogger {
       logger.debug("Client received confirmed closed msg: " + Tcp.ConfirmedClosed)
       peer = None
       context stop self
-    case payload : NetworkPayload => handleNetworkPayload(payload)
+    case message : NetworkMessage => handleNetworkMessage(message)
   }
   /**
     * This function is responsible for handling a [[Tcp.Command]] algebraic data type
@@ -110,8 +111,8 @@ sealed trait Client extends Actor with BitcoinSLogger {
     * @param message
     * @return
     */
-  private def handleNetworkPayload(message : NetworkPayload) = message match {
-    case request : NetworkRequest => handleNetworkRequest(request)
+  private def handleNetworkMessage(message : NetworkMessage) = message.payload match {
+    case request : NetworkRequest => handleNetworkRequest(message)
     case response : NetworkResponse => handleNetworkResponse(response)
   }
 
@@ -120,7 +121,7 @@ sealed trait Client extends Actor with BitcoinSLogger {
     * @param request
     * @return
     */
-  private def handleNetworkRequest(request : NetworkRequest) = {
+  private def handleNetworkRequest(request : NetworkMessage) = {
     val byteMessage = buildByteString(request.bytes)
     logger.debug("Network request: " + request)
     logger.debug("Byte message: " + BitcoinSUtil.encodeHex(request.bytes))
@@ -159,14 +160,14 @@ object Client {
     Props(classOf[ClientImpl], remote, network, listener, actorSystem)
   }
 
-  def apply(remote : InetSocketAddress, network : NetworkParameters, listener : ActorRef, actorSystem : ActorSystem) : Actor = {
-    ClientImpl(remote, network, listener, actorSystem)
+  def apply(remote : InetSocketAddress, network : NetworkParameters, listener : ActorRef, actorSystem : ActorSystem) : ActorRef = {
+   actorSystem.actorOf(props(remote, network, listener, actorSystem))
   }
 
-  def apply(network : NetworkParameters, listener : ActorRef, actorSystem : ActorSystem) : Actor = {
+  def apply(network : NetworkParameters, listener : ActorRef, actorSystem : ActorSystem) : ActorRef = {
     //val randomSeed = ((Math.random() * 10) % network.dnsSeeds.size).toInt
     val remote = new InetSocketAddress(network.dnsSeeds(0), network.port)
-    apply(remote, network, listener, actorSystem)
+    Client(remote, network, listener, actorSystem)
   }
 }
 

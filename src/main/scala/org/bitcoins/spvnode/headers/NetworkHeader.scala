@@ -61,17 +61,26 @@ object NetworkHeader extends Factory[NetworkHeader] {
 
   override def fromHex(hex : String) : NetworkHeader = fromBytes(BitcoinSUtil.decodeHex(hex))
 
+  /**
+    * Creates a [[NetworkHeader]] from all of its individual components
+    * @param network the [[NetworkParameters]] object indicating what network this header is sent on
+    * @param commandName the name of the command being sent in the header
+    * @param payloadSize the size of the payload being sent by this header
+    * @param checksum the checksum of the payload to ensure that the entire payload was sent
+    * @return
+    */
   def apply(network : Seq[Byte], commandName : String, payloadSize : Long, checksum : Seq[Byte]) : NetworkHeader = {
     NetworkHeaderImpl(network, commandName, payloadSize, checksum)
   }
 
   /**
-    * Builds a message header from a message
-    * @param message
+    * Creates a [[NetworkHeader]] from it's [[NetworkParameters]] and [[NetworkPayload]]
+    * @param network the [[NetworkParameters]] object that indicates what network the payload needs to be sent on
+    * @param payload the [[NetworkPayload]] object that needs to be sent on the network
     * @return
     */
-  def apply(network : NetworkParameters, message : NetworkPayload) : NetworkHeader = {
-    val checksum = CryptoUtil.doubleSHA256(message.bytes)
-    NetworkHeader(network.magicBytes, message.commandName, message.bytes.size, checksum.bytes.take(4))
+  def apply(network : NetworkParameters, payload : NetworkPayload) : NetworkHeader = {
+    val checksum = CryptoUtil.doubleSHA256(payload.bytes)
+    NetworkHeader(network.magicBytes, payload.commandName, payload.bytes.size, checksum.bytes.take(4))
   }
 }
