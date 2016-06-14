@@ -36,7 +36,7 @@ class RawMerkleBlockMessageSerializerTest extends FlatSpec with MustMatchers {
 
     merkleBlockMessage.flagCount must be (CompactSizeUInt(1,1))
 
-    merkleBlockMessage.flags must be (Seq(0xB8))
+    merkleBlockMessage.flags must be (Seq(0x1d))
   }
 
   it must "write a merkle block header message" in {

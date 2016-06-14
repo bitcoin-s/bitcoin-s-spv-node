@@ -74,6 +74,9 @@ sealed trait Client extends Actor with BitcoinSLogger {
     * @param event
     */
   private def handleEvent(event : Tcp.Event) = event match {
+
+    case Tcp.Bound(localAddress) =>
+      logger.debug("Actor is now bound to the local address: " + localAddress)
     case Tcp.CommandFailed(w: Tcp.Write) =>
       logger.debug("Client write command failed: " + Tcp.CommandFailed(w))
       logger.debug("O/S buffer was full")
@@ -82,14 +85,15 @@ sealed trait Client extends Actor with BitcoinSLogger {
     case Tcp.CommandFailed(command) =>
       logger.debug("Client Command failed:" + command)
     case Tcp.Received(data) =>
-      logger.debug("Received data from our peer on the network: " + Tcp.Received(data))
+      logger.debug("Received data from our peer on the network: " + BitcoinSUtil.encodeHex(data.toArray))
       listener ! data
     case Tcp.Connected(remote, local) =>
       logger.debug("Tcp connection to: " + remote)
       logger.debug("Local: " + local)
-      listener ! Tcp.Connected(remote,local)
       peer = Some(sender)
       peer.get ! Tcp.Register(listener)
+      listener ! Tcp.Connected(remote,local)
+
     case Tcp.ConfirmedClosed =>
       logger.debug("Client received confirmed closed msg: " + Tcp.ConfirmedClosed)
       peer = None
@@ -151,9 +155,11 @@ sealed trait Client extends Actor with BitcoinSLogger {
 object Client {
   private case class ClientImpl(remote: InetSocketAddress, network : NetworkParameters,
                                 listener: ActorRef, actorSystem : ActorSystem) extends Client {
+
     //this eagerly connects the client with our peer on the network as soon
     //as the case class is instantiated
     manager ! Tcp.Connect(remote, Some(new InetSocketAddress(remote.getPort)))
+
   }
 
   def props(remote : InetSocketAddress, network : NetworkParameters, listener : ActorRef, actorSystem : ActorSystem) : Props = {

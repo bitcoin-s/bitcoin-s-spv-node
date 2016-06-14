@@ -4,10 +4,9 @@ import org.bitcoins.core.crypto.DoubleSha256Digest
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.serializers.RawBitcoinSerializer
 import org.bitcoins.core.serializers.blockchain.RawBlockHeaderSerializer
-import org.bitcoins.core.util.BitcoinSUtil
+import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
 import org.bitcoins.spvnode.messages.MerkleBlockMessage
 import org.bitcoins.spvnode.messages.data.MerkleBlockMessage
-import org.bitcoins.spvnode.messages.data.MerkleBlockMessage.MerkleBlockMessageImpl
 
 import scala.annotation.tailrec
 
@@ -16,28 +15,30 @@ import scala.annotation.tailrec
   * Responsible for serialization and deserialization of MerkleBlockMessages
   * https://bitcoin.org/en/developer-reference#merkleblock
   */
-trait RawMerkleBlockMessageSerializer extends RawBitcoinSerializer[MerkleBlockMessage] {
+trait RawMerkleBlockMessageSerializer extends RawBitcoinSerializer[MerkleBlockMessage] with BitcoinSLogger {
 
   def read(bytes : List[Byte]) : MerkleBlockMessage = {
-    val blockHeader = RawBlockHeaderSerializer.read(bytes)
+    val blockHeader = RawBlockHeaderSerializer.read(bytes.slice(0,80))
     val bytesAfterBlockHeaderParsing = bytes.slice(blockHeader.bytes.size, bytes.size)
     val transactionCount = BitcoinSUtil.toLong(bytesAfterBlockHeaderParsing.slice(0,4))
     val hashCount = BitcoinSUtil.parseCompactSizeUInt(
       bytesAfterBlockHeaderParsing.slice(4,bytesAfterBlockHeaderParsing.size))
     val txHashStartIndex = (4 + hashCount.size).toInt
     val bytesAfterHashCountParsing = bytesAfterBlockHeaderParsing.slice(txHashStartIndex,bytesAfterBlockHeaderParsing.size)
-    val (txHashes, bytesAfterTxHashParsing) = parseTransactionHashes(bytesAfterHashCountParsing,hashCount)
 
-    val flagCount = BitcoinSUtil.parseCompactSizeUInt(bytesAfterBlockHeaderParsing)
+    val (txHashes, bytesAfterTxHashParsing) = parseTransactionHashes(bytesAfterHashCountParsing,hashCount)
+    logger.debug("Bytes after tx hash parsing: " + BitcoinSUtil.encodeHex(bytesAfterTxHashParsing))
+    val flagCount = BitcoinSUtil.parseCompactSizeUInt(bytesAfterTxHashParsing)
     val flags = bytesAfterTxHashParsing.slice(flagCount.size.toInt, bytesAfterTxHashParsing.size)
 
     MerkleBlockMessage(blockHeader, transactionCount,hashCount,txHashes,flagCount,flags)
   }
 
   def write(merkleBlockMessage: MerkleBlockMessage) : String = {
-    merkleBlockMessage.blockHeader.hex + BitcoinSUtil.longToHex(merkleBlockMessage.transactionCount) +
-    merkleBlockMessage.hashCount.hex + merkleBlockMessage.hashes.map(_.hex).mkString +
-    merkleBlockMessage.flagCount.hex + BitcoinSUtil.encodeHex(merkleBlockMessage.flags)
+    merkleBlockMessage.blockHeader.hex +
+      addPadding(8,BitcoinSUtil.longToHex(merkleBlockMessage.transactionCount)) +
+      merkleBlockMessage.hashCount.hex + merkleBlockMessage.hashes.map(_.hex).mkString +
+      merkleBlockMessage.flagCount.hex + BitcoinSUtil.encodeHex(merkleBlockMessage.flags)
   }
 
 
