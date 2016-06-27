@@ -3,6 +3,7 @@ package org.bitcoins.spvnode.messages
 import java.net.InetAddress
 
 import org.bitcoins.core.crypto.{DoubleSha256Digest, ECDigitalSignature}
+import org.bitcoins.core.number.{Int32, Int64, UInt32, UInt64}
 import org.bitcoins.core.protocol.blockchain.BlockHeader
 import org.bitcoins.core.protocol.transaction.Transaction
 import org.bitcoins.core.protocol.{CompactSizeUInt, NetworkElement}
@@ -210,7 +211,7 @@ trait MerkleBlockMessage extends DataPayload with NetworkResponse {
     * The number of transactions in the block (including ones that don’t match the filter).
     * @return
     */
-  def transactionCount : Long
+  def transactionCount : UInt32
 
   /**
     * The number of hashes in the following field
@@ -539,7 +540,7 @@ sealed trait VersionMessage extends ControlPayload  {
     * this field can help other nodes to determine that their clock is wrong.
     * @return
     */
-  def timestamp : Long
+  def timestamp : Int64
 
   /**
     * The services supported by the receiving node as perceived by the transmitting node.
@@ -592,7 +593,7 @@ sealed trait VersionMessage extends ControlPayload  {
     * of a version message with a nonce it previously sent.
     * @return
     */
-  def nonce : BigInt
+  def nonce : UInt64
 
   /**
     * Number of bytes in following user_agent field. If 0x00, no user agent field is sent.
@@ -611,7 +612,7 @@ sealed trait VersionMessage extends ControlPayload  {
     * in the case of an SPV client, best block header chain.
     * @return
     */
-  def startHeight : Int
+  def startHeight : Int32
 
   /**
     * Transaction relay flag. If 0x00, no inv messages or tx messages announcing new transactions

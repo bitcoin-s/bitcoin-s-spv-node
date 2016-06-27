@@ -1,5 +1,6 @@
 package org.bitcoins.spvnode.serializers.headers
 
+import org.bitcoins.core.number.UInt32
 import org.bitcoins.core.serializers.RawBitcoinSerializer
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
 import org.bitcoins.spvnode.headers.NetworkHeader
@@ -20,7 +21,7 @@ trait RawNetworkHeaderSerializer extends RawBitcoinSerializer[NetworkHeader] wit
     val network = bytes.take(4)
     //.trim removes the null characters appended to the command name
     val commandName = bytes.slice(4,16).map(_.toChar).mkString.trim
-    val payloadSize = BitcoinSUtil.toLong(bytes.slice(16,20))
+    val payloadSize = UInt32(bytes.slice(16,20))
     val checksum = bytes.slice(20,24)
     NetworkHeader(network,commandName,payloadSize,checksum)
   }
@@ -35,11 +36,8 @@ trait RawNetworkHeaderSerializer extends RawBitcoinSerializer[NetworkHeader] wit
     val commandNameNoPadding = BitcoinSUtil.encodeHex(messageHeader.commandName.map(_.toByte))
     //command name needs to be 12 bytes in size, or 24 chars in hex
     val commandName = addPadding(24, commandNameNoPadding)
-    val payloadSizeNoPadding = BitcoinSUtil.longToHex(messageHeader.payloadSize)
-    //payload size needs to be 4 bytes, or 8 chars in hex
-    val payloadSize = addPadding(8, payloadSizeNoPadding)
     val checksum = BitcoinSUtil.encodeHex(messageHeader.checksum)
-    network + commandName + payloadSize + checksum
+    network + commandName + messageHeader.payloadSize.hex + checksum
   }
 
 }

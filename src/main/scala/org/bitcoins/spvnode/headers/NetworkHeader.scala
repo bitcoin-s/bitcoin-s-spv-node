@@ -1,6 +1,7 @@
 package org.bitcoins.spvnode.headers
 
 import org.bitcoins.core.config.NetworkParameters
+import org.bitcoins.core.number.UInt32
 import org.bitcoins.core.protocol.NetworkElement
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil, CryptoUtil, Factory}
 import org.bitcoins.spvnode.messages.NetworkPayload
@@ -37,7 +38,7 @@ sealed trait NetworkHeader extends NetworkElement with BitcoinSLogger {
     *
     * @return
     */
-  def payloadSize : Long
+  def payloadSize : UInt32
 
   /**
     * Added in protocol version 209.
@@ -55,11 +56,9 @@ sealed trait NetworkHeader extends NetworkElement with BitcoinSLogger {
 object NetworkHeader extends Factory[NetworkHeader] {
 
   private case class NetworkHeaderImpl(network : Seq[Byte], commandName : String,
-                                       payloadSize : Long, checksum : Seq[Byte]) extends NetworkHeader
+                                       payloadSize : UInt32, checksum : Seq[Byte]) extends NetworkHeader
 
   override def fromBytes(bytes : Seq[Byte]) : NetworkHeader = RawNetworkHeaderSerializer.read(bytes)
-
-  override def fromHex(hex : String) : NetworkHeader = fromBytes(BitcoinSUtil.decodeHex(hex))
 
   /**
     * Creates a [[NetworkHeader]] from all of its individual components
@@ -69,7 +68,7 @@ object NetworkHeader extends Factory[NetworkHeader] {
     * @param checksum the checksum of the payload to ensure that the entire payload was sent
     * @return
     */
-  def apply(network : Seq[Byte], commandName : String, payloadSize : Long, checksum : Seq[Byte]) : NetworkHeader = {
+  def apply(network : Seq[Byte], commandName : String, payloadSize : UInt32, checksum : Seq[Byte]) : NetworkHeader = {
     NetworkHeaderImpl(network, commandName, payloadSize, checksum)
   }
 
@@ -81,6 +80,6 @@ object NetworkHeader extends Factory[NetworkHeader] {
     */
   def apply(network : NetworkParameters, payload : NetworkPayload) : NetworkHeader = {
     val checksum = CryptoUtil.doubleSHA256(payload.bytes)
-    NetworkHeader(network.magicBytes, payload.commandName, payload.bytes.size, checksum.bytes.take(4))
+    NetworkHeader(network.magicBytes, payload.commandName, UInt32(payload.bytes.size), checksum.bytes.take(4))
   }
 }

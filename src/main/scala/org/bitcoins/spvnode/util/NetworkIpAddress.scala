@@ -2,6 +2,7 @@ package org.bitcoins.spvnode.util
 
 import java.net.InetAddress
 
+import org.bitcoins.core.number.UInt32
 import org.bitcoins.core.protocol.NetworkElement
 import org.bitcoins.core.util.Factory
 import org.bitcoins.spvnode.messages.control.ServiceIdentifier
@@ -24,7 +25,7 @@ sealed trait NetworkIpAddress extends NetworkElement {
     *
     * @return
     */
-  def time : Long
+  def time : UInt32
 
   /**
     * The services the node advertised in its version message.
@@ -56,10 +57,10 @@ sealed trait NetworkIpAddress extends NetworkElement {
 
 
 object NetworkIpAddress extends Factory[NetworkIpAddress] {
-  private case class NetworkIpAddressImpl(time : Long, services : ServiceIdentifier,
+  private case class NetworkIpAddressImpl(time : UInt32, services : ServiceIdentifier,
                                           address : InetAddress, port : Int) extends NetworkIpAddress
 
-  def apply(time : Long, services : ServiceIdentifier, address : InetAddress, port : Int) : NetworkIpAddress = {
+  def apply(time : UInt32, services : ServiceIdentifier, address : InetAddress, port : Int) : NetworkIpAddress = {
     NetworkIpAddressImpl(time,services,address,port)
   }
 

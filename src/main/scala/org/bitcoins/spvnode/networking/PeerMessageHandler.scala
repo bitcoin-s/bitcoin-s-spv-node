@@ -9,14 +9,10 @@ import org.bitcoins.core.util.BitcoinSLogger
   */
 trait PeerMessageHandler extends Actor with BitcoinSLogger {
   def receive = {
-
     case message : Tcp.Message => message match {
       case event : Tcp.Event => handleEvent(event)
       case command : Tcp.Command => handleCommand(command)
     }
-    case Tcp.PeerClosed     =>
-      logger.debug("Peer closed on network")
-      context stop self
     case msg => throw new IllegalArgumentException("Unknown message inside of PeerMessageHandler: " + msg)
   }
 
@@ -47,6 +43,9 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
       logger.debug("Peer Message Handler received confirmed closed msg: " + Tcp.ConfirmedClosed)
       //peer = None
       //context stop self
+    case Tcp.PeerClosed =>
+      logger.debug("Peer closed on network")
+      context stop self
   }
   /**
     * This function is responsible for handling a [[Tcp.Command]] algebraic data type

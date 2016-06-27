@@ -26,7 +26,8 @@ trait BitcoinSpvNodeUtil {
       val oneBytes : Seq[Byte] = Seq(0xff.toByte,0xff.toByte)
 
       val prefix : Seq[Byte] = zeroBytes ++ oneBytes
-      BitcoinSUtil.encodeHex(prefix) + BitcoinSUtil.encodeHex(iNetAddress.getAddress)
+      val addr = BitcoinSUtil.encodeHex(prefix) + BitcoinSUtil.encodeHex(iNetAddress.getAddress)
+      addr
     } else BitcoinSUtil.encodeHex(iNetAddress.getAddress.reverse)
   }
 }

@@ -20,7 +20,7 @@ trait RawGetBlocksMessageSerializer extends RawBitcoinSerializer[GetBlocksMessag
 
   def read(bytes : List[Byte]) : GetBlocksMessage = {
     val version = ProtocolVersion(bytes.take(4))
-    val hashCount = BitcoinSUtil.parseCompactSizeUInt(bytes.slice(4,bytes.size))
+    val hashCount = CompactSizeUInt.parseCompactSizeUInt(bytes.slice(4,bytes.size))
     val blockHeaderStartByte = (hashCount.size + 4).toInt
     val blockHeaderBytesStopHash = bytes.slice(blockHeaderStartByte, bytes.size)
     val (blockHashHeaders,remainingBytes) = parseBlockHeaders(blockHeaderBytesStopHash,hashCount)

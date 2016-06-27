@@ -3,6 +3,7 @@ package org.bitcoins.spvnode.messages.control
 import java.net.InetAddress
 
 import org.bitcoins.core.config.MainNet
+import org.bitcoins.core.number.{Int32, UInt64}
 import org.joda.time.DateTime
 import org.bitcoins.spvnode.BuildInfo
 import org.scalatest.{FlatSpec, MustMatchers}
@@ -22,9 +23,9 @@ class VersionMessageTest extends FlatSpec with MustMatchers {
     versionMessage.addressTransIpAddress must be (InetAddress.getLocalHost)
     versionMessage.addressTransPort must be (MainNet.port)
 
-    versionMessage.nonce must be (0)
-    versionMessage.startHeight must be (0)
-    versionMessage.timestamp must be (DateTime.now.getMillis +- 1000)
+    versionMessage.nonce must be (UInt64.zero)
+    versionMessage.startHeight must be (Int32.zero)
+    versionMessage.timestamp.underlying must be (DateTime.now.getMillis +- 1000)
     versionMessage.userAgent must be ("/" + BuildInfo.name + "/" + BuildInfo.version)
   }
 }

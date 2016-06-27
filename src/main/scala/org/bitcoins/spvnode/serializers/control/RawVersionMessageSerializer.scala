@@ -2,8 +2,10 @@ package org.bitcoins.spvnode.serializers.control
 
 import java.net.InetAddress
 
+import org.bitcoins.core.number.{Int32, Int64, UInt64}
+import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.serializers.RawBitcoinSerializer
-import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
+import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil, NumberUtil}
 import org.bitcoins.spvnode.messages.VersionMessage
 import org.bitcoins.spvnode.messages.control.{ServiceIdentifier, VersionMessage}
 import org.bitcoins.spvnode.util.{BitcoinSpvNodeUtil, NetworkIpAddress}
@@ -19,21 +21,21 @@ trait RawVersionMessageSerializer extends RawBitcoinSerializer[VersionMessage] w
   def read(bytes : List[Byte]) : VersionMessage = {
     val version = ProtocolVersion(bytes.take(4))
     val services = ServiceIdentifier(bytes.slice(4,12))
-    val timestamp = BitcoinSUtil.toLong(bytes.slice(12,20))
+    val timestamp = Int64(bytes.slice(12,20).reverse)
     val addressReceiveServices = ServiceIdentifier(bytes.slice(20,28))
     val addressReceiveIpAddress = InetAddress.getByAddress(bytes.slice(28,44).toArray)
-    val addressReceivePort = BitcoinSUtil.toLong(bytes.slice(44,46).reverse).toInt
+    val addressReceivePort = NumberUtil.toLong(bytes.slice(44,46)).toInt
     val addressTransServices = ServiceIdentifier(bytes.slice(46,54))
 
     val addressTransIpAddress = InetAddress.getByAddress(bytes.slice(54,70).toArray)
-    val addressTransPort = BitcoinSUtil.toLong(bytes.slice(70,72).reverse).toInt
-    val nonce = BigInt(bytes.slice(72,80).toArray)
-    val userAgentSize = BitcoinSUtil.parseCompactSizeUInt(bytes.slice(80,bytes.size))
+    val addressTransPort = NumberUtil.toLong(bytes.slice(70,72)).toInt
+    val nonce = UInt64(bytes.slice(72,80))
+    val userAgentSize = CompactSizeUInt.parseCompactSizeUInt(bytes.slice(80,bytes.size))
     val userAgentBytesStartIndex = 80 + userAgentSize.size.toInt
     val userAgentBytes = bytes.slice(userAgentBytesStartIndex, userAgentBytesStartIndex + userAgentSize.num.toInt)
     val userAgent = userAgentBytes.map(_.toChar).mkString
     val startHeightStartIndex = (userAgentBytesStartIndex + userAgentSize.num).toInt
-    val startHeight = BitcoinSUtil.toLong(bytes.slice(startHeightStartIndex, startHeightStartIndex + 4)).toInt
+    val startHeight = Int32(bytes.slice(startHeightStartIndex, startHeightStartIndex + 4).reverse)
     val relay = bytes(startHeightStartIndex + 4) != 0
 
     VersionMessage(version,services,timestamp, addressReceiveServices, addressReceiveIpAddress,
@@ -43,17 +45,19 @@ trait RawVersionMessageSerializer extends RawBitcoinSerializer[VersionMessage] w
 
   def write(versionMessage: VersionMessage) : String = {
     versionMessage.version.hex + versionMessage.services.hex +
-      addPadding(16,BitcoinSUtil.longToHex(versionMessage.timestamp)) +
+      BitcoinSUtil.flipEndianess(versionMessage.timestamp.hex) +
       versionMessage.addressReceiveServices.hex +
       BitcoinSpvNodeUtil.writeAddress(versionMessage.addressReceiveIpAddress) +
-      addPadding(4,BitcoinSUtil.flipEndianess(BitcoinSUtil.longToHex(versionMessage.addressReceivePort))) +
+      //encode he returns 8 characters, but we only need the last 4 since port number is a uint16
+      BitcoinSUtil.encodeHex(versionMessage.addressReceivePort).slice(4,8) +
       versionMessage.addressTransServices.hex +
       BitcoinSpvNodeUtil.writeAddress(versionMessage.addressTransIpAddress) +
-      addPadding(4,BitcoinSUtil.flipEndianess(BitcoinSUtil.longToHex(versionMessage.addressTransPort))) +
-      addPadding(16,BitcoinSUtil.encodeHex(versionMessage.nonce.toByteArray)) +
+      //encode he returns 8 characters, but we only need the last 4 since port number is a uint16
+      BitcoinSUtil.encodeHex(versionMessage.addressTransPort).slice(4,8) +
+      versionMessage.nonce.hex +
       versionMessage.userAgentSize.hex +
       BitcoinSUtil.encodeHex(versionMessage.userAgent.getBytes) +
-      addPadding(8,BitcoinSUtil.longToHex(versionMessage.startHeight)) +
+      BitcoinSUtil.flipEndianess(versionMessage.startHeight.hex) +
       (if (versionMessage.relay) "01" else "00")
   }
 

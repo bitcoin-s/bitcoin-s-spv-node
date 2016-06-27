@@ -8,12 +8,12 @@ import akka.testkit.{TestActorRef, TestKit, TestProbe}
 import akka.util.ByteString
 import org.bitcoins.core.config.{NetworkParameters, TestNet3}
 import org.bitcoins.core.protocol.blockchain.BlockHeader
-import org.bitcoins.core.util.BitcoinSLogger
+import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
 import org.bitcoins.spvnode.NetworkMessage
 import org.bitcoins.spvnode.headers.NetworkHeader
-import org.bitcoins.spvnode.messages.VersionMessage
+import org.bitcoins.spvnode.messages.{NetworkPayload, VerAckMessage, VersionMessage}
 import org.bitcoins.spvnode.messages.control.VersionMessage
-import org.bitcoins.spvnode.versions.ProtocolVersion70002
+import org.bitcoins.spvnode.versions.{ProtocolVersion70002, ProtocolVersion70012}
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FlatSpecLike, MustMatchers}
 
 import scala.concurrent.duration._
@@ -23,21 +23,9 @@ import scala.concurrent.duration._
 class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike with MustMatchers
   with BeforeAndAfter with BeforeAndAfterAll with BitcoinSLogger {
 
-
-  "Client" must "connect to a node on the bitcoin network, then disconnect from that node" in {
-/*    val probe = TestProbe()
-    val client = TestActorRef(Client(TestNet3, probe.ref, system))
-    probe.expectMsgType[Tcp.Connected]
-    //send this message to our peer to let them know we are closing the connection
-    client ! Tcp.ConfirmedClose
-    probe.expectMsg(2.seconds, Tcp.ConfirmedClose)
-    //this is acknowledgement from the peer that they have closed their connection
-    probe.expectMsg(5.seconds, Tcp.ConfirmedClosed)*/
-  }
-
-  it must "send a version message to a peer on the network and receive a version message back" in {
+  "Client" must "connect to a node on the bitcoin network, " +
+    "send a version message to a peer on the network and receive a version message back, then close that connection" in {
     val probe = TestProbe()
-    //val socket = createSocket(TestNet3)
     val client = Client(TestNet3, probe.ref, system)
 
     val conn : Tcp.Connected = probe.expectMsgType[Tcp.Connected]
@@ -46,25 +34,25 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike wi
     val networkMessage = NetworkMessage(TestNet3,versionMessage)
     client ! networkMessage
     val receivedMsg = probe.expectMsgType[Tcp.Received](5.seconds)
-    //val receivedMsg2 = probe.expectMsgType[Tcp.Received](5.seconds)
 
-/*    val header = NetworkHeader(receivedMsg.toList.take(80))
-    val peerVersionMessage = VersionMessage(receivedMsg.toList.slice(80,receivedMsg.toList.size))
+    val header = NetworkHeader(receivedMsg.data.toList.take(24))
+    val peerVersionMessage = VersionMessage(receivedMsg.data.toList.slice(24,receivedMsg.data.toList.size))
     logger.debug("Peer header: " + header)
     logger.debug("Peer version message: " + peerVersionMessage)
+    peerVersionMessage.userAgent.contains("Satoshi") must be (true)
 
-    peerVersionMessage.userAgent must be ("/Satoshi:0.11.2/")
-    peerVersionMessage.version must be (ProtocolVersion70002)
-
-
-    peerVersionMessage.relay must be (true)*/
+    val verackMessage = probe.expectMsgType[Tcp.Received](2.seconds)
+    logger.debug("Verack message: " + BitcoinSUtil.encodeHex(verackMessage.data.toArray))
+    val verack = NetworkHeader(verackMessage.data.toArray)
+    verack.commandName must be (NetworkPayload.verAckCommandName)
+/*    client ! Tcp.ConfirmedClose
+    probe.expectMsg(2.seconds, Tcp.ConfirmedClose)
+    //this is acknowledgement from the peer that they have closed their connection
+    probe.expectMsg(5.seconds, Tcp.ConfirmedClosed)*/
 
   }
 
 
-  private def createSocket(network : NetworkParameters) : InetSocketAddress = {
-    new InetSocketAddress(network.dnsSeeds.head, network.port)
-  }
   override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
   }

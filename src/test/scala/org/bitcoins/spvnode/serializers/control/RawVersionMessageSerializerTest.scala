@@ -1,5 +1,6 @@
 package org.bitcoins.spvnode.serializers.control
 
+import org.bitcoins.core.number.{Int32, Int64}
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.util.BitcoinSUtil
 import org.bitcoins.spvnode.messages.control.NodeNetwork
@@ -39,7 +40,7 @@ class RawVersionMessageSerializerTest extends FlatSpec with MustMatchers {
     val versionMessage = RawVersionMessageSerializer.read(hex)
     versionMessage.version must be (ProtocolVersion(protocolVersion))
     versionMessage.services must be (NodeNetwork)
-    versionMessage.timestamp must be (1415483324)
+    versionMessage.timestamp must be (Int64(1415483324))
 
     versionMessage.addressReceiveServices must be (NodeNetwork)
     BitcoinSpvNodeUtil.writeAddress(versionMessage.addressReceiveIpAddress) must be (receivingNodeIpAddress)
@@ -49,12 +50,12 @@ class RawVersionMessageSerializerTest extends FlatSpec with MustMatchers {
     BitcoinSpvNodeUtil.writeAddress(versionMessage.addressTransIpAddress) must be (transNodeIpAddress)
     versionMessage.addressTransPort must be (8333)
 
-    versionMessage.nonce must be (BigInt(BitcoinSUtil.decodeHex(nonce).toArray))
+    versionMessage.nonce.underlying must be (BigInt(BitcoinSUtil.decodeHex(nonce).toArray))
 
     versionMessage.userAgentSize must be (CompactSizeUInt(15,1))
     versionMessage.userAgent must be ("/Satoshi:0.9.3/")
 
-    versionMessage.startHeight must be (329167)
+    versionMessage.startHeight must be (Int32(329167))
     versionMessage.relay must be (true)
 
 

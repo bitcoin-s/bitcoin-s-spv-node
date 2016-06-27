@@ -1,5 +1,6 @@
 package org.bitcoins.spvnode.serializers.control
 
+import org.bitcoins.core.number.UInt32
 import org.bitcoins.spvnode.messages.control.NodeNetwork
 import org.scalatest.{FlatSpec, MustMatchers}
 
@@ -17,7 +18,7 @@ class RawNetworkIpAddressSerializerTest extends FlatSpec with MustMatchers {
   val hex = time + services + address + port
   "RawNetworkIpAddressSerializer" must "read a network ip address from a hex string" in {
     val ipAddress = RawNetworkIpAddressSerializer.read(hex)
-    ipAddress.time must be (1414012889)
+    ipAddress.time must be (UInt32(1414012889))
     ipAddress.services must be (NodeNetwork)
     ipAddress.address.toString must be ("/192.0.2.51")
     ipAddress.port must be (8333)

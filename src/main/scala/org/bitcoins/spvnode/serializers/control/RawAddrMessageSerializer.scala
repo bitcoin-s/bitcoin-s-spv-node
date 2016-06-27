@@ -17,7 +17,7 @@ import scala.annotation.tailrec
 trait RawAddrMessageSerializer extends RawBitcoinSerializer[AddrMessage] {
 
   def read(bytes : List[Byte]) : AddrMessage = {
-    val ipCount = BitcoinSUtil.parseCompactSizeUInt(bytes)
+    val ipCount = CompactSizeUInt.parseCompactSizeUInt(bytes)
     val ipAddressBytes = bytes.slice(ipCount.size.toInt, bytes.size)
     val (networkIpAddresses, remainingBytes) = parseNetworkIpAddresses(ipCount, ipAddressBytes)
     AddrMessage(ipCount, networkIpAddresses)

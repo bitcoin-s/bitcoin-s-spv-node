@@ -1,5 +1,6 @@
 package org.bitcoins.spvnode.serializers.headers
 
+import org.bitcoins.core.number.UInt32
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
 import org.bitcoins.spvnode.messages.NetworkPayload
 import org.bitcoins.spvnode.util.TestUtil
@@ -20,7 +21,7 @@ class RawNetworkHeaderSerializerTest extends FlatSpec with MustMatchers with Bit
 
     messageHeader.commandName must be ("verack")
 
-    messageHeader.payloadSize must be (0)
+    messageHeader.payloadSize must be (UInt32.zero)
 
     BitcoinSUtil.encodeHex(messageHeader.checksum) must be ("5df6e0e2")
   }
@@ -32,7 +33,6 @@ class RawNetworkHeaderSerializerTest extends FlatSpec with MustMatchers with Bit
 
   it must "read a network header from a node on the network" in {
     val hex = TestUtil.rawNetworkMessage.take(48)
-    logger.debug("Hex: " + hex)
     val header = RawNetworkHeaderSerializer.read(hex)
     BitcoinSUtil.encodeHex(header.network) must be ("0B110907".toLowerCase)
     header.commandName.size must be (NetworkPayload.versionCommandName.size)

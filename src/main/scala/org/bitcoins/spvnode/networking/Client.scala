@@ -54,51 +54,43 @@ sealed trait Client extends Actor with BitcoinSLogger {
 
   def receive = {
     case message : Tcp.Message => message match {
-      case event : Tcp.Event => handleEvent(event)
-      case command : Tcp.Command => handleCommand(command)
+      case event : Tcp.Event =>
+        logger.debug("Event: " + event)
+        handleEvent(event)
+      case command : Tcp.Command =>
+        logger.debug("Command: " + command)
+        handleCommand(command)
     }
-    case networkMessage : NetworkMessage =>
-      logger.debug("Recieved network message inside of Client: " + networkMessage)
-      handleNetworkMessage(networkMessage)
     case unknownMessage => throw new IllegalArgumentException("Unknown message for client: " + unknownMessage)
-
-/*    case data: ByteString =>
-      logger.debug("Sending this data to our peer on the network: " + data)
-      connection.get ! Tcp.Write(data)*/
-
   }
-  def sendMessage(msg : NetworkRequest, peer : NetworkIpAddress) : Future[NetworkResponse] = ???
 
   /**
     * This function is responsible for handling a [[Tcp.Event]] algebraic data type
     * @param event
     */
   private def handleEvent(event : Tcp.Event) = event match {
-
     case Tcp.Bound(localAddress) =>
       logger.debug("Actor is now bound to the local address: " + localAddress)
     case Tcp.CommandFailed(w: Tcp.Write) =>
       logger.debug("Client write command failed: " + Tcp.CommandFailed(w))
       logger.debug("O/S buffer was full")
       // O/S buffer was full
-      listener ! "write failed"
+      //listener ! "write failed"
     case Tcp.CommandFailed(command) =>
       logger.debug("Client Command failed:" + command)
     case Tcp.Received(data) =>
       logger.debug("Received data from our peer on the network: " + BitcoinSUtil.encodeHex(data.toArray))
-      listener ! data
+      //listener ! data
     case Tcp.Connected(remote, local) =>
       logger.debug("Tcp connection to: " + remote)
       logger.debug("Local: " + local)
       peer = Some(sender)
       peer.get ! Tcp.Register(listener)
       listener ! Tcp.Connected(remote,local)
-
     case Tcp.ConfirmedClosed =>
       logger.debug("Client received confirmed closed msg: " + Tcp.ConfirmedClosed)
       peer = None
       context stop self
-    case message : NetworkMessage => handleNetworkMessage(message)
   }
   /**
     * This function is responsible for handling a [[Tcp.Command]] algebraic data type
@@ -110,57 +102,22 @@ sealed trait Client extends Actor with BitcoinSLogger {
       listener ! Tcp.ConfirmedClose
       peer.get ! Tcp.ConfirmedClose
   }
-  /**
-    * Function to handle all of our [[NetworkPayload]] on the p2p network.
-    * @param message
-    * @return
-    */
-  private def handleNetworkMessage(message : NetworkMessage) = message.payload match {
-    case request : NetworkRequest => handleNetworkRequest(message)
-    case response : NetworkResponse => handleNetworkResponse(response)
-  }
 
-  /**
-    * Sends a network request to our peer on the network
-    * @param request
-    * @return
-    */
-  private def handleNetworkRequest(request : NetworkMessage) = {
-    val byteMessage = buildByteString(request.bytes)
-    logger.debug("Network request: " + request)
-    logger.debug("Byte message: " + BitcoinSUtil.encodeHex(request.bytes))
-    logger.debug("Peer: " + peer.get  )
-    peer.get ! Tcp.Write(byteMessage)
-  }
-
-  /**
-    * Sends a network response to the actor that is listening to our communications with
-    * the peer we are connected to on the network
-    * @param response
-    */
-  private def handleNetworkResponse(response : NetworkResponse) = listener ! response
-
-
-  /**
-    * Wraps our Seq[Byte] into an akka [[ByteString]] object
-    * @param bytes
-    * @return
-    */
-  private def buildByteString(bytes: Seq[Byte]) : ByteString = {
-    CompactByteString(bytes.toArray)
-  }
 }
 
 
+case class ClientImpl(remote: InetSocketAddress, network : NetworkParameters,
+                      listener: ActorRef, actorSystem : ActorSystem) extends Client {
+  manager ! Tcp.Bind(listener, new InetSocketAddress(remote.getPort))
+
+  //this eagerly connects the client with our peer on the network as soon
+  //as the case class is instantiated
+  manager ! Tcp.Connect(remote, Some(new InetSocketAddress(remote.getPort)))
+
+}
+
 object Client {
-  private case class ClientImpl(remote: InetSocketAddress, network : NetworkParameters,
-                                listener: ActorRef, actorSystem : ActorSystem) extends Client {
 
-    //this eagerly connects the client with our peer on the network as soon
-    //as the case class is instantiated
-    manager ! Tcp.Connect(remote, Some(new InetSocketAddress(remote.getPort)))
-
-  }
 
   def props(remote : InetSocketAddress, network : NetworkParameters, listener : ActorRef, actorSystem : ActorSystem) : Props = {
     Props(classOf[ClientImpl], remote, network, listener, actorSystem)
@@ -172,7 +129,7 @@ object Client {
 
   def apply(network : NetworkParameters, listener : ActorRef, actorSystem : ActorSystem) : ActorRef = {
     //val randomSeed = ((Math.random() * 10) % network.dnsSeeds.size).toInt
-    val remote = new InetSocketAddress(network.dnsSeeds(0), network.port)
+    val remote = new InetSocketAddress(network.dnsSeeds(2), network.port)
     Client(remote, network, listener, actorSystem)
   }
 }

@@ -1,6 +1,7 @@
 package org.bitcoins.spvnode.serializers.messages.data
 
 import org.bitcoins.core.crypto.DoubleSha256Digest
+import org.bitcoins.core.number.UInt32
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.serializers.RawBitcoinSerializer
 import org.bitcoins.core.serializers.blockchain.RawBlockHeaderSerializer
@@ -20,15 +21,15 @@ trait RawMerkleBlockMessageSerializer extends RawBitcoinSerializer[MerkleBlockMe
   def read(bytes : List[Byte]) : MerkleBlockMessage = {
     val blockHeader = RawBlockHeaderSerializer.read(bytes.slice(0,80))
     val bytesAfterBlockHeaderParsing = bytes.slice(blockHeader.bytes.size, bytes.size)
-    val transactionCount = BitcoinSUtil.toLong(bytesAfterBlockHeaderParsing.slice(0,4))
-    val hashCount = BitcoinSUtil.parseCompactSizeUInt(
+    val transactionCount = UInt32(bytesAfterBlockHeaderParsing.slice(0,4).reverse)
+    val hashCount = CompactSizeUInt.parseCompactSizeUInt(
       bytesAfterBlockHeaderParsing.slice(4,bytesAfterBlockHeaderParsing.size))
     val txHashStartIndex = (4 + hashCount.size).toInt
     val bytesAfterHashCountParsing = bytesAfterBlockHeaderParsing.slice(txHashStartIndex,bytesAfterBlockHeaderParsing.size)
 
     val (txHashes, bytesAfterTxHashParsing) = parseTransactionHashes(bytesAfterHashCountParsing,hashCount)
     logger.debug("Bytes after tx hash parsing: " + BitcoinSUtil.encodeHex(bytesAfterTxHashParsing))
-    val flagCount = BitcoinSUtil.parseCompactSizeUInt(bytesAfterTxHashParsing)
+    val flagCount = CompactSizeUInt.parseCompactSizeUInt(bytesAfterTxHashParsing)
     val flags = bytesAfterTxHashParsing.slice(flagCount.size.toInt, bytesAfterTxHashParsing.size)
 
     MerkleBlockMessage(blockHeader, transactionCount,hashCount,txHashes,flagCount,flags)
@@ -36,7 +37,7 @@ trait RawMerkleBlockMessageSerializer extends RawBitcoinSerializer[MerkleBlockMe
 
   def write(merkleBlockMessage: MerkleBlockMessage) : String = {
     merkleBlockMessage.blockHeader.hex +
-      addPadding(8,BitcoinSUtil.longToHex(merkleBlockMessage.transactionCount)) +
+      BitcoinSUtil.flipEndianess(merkleBlockMessage.transactionCount.bytes)+
       merkleBlockMessage.hashCount.hex + merkleBlockMessage.hashes.map(_.hex).mkString +
       merkleBlockMessage.flagCount.hex + BitcoinSUtil.encodeHex(merkleBlockMessage.flags)
   }

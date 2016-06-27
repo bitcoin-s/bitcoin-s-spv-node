@@ -16,7 +16,7 @@ import scala.util.Try
 class ServerTest extends TestKit(ActorSystem("ServerTest")) with FlatSpecLike with MustMatchers  {
   "Server" must "bind a tcp server to an address on our machine" in {
     //if this fails this means that the port is in use before our test case is run
-    val port = TestNet3.port
+    val port = 13427
     isBound(port) must be (false)
     val actor = Server()
     actor ! Tcp.Bind(actor, new InetSocketAddress(port))

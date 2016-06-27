@@ -21,7 +21,7 @@ trait RawInventoryMessageSerializer extends RawBitcoinSerializer[InventoryMessag
     * @return
     */
   override def read(bytes : List[Byte]) : InventoryMessage = {
-    val inventoryCount = BitcoinSUtil.parseCompactSizeUInt(bytes)
+    val inventoryCount = CompactSizeUInt.parseCompactSizeUInt(bytes)
     val inventoryStart = inventoryCount.size.toInt
     val remainingBytes = bytes.slice(inventoryStart,bytes.size)
     val (inventories,_) = parseInventories(remainingBytes,inventoryCount)
