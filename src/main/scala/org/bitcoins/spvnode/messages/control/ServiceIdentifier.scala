@@ -45,9 +45,7 @@ object ServiceIdentifier extends Factory[ServiceIdentifier] with BitcoinSLogger 
   def apply(uInt64 : UInt64): ServiceIdentifier = uInt64 match {
     case UInt64.zero => UnnamedService
     case UInt64.one => NodeNetwork
-    case x : UInt64 =>
-      logger.debug("Trying to match: " + x)
-      UnknownServiceImpl(x)
+    case x : UInt64 => UnknownServiceImpl(x)
   }
 }
 

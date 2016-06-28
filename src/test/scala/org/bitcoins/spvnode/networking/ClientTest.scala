@@ -23,27 +23,28 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike wi
     val probe = TestProbe()
     val client = Client(TestNet3, probe.ref, system)
 
+    val bound : Tcp.Bound = probe.expectMsgType[Tcp.Bound]
     val conn : Tcp.Connected = probe.expectMsgType[Tcp.Connected]
 
     val versionMessage = VersionMessage(TestNet3, conn.localAddress.getAddress,conn.remoteAddress.getAddress)
     val networkMessage = NetworkMessage(TestNet3, versionMessage)
     client ! networkMessage
     val receivedMsg = probe.expectMsgType[Tcp.Received](5.seconds)
-/*
     val header = NetworkHeader(receivedMsg.data.toList.take(24))
     val peerVersionMessage = VersionMessage(receivedMsg.data.toList.slice(24,receivedMsg.data.toList.size))
     logger.debug("Peer header: " + header)
     logger.debug("Peer version message: " + peerVersionMessage)
+
     peerVersionMessage.userAgent.contains("Satoshi") must be (true)
 
-    val verackMessage = probe.expectMsgType[Tcp.Received](2.seconds)
+    val verackMessage = probe.expectMsgType[Tcp.Received](5.seconds)
     logger.debug("Verack message: " + BitcoinSUtil.encodeHex(verackMessage.data.toArray))
     val verack = NetworkHeader(verackMessage.data.toArray)
-    verack.commandName must be (NetworkPayload.verAckCommandName)*/
-/*    client ! Tcp.ConfirmedClose
+    verack.commandName must be (NetworkPayload.verAckCommandName)
+    //client ! Tcp.ConfirmedClose
     probe.expectMsg(2.seconds, Tcp.ConfirmedClose)
     //this is acknowledgement from the peer that they have closed their connection
-    probe.expectMsg(5.seconds, Tcp.ConfirmedClosed)*/
+    probe.expectMsg(5.seconds, Tcp.ConfirmedClosed)
 
   }
 

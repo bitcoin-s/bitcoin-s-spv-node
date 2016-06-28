@@ -9,9 +9,6 @@ import org.bitcoins.core.config.NetworkParameters
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
 import org.bitcoins.spvnode.NetworkMessage
 import org.bitcoins.spvnode.messages._
-import org.bitcoins.spvnode.util.NetworkIpAddress
-
-import scala.concurrent.Future
 /**
   * Created by chris on 6/6/16.
   */
@@ -72,6 +69,7 @@ sealed trait Client extends Actor with BitcoinSLogger {
   private def handleEvent(event : Tcp.Event) = event match {
     case Tcp.Bound(localAddress) =>
       logger.debug("Actor is now bound to the local address: " + localAddress)
+      listener ! Tcp.Bound(localAddress)
     case Tcp.CommandFailed(w: Tcp.Write) =>
       logger.debug("Client write command failed: " + Tcp.CommandFailed(w))
       logger.debug("O/S buffer was full")
@@ -139,11 +137,11 @@ sealed trait Client extends Actor with BitcoinSLogger {
 
 case class ClientImpl(remote: InetSocketAddress, network : NetworkParameters,
                       listener: ActorRef, actorSystem : ActorSystem) extends Client {
-  //manager ! Tcp.Bind(listener, new InetSocketAddress(remote.getPort))
 
+  manager ! Tcp.Bind(listener, new InetSocketAddress(network.port))
   //this eagerly connects the client with our peer on the network as soon
   //as the case class is instantiated
-  manager ! Tcp.Connect(remote, Some(new InetSocketAddress(remote.getPort)))
+  manager ! Tcp.Connect(remote)
 
 }
 
