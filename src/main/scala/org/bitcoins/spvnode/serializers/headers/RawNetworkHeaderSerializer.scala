@@ -37,7 +37,7 @@ trait RawNetworkHeaderSerializer extends RawBitcoinSerializer[NetworkHeader] wit
     //command name needs to be 12 bytes in size, or 24 chars in hex
     val commandName = addPadding(24, commandNameNoPadding)
     val checksum = BitcoinSUtil.encodeHex(messageHeader.checksum)
-    network + commandName + messageHeader.payloadSize.hex + checksum
+    network + commandName + BitcoinSUtil.flipEndianess(messageHeader.payloadSize.bytes) + checksum
   }
 
 }

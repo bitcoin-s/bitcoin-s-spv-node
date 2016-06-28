@@ -25,7 +25,7 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike wi
 
     val conn : Tcp.Connected = probe.expectMsgType[Tcp.Connected]
 
-    val versionMessage = VersionMessage(TestNet3,  conn.localAddress.getAddress, conn.remoteAddress.getAddress)
+    val versionMessage = VersionMessage(TestNet3, conn.localAddress.getAddress,conn.remoteAddress.getAddress)
     val networkMessage = NetworkMessage(TestNet3, versionMessage)
     client ! networkMessage
     val receivedMsg = probe.expectMsgType[Tcp.Received](5.seconds)

@@ -14,7 +14,7 @@ import org.bitcoins.spvnode.serializers.RawNetworkMessageSerializer
 sealed trait NetworkMessage extends NetworkElement {
   def header : NetworkHeader
   def payload : NetworkPayload
-  override def hex = header.hex + payload.hex
+  override def hex = RawNetworkMessageSerializer.write(this)
 }
 
 

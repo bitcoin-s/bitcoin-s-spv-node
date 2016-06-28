@@ -117,7 +117,7 @@ sealed trait Client extends Actor with BitcoinSLogger {
     * @return
     */
   private def handleNetworkRequest(request : NetworkMessage) = {
-    val byteMessage = buildByteString(request.bytes)
+    val byteMessage = buildByteString(BitcoinSUtil.decodeHex("0b11090776657273696f6e0000000000660000002f6743da721101000100000000000000e0165b5700000000010000000000000000000000000000000000ffffad1f27a8479d010000000000000000000000000000000000ffff00000000479d68dc32a9948d149b102f5361746f7368693a302e31312e322f7f440d0001"))
     logger.debug("Network request: " + request)
     logger.debug("Byte message: " + BitcoinSUtil.encodeHex(request.bytes))
     logger.debug("Peer: " + peer.get)
