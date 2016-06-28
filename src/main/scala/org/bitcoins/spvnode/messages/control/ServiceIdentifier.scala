@@ -1,14 +1,15 @@
 package org.bitcoins.spvnode.messages.control
 
+import org.bitcoins.core.number.UInt64
 import org.bitcoins.core.protocol.NetworkElement
-import org.bitcoins.core.util.Factory
+import org.bitcoins.core.util.{BitcoinSLogger, Factory}
 import org.bitcoins.spvnode.serializers.control.RawServiceIdentifierSerializer
 
 /**
   * Created by chris on 6/2/16.
   */
 sealed trait ServiceIdentifier extends NetworkElement {
-  def num : BigInt
+  def num : UInt64
   override def hex = RawServiceIdentifierSerializer.write(this)
 }
 
@@ -17,7 +18,7 @@ sealed trait ServiceIdentifier extends NetworkElement {
   * It may not be able to provide any data except for the transactions it originates.
   */
 case object UnnamedService extends ServiceIdentifier {
-  def num = 0
+  def num = UInt64.zero
 }
 
 /**
@@ -25,7 +26,7 @@ case object UnnamedService extends ServiceIdentifier {
   * It should implement all protocol features available in its self-reported protocol version.
   */
 case object NodeNetwork extends ServiceIdentifier {
-  def num = 1
+  def num = UInt64.one
 }
 
 /**
@@ -33,16 +34,20 @@ case object NodeNetwork extends ServiceIdentifier {
   */
 sealed trait UnknownService extends ServiceIdentifier
 
-object ServiceIdentifier extends Factory[ServiceIdentifier] {
+object ServiceIdentifier extends Factory[ServiceIdentifier] with BitcoinSLogger {
 
-  private case class UnknownServiceImpl(num : BigInt) extends UnknownService
+  private case class UnknownServiceImpl(num : UInt64) extends UnknownService
 
   def fromBytes(bytes : Seq[Byte]) : ServiceIdentifier = RawServiceIdentifierSerializer.read(bytes)
 
-  def apply(num : BigInt) = num match {
-    case _ if num == BigInt(0) => UnnamedService
-    case _ if num == BigInt(1) => NodeNetwork
-    case x : BigInt => UnknownServiceImpl(x)
+  def apply(num : BigInt): ServiceIdentifier = ServiceIdentifier(UInt64(num))
+
+  def apply(uInt64 : UInt64): ServiceIdentifier = uInt64 match {
+    case UInt64.zero => UnnamedService
+    case UInt64.one => NodeNetwork
+    case x : UInt64 =>
+      logger.debug("Trying to match: " + x)
+      UnknownServiceImpl(x)
   }
 }
 

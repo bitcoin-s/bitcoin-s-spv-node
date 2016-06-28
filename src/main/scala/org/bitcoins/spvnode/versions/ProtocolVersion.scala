@@ -13,7 +13,7 @@ sealed trait ProtocolVersion extends NetworkElement
 
 object ProtocolVersion extends Factory[ProtocolVersion] {
 
-  private def versions : Seq[ProtocolVersion] = Seq(ProtocolVersion106, ProtocolVersion209, ProtocolVersion311, ProtocolVersion31402,
+  def versions : Seq[ProtocolVersion] = Seq(ProtocolVersion106, ProtocolVersion209, ProtocolVersion311, ProtocolVersion31402,
     ProtocolVersion31800, ProtocolVersion60000, ProtocolVersion60001, ProtocolVersion60002, ProtocolVersion70001,
     ProtocolVersion70002, ProtocolVersion70012)
 

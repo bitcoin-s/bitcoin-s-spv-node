@@ -1,5 +1,6 @@
 package org.bitcoins.spvnode.serializers.control
 
+import org.bitcoins.core.number.UInt64
 import org.bitcoins.core.serializers.RawBitcoinSerializer
 import org.bitcoins.core.util.BitcoinSUtil
 import org.bitcoins.spvnode.messages.control.ServiceIdentifier
@@ -15,13 +16,11 @@ trait RawServiceIdentifierSerializer extends RawBitcoinSerializer[ServiceIdentif
   def read(bytes : List[Byte]) : ServiceIdentifier = {
     val serviceBytes = bytes.take(8)
     //since bitcoin uses big endian for numbers, we need to convert to little endian
-    ServiceIdentifier(BigInt(serviceBytes.reverse.toArray))
+    ServiceIdentifier(UInt64(serviceBytes.reverse))
   }
 
-  def write(serviceIdentifier: ServiceIdentifier) : String = {
-    val hex = BitcoinSUtil.encodeHex(serviceIdentifier.num.toByteArray)
-    addPadding(16,hex)
-  }
+  def write(serviceIdentifier: ServiceIdentifier) : String = BitcoinSUtil.flipEndianess(serviceIdentifier.num.hex)
+
 }
 
 object RawServiceIdentifierSerializer extends RawServiceIdentifierSerializer

@@ -602,7 +602,7 @@ sealed trait VersionMessage extends ControlPayload  {
   def userAgentSize : CompactSizeUInt
 
   /**
-    * User agent as defined by BIP14. Pkqreviously called subVer.
+    * User agent as defined by BIP14. Previously called subVer.
     * @return
     */
   def userAgent : String

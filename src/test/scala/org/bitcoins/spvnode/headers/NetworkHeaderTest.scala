@@ -27,4 +27,5 @@ class NetworkHeaderTest extends FlatSpec with MustMatchers {
     messageHeader.payloadSize must be (UInt32.zero)
     BitcoinSUtil.encodeHex(messageHeader.checksum) must be ("5df6e0e2")
   }
+
 }

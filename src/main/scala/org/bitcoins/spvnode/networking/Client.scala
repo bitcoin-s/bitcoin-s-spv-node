@@ -61,6 +61,7 @@ sealed trait Client extends Actor with BitcoinSLogger {
         logger.debug("Command: " + command)
         handleCommand(command)
     }
+    case message : NetworkMessage => handleNetworkMessage(message)
     case unknownMessage => throw new IllegalArgumentException("Unknown message for client: " + unknownMessage)
   }
 
@@ -103,12 +104,42 @@ sealed trait Client extends Actor with BitcoinSLogger {
       peer.get ! Tcp.ConfirmedClose
   }
 
+
+
+  def handleNetworkMessage(message: NetworkMessage) = message.payload match {
+    case request : NetworkRequest => handleNetworkRequest(message)
+    case response : NetworkResponse => handleNetworkResponse(message)
+  }
+
+  /**
+    * Sends a network request to our peer on the network
+    * @param request
+    * @return
+    */
+  private def handleNetworkRequest(request : NetworkMessage) = {
+    val byteMessage = buildByteString(request.bytes)
+    logger.debug("Network request: " + request)
+    logger.debug("Byte message: " + BitcoinSUtil.encodeHex(request.bytes))
+    logger.debug("Peer: " + peer.get)
+    peer.get ! Tcp.Write(byteMessage)
+  }
+
+  private def handleNetworkResponse(response : NetworkMessage) = ???
+
+  /**
+    * Wraps our Seq[Byte] into an akka [[ByteString]] object
+    * @param bytes
+    * @return
+    */
+  private def buildByteString(bytes: Seq[Byte]) : ByteString = {
+    CompactByteString(bytes.toArray)
+  }
 }
 
 
 case class ClientImpl(remote: InetSocketAddress, network : NetworkParameters,
                       listener: ActorRef, actorSystem : ActorSystem) extends Client {
-  manager ! Tcp.Bind(listener, new InetSocketAddress(remote.getPort))
+  //manager ! Tcp.Bind(listener, new InetSocketAddress(remote.getPort))
 
   //this eagerly connects the client with our peer on the network as soon
   //as the case class is instantiated
@@ -129,7 +160,7 @@ object Client {
 
   def apply(network : NetworkParameters, listener : ActorRef, actorSystem : ActorSystem) : ActorRef = {
     //val randomSeed = ((Math.random() * 10) % network.dnsSeeds.size).toInt
-    val remote = new InetSocketAddress(network.dnsSeeds(2), network.port)
+    val remote = new InetSocketAddress(network.dnsSeeds(0), network.port)
     Client(remote, network, listener, actorSystem)
   }
 }

@@ -3,7 +3,7 @@ package org.bitcoins.spvnode.headers
 import org.bitcoins.core.config.NetworkParameters
 import org.bitcoins.core.number.UInt32
 import org.bitcoins.core.protocol.NetworkElement
-import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil, CryptoUtil, Factory}
+import org.bitcoins.core.util.{BitcoinSLogger, CryptoUtil, Factory}
 import org.bitcoins.spvnode.messages.NetworkPayload
 import org.bitcoins.spvnode.serializers.headers.RawNetworkHeaderSerializer
 
@@ -56,7 +56,9 @@ sealed trait NetworkHeader extends NetworkElement with BitcoinSLogger {
 object NetworkHeader extends Factory[NetworkHeader] {
 
   private case class NetworkHeaderImpl(network : Seq[Byte], commandName : String,
-                                       payloadSize : UInt32, checksum : Seq[Byte]) extends NetworkHeader
+                                       payloadSize : UInt32, checksum : Seq[Byte]) extends NetworkHeader {
+    require(bytes.length == 24,"NetworkHeaders must be 24 bytes")
+  }
 
   override def fromBytes(bytes : Seq[Byte]) : NetworkHeader = RawNetworkHeaderSerializer.read(bytes)
 

@@ -11,9 +11,9 @@ import org.bitcoins.spvnode.messages.NetworkPayload
 trait RawNetworkMessageSerializer extends RawBitcoinSerializer[NetworkMessage] {
 
   def read(bytes : List[Byte]) : NetworkMessage = {
-    //first 80 bytes are the header
-    val header = NetworkHeader(bytes.take(80))
-    val payload = NetworkPayload(header, bytes.slice(80,bytes.size))
+    //first 24 bytes are the header
+    val header = NetworkHeader(bytes.take(24))
+    val payload = NetworkPayload(header, bytes.slice(24,bytes.size))
     NetworkMessage(header,payload)
   }
 

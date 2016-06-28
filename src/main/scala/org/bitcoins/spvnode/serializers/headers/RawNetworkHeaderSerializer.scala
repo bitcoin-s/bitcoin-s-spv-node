@@ -21,7 +21,7 @@ trait RawNetworkHeaderSerializer extends RawBitcoinSerializer[NetworkHeader] wit
     val network = bytes.take(4)
     //.trim removes the null characters appended to the command name
     val commandName = bytes.slice(4,16).map(_.toChar).mkString.trim
-    val payloadSize = UInt32(bytes.slice(16,20))
+    val payloadSize = UInt32(bytes.slice(16,20).reverse)
     val checksum = bytes.slice(20,24)
     NetworkHeader(network,commandName,payloadSize,checksum)
   }

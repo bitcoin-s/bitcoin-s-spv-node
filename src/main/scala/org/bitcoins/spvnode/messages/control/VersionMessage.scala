@@ -29,8 +29,9 @@ object VersionMessage extends Factory[VersionMessage] {
             addressReceiveServices : ServiceIdentifier, addressReceiveIpAddress : InetAddress,
             addressReceivePort : Int, addressTransServices : ServiceIdentifier,
             addressTransIpAddress : InetAddress, addressTransPort : Int,
-            nonce : UInt64, userAgentSize : CompactSizeUInt, userAgent : String,
+            nonce : UInt64,  userAgent : String,
             startHeight : Int32, relay : Boolean) : VersionMessage = {
+    val userAgentSize : CompactSizeUInt = CompactSizeUInt.calculateCompactSizeUInt(userAgent.getBytes)
     VersionMessageRequest(version, services,timestamp, addressReceiveServices, addressReceiveIpAddress,
       addressReceivePort, addressTransServices, addressTransIpAddress, addressTransPort,
       nonce, userAgentSize, userAgent, startHeight, relay)

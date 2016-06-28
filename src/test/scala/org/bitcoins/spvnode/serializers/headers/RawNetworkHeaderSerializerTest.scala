@@ -37,7 +37,7 @@ class RawNetworkHeaderSerializerTest extends FlatSpec with MustMatchers with Bit
     BitcoinSUtil.encodeHex(header.network) must be ("0B110907".toLowerCase)
     header.commandName.size must be (NetworkPayload.versionCommandName.size)
     header.commandName must be (NetworkPayload.versionCommandName)
-    header.payloadSize must be (102)
+    header.payloadSize must be (UInt32(102))
     BitcoinSUtil.encodeHex(header.checksum) must be ("2f6743da")
 
   }

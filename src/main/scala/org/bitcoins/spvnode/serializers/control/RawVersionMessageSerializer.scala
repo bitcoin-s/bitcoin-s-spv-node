@@ -2,13 +2,13 @@ package org.bitcoins.spvnode.serializers.control
 
 import java.net.InetAddress
 
-import org.bitcoins.core.number.{Int32, Int64, UInt64}
+import org.bitcoins.core.number.{Int32, Int64, UInt32, UInt64}
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.serializers.RawBitcoinSerializer
-import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil, NumberUtil}
+import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
 import org.bitcoins.spvnode.messages.VersionMessage
 import org.bitcoins.spvnode.messages.control.{ServiceIdentifier, VersionMessage}
-import org.bitcoins.spvnode.util.{BitcoinSpvNodeUtil, NetworkIpAddress}
+import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 import org.bitcoins.spvnode.versions.ProtocolVersion
 
 /**
@@ -24,11 +24,10 @@ trait RawVersionMessageSerializer extends RawBitcoinSerializer[VersionMessage] w
     val timestamp = Int64(bytes.slice(12,20).reverse)
     val addressReceiveServices = ServiceIdentifier(bytes.slice(20,28))
     val addressReceiveIpAddress = InetAddress.getByAddress(bytes.slice(28,44).toArray)
-    val addressReceivePort = NumberUtil.toLong(bytes.slice(44,46)).toInt
+    val addressReceivePort = UInt32(bytes.slice(44,46)).underlying.toInt
     val addressTransServices = ServiceIdentifier(bytes.slice(46,54))
-
     val addressTransIpAddress = InetAddress.getByAddress(bytes.slice(54,70).toArray)
-    val addressTransPort = NumberUtil.toLong(bytes.slice(70,72)).toInt
+    val addressTransPort = UInt32(bytes.slice(70,72)).underlying.toInt
     val nonce = UInt64(bytes.slice(72,80))
     val userAgentSize = CompactSizeUInt.parseCompactSizeUInt(bytes.slice(80,bytes.size))
     val userAgentBytesStartIndex = 80 + userAgentSize.size.toInt
@@ -40,7 +39,7 @@ trait RawVersionMessageSerializer extends RawBitcoinSerializer[VersionMessage] w
 
     VersionMessage(version,services,timestamp, addressReceiveServices, addressReceiveIpAddress,
       addressReceivePort, addressTransServices, addressTransIpAddress, addressTransPort,
-      nonce,userAgentSize,userAgent, startHeight, relay)
+      nonce, userAgent, startHeight, relay)
   }
 
   def write(versionMessage: VersionMessage) : String = {
@@ -48,11 +47,11 @@ trait RawVersionMessageSerializer extends RawBitcoinSerializer[VersionMessage] w
       BitcoinSUtil.flipEndianess(versionMessage.timestamp.hex) +
       versionMessage.addressReceiveServices.hex +
       BitcoinSpvNodeUtil.writeAddress(versionMessage.addressReceiveIpAddress) +
-      //encode he returns 8 characters, but we only need the last 4 since port number is a uint16
+      //encode hex returns 8 characters, but we only need the last 4 since port number is a uint16
       BitcoinSUtil.encodeHex(versionMessage.addressReceivePort).slice(4,8) +
       versionMessage.addressTransServices.hex +
       BitcoinSpvNodeUtil.writeAddress(versionMessage.addressTransIpAddress) +
-      //encode he returns 8 characters, but we only need the last 4 since port number is a uint16
+      //encode hex returns 8 characters, but we only need the last 4 since port number is a uint16
       BitcoinSUtil.encodeHex(versionMessage.addressTransPort).slice(4,8) +
       versionMessage.nonce.hex +
       versionMessage.userAgentSize.hex +
