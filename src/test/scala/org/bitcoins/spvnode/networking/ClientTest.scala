@@ -61,10 +61,18 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike wi
   private def parseIndividualMessages(bytes: Seq[Byte]): Seq[NetworkMessage] = {
     @tailrec
     def loop(remainingBytes : Seq[Byte], accum : Seq[NetworkMessage]): Seq[NetworkMessage] = {
-      val message = NetworkMessage(remainingBytes)
-      val newRemainingBytes = remainingBytes.slice(message.bytes.length, remainingBytes.length)
-      loop(newRemainingBytes, message +: accum)
+      if (remainingBytes.length <= 0) accum
+      else {
+        val message = NetworkMessage(remainingBytes)
+        logger.debug("Parsed network message: " + message)
+        val newRemainingBytes = remainingBytes.slice(message.bytes.length, remainingBytes.length)
+        logger.debug("Command names accum: " + accum.map(_.header.commandName))
+        logger.debug("New Remaining bytes: " + BitcoinSUtil.encodeHex(newRemainingBytes))
+        loop(newRemainingBytes, message +: accum)
+      }
     }
-    loop(bytes, Seq()).reverse
+    val messages = loop(bytes, Seq()).reverse
+    logger.debug("Parsed messages: " + messages)
+    messages
   }
 }

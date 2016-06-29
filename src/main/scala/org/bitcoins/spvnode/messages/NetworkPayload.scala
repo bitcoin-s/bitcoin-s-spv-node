@@ -114,8 +114,14 @@ sealed trait GetDataPayload extends DataPayload with NetworkRequest
   * headers it hasn’t seen yet.
   * https://bitcoin.org/en/developer-reference#getheaders
   */
-sealed trait GetHeadersMessage extends DataPayload with NetworkRequest {
+trait GetHeadersMessage extends DataPayload with NetworkRequest {
+  def version: ProtocolVersion
+  def hashCount: CompactSizeUInt
+  def hashes: Seq[DoubleSha256Digest]
+  def hashStop: DoubleSha256Digest
+
   override def commandName = NetworkPayload.getHeadersCommandName
+  override def hex = RawGetHeadersMessageSerializer.write(this)
 }
 
 /**
@@ -674,7 +680,7 @@ object NetworkPayload {
   def commandNames : Map[String, Seq[Byte] => NetworkPayload] = Map(
     blockCommandName -> { x : Seq[Byte] => ???},
     getBlocksCommandName -> { RawGetBlocksMessageSerializer.read(_) },
-    getHeadersCommandName -> { x : Seq[Byte] => VerAckMessage},
+    getHeadersCommandName -> {RawGetHeadersMessageSerializer.read(_)},
     headersCommandName -> { x : Seq[Byte] => ???},
     invCommandName -> { RawInventoryMessageSerializer.read(_) },
     memPoolCommandName -> { x : Seq[Byte] => ???},
@@ -686,7 +692,7 @@ object NetworkPayload {
     filterClearCommandName -> { x : Seq[Byte] => ???},
     filterLoadCommandName -> { x : Seq[Byte] => ???},
     getAddressCommandName -> { x : Seq[Byte] => ???},
-    pingCommandName -> { x : Seq[Byte] => RawPingMessageSerializer.read(x)},
+    pingCommandName -> { RawPingMessageSerializer.read(_)},
     pongCommandName -> { x : Seq[Byte] => ???},
     rejectCommandName -> { x : Seq[Byte] => ???},
     sendHeadersCommandName -> { x : Seq[Byte] => ???},
