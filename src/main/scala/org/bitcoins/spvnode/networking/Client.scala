@@ -157,7 +157,7 @@ object Client {
 
   def apply(network : NetworkParameters, listener : ActorRef, actorSystem : ActorSystem) : ActorRef = {
     //val randomSeed = ((Math.random() * 10) % network.dnsSeeds.size).toInt
-    val remote = new InetSocketAddress(network.dnsSeeds(0), network.port)
+    val remote = new InetSocketAddress(network.dnsSeeds(2), network.port)
     Client(remote, network, listener, actorSystem)
   }
 }
