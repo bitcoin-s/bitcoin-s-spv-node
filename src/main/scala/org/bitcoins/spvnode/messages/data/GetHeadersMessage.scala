@@ -20,4 +20,9 @@ object GetHeadersMessage extends Factory[GetHeadersMessage] {
             hashes : Seq[DoubleSha256Digest], hashStop : DoubleSha256Digest): GetHeadersMessage = {
     GetHeadersMessageImpl(version,hashCount,hashes,hashStop)
   }
+
+  def apply(version: ProtocolVersion, hashes: Seq[DoubleSha256Digest], hashStop: DoubleSha256Digest): GetHeadersMessage = {
+    val hashCount = CompactSizeUInt(hashes.length)
+    GetHeadersMessage(version, hashCount, hashes, hashStop)
+  }
 }

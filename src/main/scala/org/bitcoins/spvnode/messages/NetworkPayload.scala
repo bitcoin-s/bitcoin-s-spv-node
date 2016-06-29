@@ -36,17 +36,17 @@ sealed trait NetworkPayload extends NetworkElement {
 /**
   * Represents a message that is sending a request to another node on the network
   */
-sealed trait NetworkRequest extends NetworkElement
+sealed trait NetworkRequest extends NetworkPayload
 
 /**
   * Represents a message that is response to a request that was sent
   */
-sealed trait NetworkResponse
+sealed trait NetworkResponse extends NetworkPayload
 /**
   * Represents a data message inside of bitcoin core
   * https://bitcoin.org/en/developer-reference#data-messages
   */
-sealed trait DataPayload extends NetworkPayload
+sealed trait DataPayload
 
 /**
   * The block message transmits a single serialized block
@@ -156,7 +156,7 @@ sealed trait HeadersMessage extends DataPayload with NetworkResponse {
   * or it can be sent in reply to a getblocks message or mempool message.
   * https://bitcoin.org/en/developer-reference#inv
   */
-sealed trait InventoryMessage extends DataPayload {
+sealed trait InventoryMessage extends DataPayload with NetworkRequest with NetworkResponse {
   /**
     * The number of inventory enteries
     * @return
@@ -282,7 +282,7 @@ trait TransactionMessage extends DataPayload with NetworkResponse {
   * Represents a control message on this network
   * https://bitcoin.org/en/developer-reference#control-messages
   */
-sealed trait ControlPayload extends NetworkPayload
+sealed trait ControlPayload
 
 /**
   * The addr (IP address) message relays connection information for peers on the network.
@@ -529,7 +529,7 @@ case object VerAckMessage extends ControlPayload with NetworkResponse {
   * by first sending a version message.
   * https://bitcoin.org/en/developer-reference#version
   */
-sealed trait VersionMessage extends ControlPayload  {
+sealed trait VersionMessage extends ControlPayload with NetworkRequest with NetworkResponse  {
 
   /**
     * The highest protocol version understood by the transmitting node. See the protocol version section.

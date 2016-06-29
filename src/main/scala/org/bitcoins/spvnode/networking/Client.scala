@@ -5,9 +5,10 @@ import java.net.InetSocketAddress
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.io.{IO, Tcp}
 import akka.util.{ByteString, CompactByteString}
-import org.bitcoins.core.config.NetworkParameters
+import org.bitcoins.core.config.{NetworkParameters, TestNet3}
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
 import org.bitcoins.spvnode.NetworkMessage
+import org.bitcoins.spvnode.headers.NetworkHeader
 import org.bitcoins.spvnode.messages._
 /**
   * Created by chris on 6/6/16.
@@ -58,8 +59,14 @@ sealed trait Client extends Actor with BitcoinSLogger {
         logger.debug("Command: " + command)
         handleCommand(command)
     }
-    case message : NetworkMessage => handleNetworkMessage(message)
-    case unknownMessage => throw new IllegalArgumentException("Unknown message for client: " + unknownMessage)
+    case networkRequest: NetworkRequest => handleNetworkRequest(networkRequest)
+
+    case networkResponse: NetworkResponse =>
+      logger.error("Client cannot receive network responses, PeerMessageHandler must receive them, received: " + networkResponse)
+      throw new IllegalArgumentException("Client cannot receive network responses, PeerMessageHandler must receive them")
+    case unknownMessage =>
+      logger.error("Client recieved an unknown network message: "  + unknownMessage)
+      throw new IllegalArgumentException("Unknown message for client: " + unknownMessage)
   }
 
   /**
@@ -97,16 +104,9 @@ sealed trait Client extends Actor with BitcoinSLogger {
     */
   private def handleCommand(command : Tcp.Command) = command match {
     case Tcp.ConfirmedClose =>
-      logger.debug("Client received connection closed msg: " + Tcp.ConfirmedClose)
       listener ! Tcp.ConfirmedClose
       peer.get ! Tcp.ConfirmedClose
-  }
-
-
-
-  def handleNetworkMessage(message: NetworkMessage) = message.payload match {
-    case request : NetworkRequest => handleNetworkRequest(message)
-    case response : NetworkResponse => handleNetworkResponse(message)
+    case x => throw new IllegalArgumentException("Unknown command: " + x)
   }
 
   /**
@@ -114,15 +114,14 @@ sealed trait Client extends Actor with BitcoinSLogger {
     * @param request
     * @return
     */
-  private def handleNetworkRequest(request : NetworkMessage) = {
-    val byteMessage = buildByteString(BitcoinSUtil.decodeHex("0b11090776657273696f6e0000000000660000002f6743da721101000100000000000000e0165b5700000000010000000000000000000000000000000000ffffad1f27a8479d010000000000000000000000000000000000ffff00000000479d68dc32a9948d149b102f5361746f7368693a302e31312e322f7f440d0001"))
+  private def handleNetworkRequest(request : NetworkRequest) = {
+    val header = NetworkHeader(TestNet3, request)
+    val message = NetworkMessage(header,request)
+    val byteMessage = buildByteString(message.bytes)
     logger.debug("Network request: " + request)
-    logger.debug("Byte message: " + BitcoinSUtil.encodeHex(request.bytes))
-    logger.debug("Peer: " + peer.get)
     peer.get ! Tcp.Write(byteMessage)
   }
 
-  private def handleNetworkResponse(response : NetworkMessage) = ???
 
   /**
     * Wraps our Seq[Byte] into an akka [[ByteString]] object
@@ -157,7 +156,7 @@ object Client {
 
   def apply(network : NetworkParameters, listener : ActorRef, actorSystem : ActorSystem) : ActorRef = {
     //val randomSeed = ((Math.random() * 10) % network.dnsSeeds.size).toInt
-    val remote = new InetSocketAddress(network.dnsSeeds(2), network.port)
+    val remote = new InetSocketAddress(network.dnsSeeds(0), network.port)
     Client(remote, network, listener, actorSystem)
   }
 }

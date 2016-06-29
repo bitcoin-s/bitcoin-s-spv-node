@@ -8,6 +8,7 @@ import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
 import org.bitcoins.spvnode.NetworkMessage
 import org.bitcoins.spvnode.messages.control.VersionMessage
 import org.bitcoins.spvnode.messages.{NetworkPayload, VersionMessage}
+import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FlatSpecLike, MustMatchers}
 
 import scala.annotation.tailrec
@@ -27,12 +28,11 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike wi
     val conn : Tcp.Connected = probe.expectMsgType[Tcp.Connected]
 
     val versionMessage = VersionMessage(TestNet3, conn.localAddress.getAddress,conn.remoteAddress.getAddress)
-    val networkMessage = NetworkMessage(TestNet3, versionMessage)
-    client ! networkMessage
+    client ! versionMessage
     val receivedMsg = probe.expectMsgType[Tcp.Received](5.seconds)
     logger.debug("ReceivedMsg: " + BitcoinSUtil.encodeHex(receivedMsg.data.toArray))
     val bytes = receivedMsg.data.toArray
-    val messages = parseIndividualMessages(bytes)
+    val messages = BitcoinSpvNodeUtil.parseIndividualMessages(bytes)
 
     val peerVersionMessage = messages.head
     logger.debug("Peer header: " + peerVersionMessage.header)
@@ -58,21 +58,5 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike wi
     TestKit.shutdownActorSystem(system)
   }
 
-  private def parseIndividualMessages(bytes: Seq[Byte]): Seq[NetworkMessage] = {
-    @tailrec
-    def loop(remainingBytes : Seq[Byte], accum : Seq[NetworkMessage]): Seq[NetworkMessage] = {
-      if (remainingBytes.length <= 0) accum
-      else {
-        val message = NetworkMessage(remainingBytes)
-        logger.debug("Parsed network message: " + message)
-        val newRemainingBytes = remainingBytes.slice(message.bytes.length, remainingBytes.length)
-        logger.debug("Command names accum: " + accum.map(_.header.commandName))
-        logger.debug("New Remaining bytes: " + BitcoinSUtil.encodeHex(newRemainingBytes))
-        loop(newRemainingBytes, message +: accum)
-      }
-    }
-    val messages = loop(bytes, Seq()).reverse
-    logger.debug("Parsed messages: " + messages)
-    messages
-  }
+
 }

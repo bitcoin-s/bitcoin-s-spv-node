@@ -2,7 +2,11 @@ package org.bitcoins.spvnode.networking
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.io.Tcp
+import akka.util.ByteString
 import org.bitcoins.core.util.BitcoinSLogger
+import org.bitcoins.spvnode.NetworkMessage
+import org.bitcoins.spvnode.messages.{GetHeadersMessage, NetworkRequest, NetworkResponse}
+import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 
 /**
   * Created by chris on 6/7/16.
@@ -13,6 +17,18 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
       case event : Tcp.Event => handleEvent(event)
       case command : Tcp.Command => handleCommand(command)
     }
+    case byteString : ByteString =>
+      //this means that we receive a bunch of messages bundled into one [[ByteString]]
+      //need to parse out the individual messages
+      val messages = BitcoinSpvNodeUtil.parseIndividualMessages(byteString.toArray)
+      for {m <- messages} yield self ! m
+    case networkMessage : NetworkMessage => networkMessage.payload match {
+      case networkResponse: NetworkResponse => handleNetworkResponse(networkResponse)
+      case networkRequest: NetworkRequest =>
+        logger.error("Received a network request inside of PeerMessageHandler: " + networkRequest)
+        throw new IllegalArgumentException("Received a network request inside of PeerMessageHandler: " + networkRequest)
+    }
+
     case msg => throw new IllegalArgumentException("Unknown message inside of PeerMessageHandler: " + msg)
   }
 
@@ -56,6 +72,11 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
       logger.debug("Peer Message Handler received connection closed msg: " + Tcp.ConfirmedClose)
       //listener ! Tcp.ConfirmedClose
       //peer.get ! Tcp.ConfirmedClose
+  }
+
+
+  def handleNetworkResponse(response: NetworkResponse) = response match {
+    case getHeadersMsg : GetHeadersMessage => ???
   }
 }
 
