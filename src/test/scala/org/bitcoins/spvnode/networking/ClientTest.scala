@@ -6,11 +6,11 @@ import akka.testkit.{TestKit, TestProbe}
 import org.bitcoins.core.config.TestNet3
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
 import org.bitcoins.spvnode.NetworkMessage
-import org.bitcoins.spvnode.headers.NetworkHeader
-import org.bitcoins.spvnode.messages.NetworkPayload
 import org.bitcoins.spvnode.messages.control.VersionMessage
+import org.bitcoins.spvnode.messages.{NetworkPayload, VersionMessage}
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FlatSpecLike, MustMatchers}
 
+import scala.annotation.tailrec
 import scala.concurrent.duration._
 /**
   * Created by chris on 6/7/16.
@@ -30,17 +30,22 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike wi
     val networkMessage = NetworkMessage(TestNet3, versionMessage)
     client ! networkMessage
     val receivedMsg = probe.expectMsgType[Tcp.Received](5.seconds)
-    val header = NetworkHeader(receivedMsg.data.toList.take(24))
-    val peerVersionMessage = VersionMessage(receivedMsg.data.toList.slice(24,receivedMsg.data.toList.size))
-    logger.debug("Peer header: " + header)
+    logger.debug("ReceivedMsg: " + BitcoinSUtil.encodeHex(receivedMsg.data.toArray))
+    val bytes = receivedMsg.data.toArray
+    val messages = parseIndividualMessages(bytes)
+
+    val peerVersionMessage = messages.head
+    logger.debug("Peer header: " + peerVersionMessage.header)
     logger.debug("Peer version message: " + peerVersionMessage)
 
-    peerVersionMessage.userAgent.contains("Satoshi") must be (true)
+    peerVersionMessage.payload match {
+      case version : VersionMessage =>
+        version.userAgent.contains("Satoshi") must be (true)
+      case _ : NetworkPayload => throw new IllegalArgumentException("Must be a version message")
+    }
 
-    val verackMessage = probe.expectMsgType[Tcp.Received](5.seconds)
-    logger.debug("Verack message: " + BitcoinSUtil.encodeHex(verackMessage.data.toArray))
-    val verack = NetworkHeader(verackMessage.data.toArray)
-    verack.commandName must be (NetworkPayload.verAckCommandName)
+    val verackMessage = messages(1)
+    verackMessage.header.commandName must be (NetworkPayload.verAckCommandName)
     //client ! Tcp.ConfirmedClose
     probe.expectMsg(2.seconds, Tcp.ConfirmedClose)
     //this is acknowledgement from the peer that they have closed their connection
@@ -51,5 +56,15 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike wi
 
   override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
+  }
+
+  private def parseIndividualMessages(bytes: Seq[Byte]): Seq[NetworkMessage] = {
+    @tailrec
+    def loop(remainingBytes : Seq[Byte], accum : Seq[NetworkMessage]): Seq[NetworkMessage] = {
+      val message = NetworkMessage(remainingBytes)
+      val newRemainingBytes = remainingBytes.slice(message.bytes.length, remainingBytes.length)
+      loop(newRemainingBytes, message +: accum)
+    }
+    loop(bytes, Seq()).reverse
   }
 }

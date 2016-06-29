@@ -12,7 +12,7 @@ import org.bitcoins.core.util.BitcoinSUtil
 import org.bitcoins.spvnode.headers.NetworkHeader
 import org.bitcoins.spvnode.messages.control.{Alert, ServiceIdentifier}
 import org.bitcoins.spvnode.messages.data.Inventory
-import org.bitcoins.spvnode.serializers.control.{RawAddrMessageSerializer, RawVersionMessageSerializer}
+import org.bitcoins.spvnode.serializers.control.{RawAddrMessageSerializer, RawPingMessageSerializer, RawVersionMessageSerializer}
 import org.bitcoins.spvnode.serializers.messages.data._
 import org.bitcoins.spvnode.util.NetworkIpAddress
 import org.bitcoins.spvnode.versions.ProtocolVersion
@@ -408,16 +408,18 @@ sealed trait GetAddressMessage extends ControlPayload with NetworkRequest {
   * The response to a ping message is the pong message.
   * https://bitcoin.org/en/developer-reference#ping
   */
-sealed trait PingMessage extends ControlPayload with NetworkRequest {
+trait PingMessage extends ControlPayload with NetworkRequest {
   /**
     * Random nonce assigned to this ping message.
     * The responding pong message will include this nonce
     * to identify the ping message to which it is replying.
     * @return
     */
-  def nonce : BigInt
+  def nonce : UInt64
 
   override def commandName = NetworkPayload.pingCommandName
+
+  override def hex = RawPingMessageSerializer.write(this)
 }
 
 /**
@@ -435,6 +437,7 @@ sealed trait PongMessage extends ControlPayload with NetworkResponse {
   def nonce : BigInt
 
   override def commandName = NetworkPayload.pongCommandName
+
 }
 
 /**
@@ -671,7 +674,7 @@ object NetworkPayload {
   def commandNames : Map[String, Seq[Byte] => NetworkPayload] = Map(
     blockCommandName -> { x : Seq[Byte] => ???},
     getBlocksCommandName -> { RawGetBlocksMessageSerializer.read(_) },
-    getHeadersCommandName -> { x : Seq[Byte] => ???},
+    getHeadersCommandName -> { x : Seq[Byte] => VerAckMessage},
     headersCommandName -> { x : Seq[Byte] => ???},
     invCommandName -> { RawInventoryMessageSerializer.read(_) },
     memPoolCommandName -> { x : Seq[Byte] => ???},
@@ -683,11 +686,11 @@ object NetworkPayload {
     filterClearCommandName -> { x : Seq[Byte] => ???},
     filterLoadCommandName -> { x : Seq[Byte] => ???},
     getAddressCommandName -> { x : Seq[Byte] => ???},
-    pingCommandName -> { x : Seq[Byte] => ???},
+    pingCommandName -> { x : Seq[Byte] => RawPingMessageSerializer.read(x)},
     pongCommandName -> { x : Seq[Byte] => ???},
     rejectCommandName -> { x : Seq[Byte] => ???},
     sendHeadersCommandName -> { x : Seq[Byte] => ???},
-    verAckCommandName -> { x : Seq[Byte] => ???},
+    verAckCommandName -> { x : Seq[Byte] => VerAckMessage},
     versionCommandName -> { RawVersionMessageSerializer.read(_) }
   )
 

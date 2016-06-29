@@ -2,8 +2,8 @@ package org.bitcoins.spvnode.messages.data
 
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.util.Factory
-import org.bitcoins.spvnode.messages._
-import org.bitcoins.spvnode.serializers.messages.data.{RawInventoryMessageSerializer}
+import org.bitcoins.spvnode.messages.{InventoryMessage, InventoryMessageRequest, InventoryMessageResponse}
+import org.bitcoins.spvnode.serializers.messages.data.RawInventoryMessageSerializer
 
 /**
   * Created by chris on 6/1/16.

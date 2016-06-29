@@ -147,7 +147,6 @@ case class ClientImpl(remote: InetSocketAddress, network : NetworkParameters,
 
 object Client {
 
-
   def props(remote : InetSocketAddress, network : NetworkParameters, listener : ActorRef, actorSystem : ActorSystem) : Props = {
     Props(classOf[ClientImpl], remote, network, listener, actorSystem)
   }
