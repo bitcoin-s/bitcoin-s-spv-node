@@ -12,6 +12,9 @@ import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
   * Created by chris on 6/7/16.
   */
 trait PeerMessageHandler extends Actor with BitcoinSLogger {
+
+  var unalignedBytes : Seq[Byte] = Seq()
+
   def receive = {
     case message : Tcp.Message => message match {
       case event : Tcp.Event => handleEvent(event)
@@ -19,8 +22,10 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
     }
     case byteString : ByteString =>
       //this means that we receive a bunch of messages bundled into one [[ByteString]]
-      //need to parse out the individual messages
-      val messages = BitcoinSpvNodeUtil.parseIndividualMessages(byteString.toArray)
+      //need to parse out the individual message
+      val bytes: Seq[Byte] = unalignedBytes ++ byteString.toArray.toSeq
+      val (messages,remainingBytes) = BitcoinSpvNodeUtil.parseIndividualMessages(bytes)
+      unalignedBytes = remainingBytes
       for {m <- messages} yield self ! m
     case networkMessage : NetworkMessage => networkMessage.payload match {
       case networkResponse: NetworkResponse => handleNetworkResponse(networkResponse)
@@ -29,7 +34,9 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
         throw new IllegalArgumentException("Received a network request inside of PeerMessageHandler: " + networkRequest)
     }
 
-    case msg => throw new IllegalArgumentException("Unknown message inside of PeerMessageHandler: " + msg)
+    case msg =>
+      logger.error("Unknown message inside of PeerMessageHandler: " + msg)
+      throw new IllegalArgumentException("Unknown message inside of PeerMessageHandler: " + msg)
   }
 
 

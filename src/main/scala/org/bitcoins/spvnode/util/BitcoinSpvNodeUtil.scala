@@ -6,6 +6,7 @@ import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
 import org.bitcoins.spvnode.NetworkMessage
 
 import scala.annotation.tailrec
+import scala.util.{Failure, Success, Try}
 
 /**
   * Created by chris on 6/3/16.
@@ -40,22 +41,30 @@ trait BitcoinSpvNodeUtil extends BitcoinSLogger {
     * @param bytes the bytes that need to be parsed into individual messages
     * @return the parsed [[NetworkMessage]]'s
     */
-  def parseIndividualMessages(bytes: Seq[Byte]): Seq[NetworkMessage] = {
+  def parseIndividualMessages(bytes: Seq[Byte]): (Seq[NetworkMessage],Seq[Byte]) = {
     @tailrec
-    def loop(remainingBytes : Seq[Byte], accum : Seq[NetworkMessage]): Seq[NetworkMessage] = {
-      if (remainingBytes.length <= 0) accum
+    def loop(remainingBytes : Seq[Byte], accum : Seq[NetworkMessage]): (Seq[NetworkMessage],Seq[Byte]) = {
+      if (remainingBytes.length <= 0) (accum.reverse,remainingBytes)
       else {
-        val message = NetworkMessage(remainingBytes)
-        logger.debug("Parsed network message: " + message)
-        val newRemainingBytes = remainingBytes.slice(message.bytes.length, remainingBytes.length)
-        logger.debug("Command names accum: " + accum.map(_.header.commandName))
-        logger.debug("New Remaining bytes: " + BitcoinSUtil.encodeHex(newRemainingBytes))
-        loop(newRemainingBytes, message +: accum)
+        val messageTry = Try(NetworkMessage(remainingBytes))
+        messageTry match {
+          case Success(message) =>
+            logger.debug("Parsed network message: " + message)
+            val newRemainingBytes = remainingBytes.slice(message.bytes.length, remainingBytes.length)
+            logger.debug("Command names accum: " + accum.map(_.header.commandName))
+            logger.debug("New Remaining bytes: " + BitcoinSUtil.encodeHex(newRemainingBytes))
+            loop(newRemainingBytes, message +: accum)
+          case Failure(_) =>
+            //this case means that our TCP frame was not aligned with bitcoin protocol
+            //return the unaligned bytes so we can apply them to the next tcp frame of bytes we receive
+            //http://stackoverflow.com/a/37979529/967713
+            (accum.reverse,remainingBytes)
+        }
       }
     }
-    val messages = loop(bytes, Seq()).reverse
+    val (messages,remainingBytes) = loop(bytes, Seq())
     logger.debug("Parsed messages: " + messages)
-    messages
+    (messages,remainingBytes)
   }
 }
 

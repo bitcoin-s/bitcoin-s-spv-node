@@ -26,4 +26,5 @@ class RawGetHeadersMessageSerializerTest extends FlatSpec with MustMatchers {
     RawGetHeadersMessageSerializer.write(getHeadersMessage) must be (hex)
   }
 
+
 }

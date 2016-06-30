@@ -32,7 +32,7 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike wi
     val receivedMsg = probe.expectMsgType[Tcp.Received](5.seconds)
     logger.debug("ReceivedMsg: " + BitcoinSUtil.encodeHex(receivedMsg.data.toArray))
     val bytes = receivedMsg.data.toArray
-    val messages = BitcoinSpvNodeUtil.parseIndividualMessages(bytes)
+    val (messages,_) = BitcoinSpvNodeUtil.parseIndividualMessages(bytes)
 
     val peerVersionMessage = messages.head
     logger.debug("Peer header: " + peerVersionMessage.header)
