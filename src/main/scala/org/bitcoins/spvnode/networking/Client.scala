@@ -3,6 +3,7 @@ package org.bitcoins.spvnode.networking
 import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.event.LoggingReceive
 import akka.io.{IO, Tcp}
 import akka.util.{ByteString, CompactByteString}
 import org.bitcoins.core.config.{NetworkParameters, TestNet3}
@@ -10,6 +11,7 @@ import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
 import org.bitcoins.spvnode.NetworkMessage
 import org.bitcoins.spvnode.headers.NetworkHeader
 import org.bitcoins.spvnode.messages._
+import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 /**
   * Created by chris on 6/6/16.
   */
@@ -48,9 +50,18 @@ sealed trait Client extends Actor with BitcoinSLogger {
     * This actor signifies the node we are connected to on the p2p network
     * This is set when we received a [[Tcp.Connected]] message
     */
-  private var peer : Option[ActorRef] = None
+  private def awaitNetworkRequest(peer: ActorRef) = LoggingReceive {
 
-  def receive = {
+    case networkRequest: NetworkRequest => handleNetworkRequest(networkRequest,peer)
+    case networkResponse: NetworkResponse =>
+      logger.error("Client cannot receive network responses, PeerMessageHandler must receive them, received: " + networkResponse)
+      throw new IllegalArgumentException("Client cannot receive network responses, PeerMessageHandler must receive them")
+    case unknownMessage =>
+      logger.error("Client recieved an unknown network message: "  + unknownMessage)
+      throw new IllegalArgumentException("Unknown message for client: " + unknownMessage)
+  }
+
+  def receive  = LoggingReceive {
     case message : Tcp.Message => message match {
       case event : Tcp.Event =>
         logger.debug("Event: " + event)
@@ -59,13 +70,8 @@ sealed trait Client extends Actor with BitcoinSLogger {
         logger.debug("Command: " + command)
         handleCommand(command)
     }
-    case networkRequest: NetworkRequest => handleNetworkRequest(networkRequest)
-
-    case networkResponse: NetworkResponse =>
-      logger.error("Client cannot receive network responses, PeerMessageHandler must receive them, received: " + networkResponse)
-      throw new IllegalArgumentException("Client cannot receive network responses, PeerMessageHandler must receive them")
     case unknownMessage =>
-      logger.error("Client recieved an unknown network message: "  + unknownMessage)
+      logger.error("Client.receive recieved an unknown network message: "  + unknownMessage)
       throw new IllegalArgumentException("Unknown message for client: " + unknownMessage)
   }
 
@@ -90,22 +96,20 @@ sealed trait Client extends Actor with BitcoinSLogger {
     case Tcp.Connected(remote, local) =>
       logger.debug("Tcp connection to: " + remote)
       logger.debug("Local: " + local)
-      peer = Some(sender)
-      peer.get ! Tcp.Register(listener)
+      sender ! Tcp.Register(listener)
       listener ! Tcp.Connected(remote,local)
+      context.become(awaitNetworkRequest(sender))
     case Tcp.ConfirmedClosed =>
       logger.debug("Client received confirmed closed msg: " + Tcp.ConfirmedClosed)
-      peer = None
       context stop self
   }
+
+
   /**
     * This function is responsible for handling a [[Tcp.Command]] algebraic data type
     * @param command
     */
   private def handleCommand(command : Tcp.Command) = command match {
-    case Tcp.ConfirmedClose =>
-      listener ! Tcp.ConfirmedClose
-      peer.get ! Tcp.ConfirmedClose
     case x => throw new IllegalArgumentException("Unknown command: " + x)
   }
 
@@ -114,23 +118,14 @@ sealed trait Client extends Actor with BitcoinSLogger {
     * @param request
     * @return
     */
-  private def handleNetworkRequest(request : NetworkRequest) = {
+  private def handleNetworkRequest(request : NetworkRequest, x: ActorRef) = {
     val header = NetworkHeader(TestNet3, request)
     val message = NetworkMessage(header,request)
-    val byteMessage = buildByteString(message.bytes)
+    val byteMessage = BitcoinSpvNodeUtil.buildByteString(message.bytes)
     logger.debug("Network request: " + request)
-    peer.get ! Tcp.Write(byteMessage)
+    x ! Tcp.Write(byteMessage)
   }
 
-
-  /**
-    * Wraps our Seq[Byte] into an akka [[ByteString]] object
-    * @param bytes
-    * @return
-    */
-  private def buildByteString(bytes: Seq[Byte]) : ByteString = {
-    CompactByteString(bytes.toArray)
-  }
 }
 
 

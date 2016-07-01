@@ -1,6 +1,7 @@
 package org.bitcoins.spvnode.networking
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.event.LoggingReceive
 import akka.io.Tcp
 import akka.util.ByteString
 import org.bitcoins.core.util.BitcoinSLogger
@@ -15,7 +16,7 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
 
   var unalignedBytes : Seq[Byte] = Seq()
 
-  def receive = {
+  def receive = LoggingReceive {
     case message : Tcp.Message => message match {
       case event : Tcp.Event => handleEvent(event)
       case command : Tcp.Command => handleCommand(command)
@@ -33,7 +34,6 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
         logger.error("Received a network request inside of PeerMessageHandler: " + networkRequest)
         throw new IllegalArgumentException("Received a network request inside of PeerMessageHandler: " + networkRequest)
     }
-
     case msg =>
       logger.error("Unknown message inside of PeerMessageHandler: " + msg)
       throw new IllegalArgumentException("Unknown message inside of PeerMessageHandler: " + msg)

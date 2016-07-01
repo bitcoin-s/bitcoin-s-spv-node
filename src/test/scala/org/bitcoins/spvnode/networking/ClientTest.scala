@@ -46,10 +46,6 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike wi
 
     val verackMessage = messages(1)
     verackMessage.header.commandName must be (NetworkPayload.verAckCommandName)
-    client ! Tcp.ConfirmedClose
-    probe.expectMsg(2.seconds, Tcp.ConfirmedClose)
-    //this is acknowledgement from the peer that they have closed their connection
-    probe.expectMsg(5.seconds, Tcp.ConfirmedClosed)
 
   }
 

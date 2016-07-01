@@ -2,6 +2,7 @@ package org.bitcoins.spvnode.util
 
 import java.net.InetAddress
 
+import akka.util.{ByteString, CompactByteString}
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
 import org.bitcoins.spvnode.NetworkMessage
 
@@ -65,6 +66,15 @@ trait BitcoinSpvNodeUtil extends BitcoinSLogger {
     val (messages,remainingBytes) = loop(bytes, Seq())
     logger.debug("Parsed messages: " + messages)
     (messages,remainingBytes)
+  }
+
+  /**
+    * Wraps our Seq[Byte] into an akka [[ByteString]] object
+    * @param bytes
+    * @return
+    */
+  def buildByteString(bytes: Seq[Byte]) : ByteString = {
+    CompactByteString(bytes.toArray)
   }
 }
 
