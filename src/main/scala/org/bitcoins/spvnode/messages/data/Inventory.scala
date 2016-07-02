@@ -13,7 +13,6 @@ import org.bitcoins.spvnode.serializers.messages.data.RawInventorySerializer
   */
 trait Inventory extends NetworkElement with BitcoinSLogger {
 
-
   /**
     * The type of object which was hashed
     * @return

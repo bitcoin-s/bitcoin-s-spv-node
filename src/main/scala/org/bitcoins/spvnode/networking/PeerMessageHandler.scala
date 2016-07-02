@@ -5,8 +5,7 @@ import akka.event.LoggingReceive
 import akka.io.Tcp
 import akka.util.ByteString
 import org.bitcoins.core.util.BitcoinSLogger
-import org.bitcoins.spvnode.NetworkMessage
-import org.bitcoins.spvnode.messages.{GetHeadersMessage, NetworkRequest, NetworkResponse}
+import org.bitcoins.spvnode.messages.NetworkResponse
 import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 
 /**
@@ -21,6 +20,17 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
       case event : Tcp.Event => handleEvent(event)
       case command : Tcp.Command => handleCommand(command)
     }
+
+    case peerRequest: PeerRequest =>
+      //PeerMessageHandler.client(peerRequest.actorSystem) ! peerRequest.request
+      context.become(awaitNetworkResponse(peerRequest))
+    case msg =>
+      logger.error("Unknown message inside of PeerMessageHandler: " + msg)
+      throw new IllegalArgumentException("Unknown message inside of PeerMessageHandler: " + msg)
+  }
+
+
+  private def awaitNetworkResponse(peerRequest: PeerRequest) = LoggingReceive {
     case byteString : ByteString =>
       //this means that we receive a bunch of messages bundled into one [[ByteString]]
       //need to parse out the individual message
@@ -28,18 +38,12 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
       val (messages,remainingBytes) = BitcoinSpvNodeUtil.parseIndividualMessages(bytes)
       unalignedBytes = remainingBytes
       for {m <- messages} yield self ! m
-    case networkMessage : NetworkMessage => networkMessage.payload match {
-      case networkResponse: NetworkResponse => handleNetworkResponse(networkResponse)
-      case networkRequest: NetworkRequest =>
-        logger.error("Received a network request inside of PeerMessageHandler: " + networkRequest)
-        throw new IllegalArgumentException("Received a network request inside of PeerMessageHandler: " + networkRequest)
-    }
-    case msg =>
-      logger.error("Unknown message inside of PeerMessageHandler: " + msg)
-      throw new IllegalArgumentException("Unknown message inside of PeerMessageHandler: " + msg)
+    case networkResponse: NetworkResponse =>
+      peerRequest.listener ! networkResponse
+      context.unbecome()
   }
 
-
+  private def awaitVersionMessage(peerRequest: PeerRequest) = ???
 
   /**
     * This function is responsible for handling a [[Tcp.Event]] algebraic data type
@@ -81,17 +85,13 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
       //peer.get ! Tcp.ConfirmedClose
   }
 
-
-  def handleNetworkResponse(response: NetworkResponse) = response match {
-    case getHeadersMsg : GetHeadersMessage => ???
-  }
 }
 
 
 
 
 object PeerMessageHandler {
-  private case class PeerMessageHandlerImpl() extends PeerMessageHandler
+  private case class PeerMessageHandlerImpl(actorSystem: ActorSystem) extends PeerMessageHandler
 
-  def apply(actorSystem : ActorSystem) : ActorRef = actorSystem.actorOf(Props(PeerMessageHandlerImpl()))
+  def apply(actorSystem : ActorSystem) : ActorRef = actorSystem.actorOf(Props(PeerMessageHandlerImpl(actorSystem)))
 }

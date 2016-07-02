@@ -31,13 +31,11 @@ sealed trait Client extends Actor with BitcoinSLogger {
     */
   def listener : ActorRef
 
-
-  def actorSystem : ActorSystem
   /**
     * The manager is an actor that handles the underlying low level I/O resources (selectors, channels)
     * and instantiates workers for specific tasks, such as listening to incoming connections.
     */
-  def manager : ActorRef = IO(Tcp)(actorSystem)
+  def manager : ActorRef = IO(Tcp)(context.system)
 
   /**
     * The parameters for the network we are connected to
@@ -46,13 +44,20 @@ sealed trait Client extends Actor with BitcoinSLogger {
     */
   def network : NetworkParameters
 
+
+
+
   /**
     * This actor signifies the node we are connected to on the p2p network
     * This is set when we received a [[Tcp.Connected]] message
     */
   private def awaitNetworkRequest(peer: ActorRef) = LoggingReceive {
 
-    case networkRequest: NetworkRequest => handleNetworkRequest(networkRequest,peer)
+    case networkRequest: NetworkRequest =>
+      handleNetworkRequest(networkRequest,peer)
+
+    case peerRequest: PeerRequest =>
+
     case networkResponse: NetworkResponse =>
       logger.error("Client cannot receive network responses, PeerMessageHandler must receive them, received: " + networkResponse)
       throw new IllegalArgumentException("Client cannot receive network responses, PeerMessageHandler must receive them")
@@ -129,30 +134,32 @@ sealed trait Client extends Actor with BitcoinSLogger {
 }
 
 
-case class ClientImpl(remote: InetSocketAddress, network : NetworkParameters,
-                      listener: ActorRef, actorSystem : ActorSystem) extends Client {
 
-  manager ! Tcp.Bind(listener, new InetSocketAddress(network.port))
-  //this eagerly connects the client with our peer on the network as soon
-  //as the case class is instantiated
-  manager ! Tcp.Connect(remote)
-
-}
 
 object Client {
+  private case class ClientImpl(remote: InetSocketAddress, network : NetworkParameters,
+                                listener: ActorRef, actorSystem : ActorSystem) extends Client {
 
-  def props(remote : InetSocketAddress, network : NetworkParameters, listener : ActorRef, actorSystem : ActorSystem) : Props = {
+    manager ! Tcp.Bind(listener, new InetSocketAddress(network.port))
+    //this eagerly connects the client with our peer on the network as soon
+    //as the case class is instantiated
+    manager ! Tcp.Connect(remote)
+
+  }
+
+  def props(remote : InetSocketAddress, network : NetworkParameters, listener : ActorRef)(implicit actorSystem: ActorSystem) : Props = {
     Props(classOf[ClientImpl], remote, network, listener, actorSystem)
   }
 
-  def apply(remote : InetSocketAddress, network : NetworkParameters, listener : ActorRef, actorSystem : ActorSystem) : ActorRef = {
-   actorSystem.actorOf(props(remote, network, listener, actorSystem))
+  def apply(remote : InetSocketAddress, network : NetworkParameters, listener : ActorRef)(implicit actorSystem: ActorSystem) : ActorRef = {
+   actorSystem.actorOf(props(remote, network, listener))
   }
 
-  def apply(network : NetworkParameters, listener : ActorRef, actorSystem : ActorSystem) : ActorRef = {
+  def apply(network : NetworkParameters, listener : ActorRef)(implicit actorSystem: ActorSystem) : ActorRef = {
     //val randomSeed = ((Math.random() * 10) % network.dnsSeeds.size).toInt
     val remote = new InetSocketAddress(network.dnsSeeds(0), network.port)
-    Client(remote, network, listener, actorSystem)
+    Client(remote, network, listener)
   }
+
 }
 
