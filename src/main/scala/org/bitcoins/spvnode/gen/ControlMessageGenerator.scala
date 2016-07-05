@@ -3,9 +3,8 @@ package org.bitcoins.spvnode.gen
 import java.net.{InetAddress, InetSocketAddress}
 
 import org.bitcoins.core.gen.{NumberGenerator, StringGenerators}
-import org.bitcoins.core.number.Int64
-import org.bitcoins.spvnode.messages.{PingMessage, VersionMessage}
-import org.bitcoins.spvnode.messages.control.{PingMessage, ServiceIdentifier, VersionMessage}
+import org.bitcoins.spvnode.messages.control.{PingMessageRequest, PongMessageRequest, ServiceIdentifier, VersionMessage}
+import org.bitcoins.spvnode.messages.{PingMessage, PongMessage, VersionMessage}
 import org.bitcoins.spvnode.versions.ProtocolVersion
 import org.scalacheck.Gen
 
@@ -35,7 +34,11 @@ trait ControlMessageGenerator {
 
   def pingMessage: Gen[PingMessage] = for {
     uInt64 <- NumberGenerator.uInt64s
-  } yield PingMessage(uInt64)
+  } yield PingMessageRequest(uInt64)
+
+  def pongMessage: Gen[PongMessage] = for {
+    uInt64 <- NumberGenerator.uInt64s
+  } yield PongMessageRequest(uInt64)
 
   def protocolVersion : Gen[ProtocolVersion] = for {
     randomNum <- Gen.choose(0,ProtocolVersion.versions.length-1)

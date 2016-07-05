@@ -22,7 +22,7 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike wi
     val probe = TestProbe()
     val client = Client(TestNet3, probe.ref)
 
-    val bound : Tcp.Bound = probe.expectMsgType[Tcp.Bound]
+    //val bound : Tcp.Bound = probe.expectMsgType[Tcp.Bound]
     val conn : Tcp.Connected = probe.expectMsgType[Tcp.Connected]
 
     val versionMessage = VersionMessage(TestNet3, conn.localAddress.getAddress,conn.remoteAddress.getAddress)

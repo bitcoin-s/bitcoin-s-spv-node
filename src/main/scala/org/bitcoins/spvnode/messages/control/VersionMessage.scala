@@ -10,6 +10,7 @@ import org.bitcoins.spvnode.messages._
 import org.bitcoins.spvnode.serializers.control.RawVersionMessageSerializer
 import org.bitcoins.spvnode.versions.{ProtocolVersion, ProtocolVersion70012}
 import org.bitcoins.spvnode.BuildInfo
+import org.bitcoins.spvnode.constant.Constants
 import org.joda.time.DateTime
 
 
@@ -32,20 +33,14 @@ object VersionMessage extends Factory[VersionMessage] {
             nonce : UInt64,  userAgent : String,
             startHeight : Int32, relay : Boolean) : VersionMessage = {
     val userAgentSize : CompactSizeUInt = CompactSizeUInt.calculateCompactSizeUInt(userAgent.getBytes)
-    VersionMessageRequest(version, services,timestamp, addressReceiveServices, addressReceiveIpAddress,
+    VersionMessageRequest(version, services, timestamp, addressReceiveServices, addressReceiveIpAddress,
       addressReceivePort, addressTransServices, addressTransIpAddress, addressTransPort,
       nonce, userAgentSize, userAgent, startHeight, relay)
   }
 
-  def apply(network : NetworkParameters, transmittingIpAddress : InetAddress) : VersionMessage = {
-    val receivingIpAddress = InetAddress.getLocalHost
-    val nonce = UInt64.zero
-    val userAgent = "/" + BuildInfo.name + "/" + BuildInfo.version
-    val userAgentSize = CompactSizeUInt.calculateCompactSizeUInt(userAgent.map(_.toByte))
-    val startHeight = Int32.zero
-    val relay = false
-    VersionMessageRequest(ProtocolVersion70012, UnnamedService, Int64(DateTime.now.getMillis), UnnamedService, receivingIpAddress,
-      network.port, NodeNetwork, transmittingIpAddress, network.port, nonce, userAgentSize, userAgent, startHeight, relay)
+  def apply(network : NetworkParameters, receivingIpAddress : InetAddress) : VersionMessage = {
+    val transmittingIpAddress = InetAddress.getLocalHost
+    VersionMessage(network,receivingIpAddress,transmittingIpAddress)
   }
 
   def apply(network : NetworkParameters, receivingIpAddress : InetAddress, transmittingIpAddress : InetAddress) : VersionMessage = {
@@ -54,8 +49,13 @@ object VersionMessage extends Factory[VersionMessage] {
     val userAgentSize = CompactSizeUInt.calculateCompactSizeUInt(userAgent.map(_.toByte))
     val startHeight = Int32.zero
     val relay = false
-    VersionMessageRequest(ProtocolVersion70012, UnnamedService, Int64(DateTime.now.getMillis), UnnamedService, receivingIpAddress,
+    VersionMessageRequest(Constants.version, UnnamedService, Int64(DateTime.now.getMillis), UnnamedService, receivingIpAddress,
       network.port, NodeNetwork, transmittingIpAddress, network.port, nonce, userAgentSize, userAgent, startHeight, relay)
+  }
+
+  def apply(network: NetworkParameters): VersionMessage = {
+    val transmittingIpAddress = InetAddress.getByName(network.dnsSeeds(0))
+    VersionMessage(network,transmittingIpAddress)
   }
 }
 

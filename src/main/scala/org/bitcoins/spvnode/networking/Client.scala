@@ -9,6 +9,7 @@ import akka.util.{ByteString, CompactByteString}
 import org.bitcoins.core.config.{NetworkParameters, TestNet3}
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
 import org.bitcoins.spvnode.NetworkMessage
+import org.bitcoins.spvnode.constant.Constants
 import org.bitcoins.spvnode.headers.NetworkHeader
 import org.bitcoins.spvnode.messages._
 import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
@@ -44,26 +45,21 @@ sealed trait Client extends Actor with BitcoinSLogger {
     */
   def network : NetworkParameters
 
-
-
-
   /**
     * This actor signifies the node we are connected to on the p2p network
     * This is set when we received a [[Tcp.Connected]] message
     */
   private def awaitNetworkRequest(peer: ActorRef) = LoggingReceive {
-
+    case networkMessage: NetworkMessage =>
+      self ! networkMessage.payload
     case networkRequest: NetworkRequest =>
       handleNetworkRequest(networkRequest,peer)
-
-    case peerRequest: PeerRequest =>
-
     case networkResponse: NetworkResponse =>
       logger.error("Client cannot receive network responses, PeerMessageHandler must receive them, received: " + networkResponse)
       throw new IllegalArgumentException("Client cannot receive network responses, PeerMessageHandler must receive them")
     case unknownMessage =>
       logger.error("Client recieved an unknown network message: "  + unknownMessage)
-      throw new IllegalArgumentException("Unknown message for client: " + unknownMessage)
+      throw new IllegalArgumentException("Unknown message for client in awaitNetworkRequest: " + unknownMessage)
   }
 
   def receive  = LoggingReceive {
@@ -77,7 +73,7 @@ sealed trait Client extends Actor with BitcoinSLogger {
     }
     case unknownMessage =>
       logger.error("Client.receive recieved an unknown network message: "  + unknownMessage)
-      throw new IllegalArgumentException("Unknown message for client: " + unknownMessage)
+      throw new IllegalArgumentException("Unknown message for client receive: " + unknownMessage)
   }
 
   /**
@@ -124,7 +120,7 @@ sealed trait Client extends Actor with BitcoinSLogger {
     * @return
     */
   private def handleNetworkRequest(request : NetworkRequest, x: ActorRef) = {
-    val header = NetworkHeader(TestNet3, request)
+    val header = NetworkHeader(Constants.networkParameters, request)
     val message = NetworkMessage(header,request)
     val byteMessage = BitcoinSpvNodeUtil.buildByteString(message.bytes)
     logger.debug("Network request: " + request)
@@ -138,17 +134,17 @@ sealed trait Client extends Actor with BitcoinSLogger {
 
 object Client {
   private case class ClientImpl(remote: InetSocketAddress, network : NetworkParameters,
-                                listener: ActorRef, actorSystem : ActorSystem) extends Client {
+                                listener: ActorRef) extends Client {
 
-    manager ! Tcp.Bind(listener, new InetSocketAddress(network.port))
+    //manager ! Tcp.Bind(listener, new InetSocketAddress(network.port))
     //this eagerly connects the client with our peer on the network as soon
     //as the case class is instantiated
-    manager ! Tcp.Connect(remote)
+    manager ! Tcp.Connect(remote, Some(new InetSocketAddress(network.port)))
 
   }
 
-  def props(remote : InetSocketAddress, network : NetworkParameters, listener : ActorRef)(implicit actorSystem: ActorSystem) : Props = {
-    Props(classOf[ClientImpl], remote, network, listener, actorSystem)
+  def props(remote : InetSocketAddress, network : NetworkParameters, listener : ActorRef) : Props = {
+    Props(classOf[ClientImpl], remote, network, listener)
   }
 
   def apply(remote : InetSocketAddress, network : NetworkParameters, listener : ActorRef)(implicit actorSystem: ActorSystem) : ActorRef = {

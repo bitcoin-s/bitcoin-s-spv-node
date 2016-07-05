@@ -4,8 +4,12 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.event.LoggingReceive
 import akka.io.Tcp
 import akka.util.ByteString
-import org.bitcoins.core.util.BitcoinSLogger
-import org.bitcoins.spvnode.messages.NetworkResponse
+import org.bitcoins.core.config.TestNet3
+import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
+import org.bitcoins.spvnode.NetworkMessage
+import org.bitcoins.spvnode.constant.Constants
+import org.bitcoins.spvnode.messages.control.{PongMessageRequest, VersionMessage}
+import org.bitcoins.spvnode.messages._
 import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 
 /**
@@ -13,7 +17,7 @@ import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
   */
 trait PeerMessageHandler extends Actor with BitcoinSLogger {
 
-  var unalignedBytes : Seq[Byte] = Seq()
+  var unalignedBytes: Seq[Byte] = Nil
 
   def receive = LoggingReceive {
     case message : Tcp.Message => message match {
@@ -22,28 +26,91 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
     }
 
     case peerRequest: PeerRequest =>
-      //PeerMessageHandler.client(peerRequest.actorSystem) ! peerRequest.request
-      context.become(awaitNetworkResponse(peerRequest))
+      val peer = Client(peerRequest.networkParameters, self)(context.system)
+      context.become(awaitConnected(peerRequest,peer))
     case msg =>
       logger.error("Unknown message inside of PeerMessageHandler: " + msg)
       throw new IllegalArgumentException("Unknown message inside of PeerMessageHandler: " + msg)
   }
 
 
-  private def awaitNetworkResponse(peerRequest: PeerRequest) = LoggingReceive {
-    case byteString : ByteString =>
+  def awaitConnected(peerRequest: PeerRequest, peer: ActorRef): Receive = {
+    case Tcp.Connected(remote,local) =>
+      logger.debug("Received Tcp.Connected inside of PeerMessageHandler")
+      peer ! VersionMessage(Constants.networkParameters,local.getAddress)
+      context.become(awaitVersionMessage(peerRequest,peer))
+
+    case msg =>
+      logger.error("Expected a Tcp.Connected message, got: " + msg)
+      throw new IllegalArgumentException("Unknown message in awaitConnected: " + msg)
+  }
+
+
+  private def awaitVersionMessage(peerRequest: PeerRequest, peer: ActorRef): Receive = LoggingReceive {
+    case Tcp.Received(byteString: ByteString) =>
+      logger.debug("Received byte string in awaitVersionMessage: " + BitcoinSUtil.encodeHex(byteString.toArray))
       //this means that we receive a bunch of messages bundled into one [[ByteString]]
       //need to parse out the individual message
       val bytes: Seq[Byte] = unalignedBytes ++ byteString.toArray.toSeq
       val (messages,remainingBytes) = BitcoinSpvNodeUtil.parseIndividualMessages(bytes)
       unalignedBytes = remainingBytes
       for {m <- messages} yield self ! m
-    case networkResponse: NetworkResponse =>
-      peerRequest.listener ! networkResponse
-      context.unbecome()
+    case networkMessage : NetworkMessage => networkMessage.payload match {
+      case versionMesage: VersionMessage =>
+        logger.info("Received version message: " + versionMesage)
+        //need to wait for the peer to send back a verack message
+        context.become(awaitVerack(peerRequest,peer))
+      case msg : NetworkPayload =>
+        logger.error("Expected a version message, got: " + msg)
+        context.unbecome()
+    }
+    case msg =>
+      logger.error("Unknown message inside of awaitVersionMessage: " + msg)
+      throw new IllegalArgumentException("Unknown message inside of awaitVersionMessage: " + msg)
+
   }
 
-  private def awaitVersionMessage(peerRequest: PeerRequest) = ???
+  private def awaitVerack(peerRequest: PeerRequest, peer: ActorRef): Receive = LoggingReceive {
+    case byteString: ByteString =>
+      logger.debug("Received byte string in awaitVerack: " + BitcoinSUtil.encodeHex(byteString.toArray))
+      //this means that we receive a bunch of messages bundled into one [[ByteString]]
+      //need to parse out the individual message
+      val bytes: Seq[Byte] = unalignedBytes ++ byteString.toArray.toSeq
+      val (messages,remainingBytes) = BitcoinSpvNodeUtil.parseIndividualMessages(bytes)
+      unalignedBytes = remainingBytes
+      for {m <- messages} yield self ! m
+    case networkMessage : NetworkMessage => networkMessage.payload match {
+      case VerAckMessage =>
+        logger.debug("Received VERACK message")
+        val networkMessage = NetworkMessage(TestNet3, peerRequest.request)
+        peer ! networkMessage
+        context.become(awaitPeerResponse(peerRequest,peer))
+      case msg : NetworkPayload =>
+        logger.error("Expected a verack message, got: " + msg)
+    }
+
+  }
+
+  def awaitPeerResponse(peerRequest: PeerRequest, peer: ActorRef): Receive = LoggingReceive {
+    case byteString: ByteString =>
+      logger.debug("Received byte string in awaitVersionMessage: " + BitcoinSUtil.encodeHex(byteString.toArray))
+      //this means that we receive a bunch of messages bundled into one [[ByteString]]
+      //need to parse out the individual message
+      val bytes: Seq[Byte] = unalignedBytes ++ byteString.toArray.toSeq
+      val (messages,remainingBytes) = BitcoinSpvNodeUtil.parseIndividualMessages(bytes)
+      unalignedBytes = remainingBytes
+      for {m <- messages} yield self ! m
+    case networkMessage: NetworkMessage =>
+      logger.info("Recieved a networkMessage in awaitPeerResponse: " + networkMessage)
+      self ! networkMessage.payload
+
+    case networkResponse: NetworkResponse => networkResponse match {
+      case pingMsg : PingMessage => peer ! PongMessageRequest(pingMsg.nonce)
+
+    }
+    case msg =>
+      logger.error("Unknown message in awaitPeerResponse: " + msg)
+  }
 
   /**
     * This function is responsible for handling a [[Tcp.Event]] algebraic data type

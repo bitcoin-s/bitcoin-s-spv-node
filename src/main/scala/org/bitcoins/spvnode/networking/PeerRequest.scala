@@ -1,6 +1,7 @@
 package org.bitcoins.spvnode.networking
 
 import akka.actor.{ActorRef, ActorSystem}
+import org.bitcoins.core.config.NetworkParameters
 import org.bitcoins.spvnode.messages.NetworkRequest
 
 /**
@@ -9,12 +10,12 @@ import org.bitcoins.spvnode.messages.NetworkRequest
 sealed trait PeerRequest {
   def request: NetworkRequest
   def listener: ActorRef
-  def actorSystem: ActorSystem
+  def networkParameters: NetworkParameters
 }
 
 object PeerRequest {
-  private case class PeerRequestImpl(request: NetworkRequest, listener: ActorRef, actorSystem: ActorSystem) extends PeerRequest
-  def apply(request: NetworkRequest, listener: ActorRef, actorSystem: ActorSystem): PeerRequest = {
-    PeerRequestImpl(request, listener, actorSystem)
+  private case class PeerRequestImpl(request: NetworkRequest, listener: ActorRef, networkParameters: NetworkParameters) extends PeerRequest
+  def apply(request: NetworkRequest, listener: ActorRef, networkParameters: NetworkParameters): PeerRequest = {
+    PeerRequestImpl(request, listener, networkParameters)
   }
 }

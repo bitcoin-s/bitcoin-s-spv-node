@@ -12,7 +12,7 @@ import org.bitcoins.core.util.BitcoinSUtil
 import org.bitcoins.spvnode.headers.NetworkHeader
 import org.bitcoins.spvnode.messages.control.{Alert, ServiceIdentifier}
 import org.bitcoins.spvnode.messages.data.Inventory
-import org.bitcoins.spvnode.serializers.control.{RawAddrMessageSerializer, RawPingMessageSerializer, RawVersionMessageSerializer}
+import org.bitcoins.spvnode.serializers.control.{RawAddrMessageSerializer, RawPingMessageSerializer, RawPongMessageSerializer, RawVersionMessageSerializer}
 import org.bitcoins.spvnode.serializers.messages.data._
 import org.bitcoins.spvnode.util.NetworkIpAddress
 import org.bitcoins.spvnode.versions.ProtocolVersion
@@ -414,7 +414,7 @@ sealed trait GetAddressMessage extends ControlPayload with NetworkRequest {
   * The response to a ping message is the pong message.
   * https://bitcoin.org/en/developer-reference#ping
   */
-trait PingMessage extends ControlPayload with NetworkRequest {
+sealed trait PingMessage extends ControlPayload with NetworkRequest {
   /**
     * Random nonce assigned to this ping message.
     * The responding pong message will include this nonce
@@ -429,6 +429,16 @@ trait PingMessage extends ControlPayload with NetworkRequest {
 }
 
 /**
+  * Represents a ping message our node is creating and sending to another node
+  */
+trait PingMessageRequest extends PingMessage
+
+/**
+  * Represents a ping message another node created and is pinging us with
+  */
+trait PingMessageResponse extends PingMessage
+
+/**
   * The pong message replies to a ping message, proving to the pinging node that the ponging node is still alive.
   * Bitcoin Core will, by default, disconnect from any clients which have not responded
   * to a ping message within 20 minutes.
@@ -440,11 +450,23 @@ sealed trait PongMessage extends ControlPayload with NetworkResponse {
     * The nonce which is the nonce in the ping message the peer is responding too
     * @return
     */
-  def nonce : BigInt
+  def nonce : UInt64
 
   override def commandName = NetworkPayload.pongCommandName
 
+  override def hex = RawPongMessageSerializer.write(this)
+
 }
+
+/**
+  * Represents us responding to a [[PingMessage]] from a node
+  */
+trait PongMessageRequest extends PongMessage
+
+/**
+  * Represents a node responding to our [[PingMessage]]
+  */
+trait PongMessageResponse extends PongMessage
 
 /**
   * The reject message informs the receiving node that one of its previous messages has been rejected.
