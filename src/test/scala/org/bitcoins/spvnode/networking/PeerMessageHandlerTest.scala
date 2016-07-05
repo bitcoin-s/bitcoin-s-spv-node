@@ -5,6 +5,7 @@ import akka.testkit.{TestKit, TestProbe}
 import org.bitcoins.core.config.TestNet3
 import org.bitcoins.core.crypto.DoubleSha256Digest
 import org.bitcoins.core.util.BitcoinSLogger
+import org.bitcoins.spvnode.NetworkMessage
 import org.bitcoins.spvnode.constant.Constants
 import org.bitcoins.spvnode.messages.HeadersMessage
 import org.bitcoins.spvnode.messages.data.GetHeadersMessage
@@ -20,8 +21,9 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("ClientTest")) with Fla
   "PeerMessageHandler" must "be able to send a GetHeadersMessage then receive a list of headers back" in {
     val hashStop = DoubleSha256Digest("0000000000000000000000000000000000000000000000000000000000000000")
     val getHeadersMessage = GetHeadersMessage(Constants.version,Seq(),hashStop)
+    val networkMsg = NetworkMessage(TestNet3, getHeadersMessage)
     val probe = TestProbe()
-    val peerRequest = PeerRequest(getHeadersMessage,probe.ref,TestNet3)
+    val peerRequest = PeerRequest(networkMsg,probe.ref,TestNet3)
     val peerMsgHandler = PeerMessageHandler(system)
 
     peerMsgHandler ! peerRequest

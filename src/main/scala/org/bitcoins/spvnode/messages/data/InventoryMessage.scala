@@ -2,7 +2,7 @@ package org.bitcoins.spvnode.messages.data
 
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.util.Factory
-import org.bitcoins.spvnode.messages.{InventoryMessage, InventoryMessageRequest, InventoryMessageResponse}
+import org.bitcoins.spvnode.messages.InventoryMessage
 import org.bitcoins.spvnode.serializers.messages.data.RawInventoryMessageSerializer
 
 /**
@@ -12,47 +12,11 @@ import org.bitcoins.spvnode.serializers.messages.data.RawInventoryMessageSeriali
   */
 object InventoryMessage extends Factory[InventoryMessage] {
 
-  override def fromBytes(bytes : Seq[Byte]) : InventoryMessage = InventoryMessageRequest(bytes)
+  private case class InventoryMessageImpl(inventoryCount: CompactSizeUInt, inventories: Seq[Inventory]) extends InventoryMessage
+  override def fromBytes(bytes : Seq[Byte]) : InventoryMessage = RawInventoryMessageSerializer.read(bytes)
 
   def apply(inventoryCount : CompactSizeUInt, inventories : Seq[Inventory]) : InventoryMessage = {
-    InventoryMessageRequest(inventoryCount,inventories)
+    InventoryMessageImpl(inventoryCount,inventories)
   }
 }
 
-/**
-  * This object creates a [[InventoryMessageRequest]]
-  * We need this since [[InventoryMessage]] can be both requests and responses
-  */
-object InventoryMessageRequest extends Factory[InventoryMessageRequest] {
-
-  private case class InventoryMessageRequestImpl(inventoryCount : CompactSizeUInt,
-                                                 inventories : Seq[Inventory]) extends InventoryMessageRequest
-  override def fromBytes(bytes : Seq[Byte]) : InventoryMessageRequest = {
-    val invMessage = RawInventoryMessageSerializer.read(bytes)
-    InventoryMessageRequestImpl(invMessage.inventoryCount, invMessage.inventories)
-  }
-
-  def apply(inventoryCount : CompactSizeUInt, inventories : Seq[Inventory]) : InventoryMessageRequest = {
-    InventoryMessageRequestImpl(inventoryCount,inventories)
-  }
-}
-
-/**
-  * This object creates a [[InventoryMessageResponse]]
-  * We need this since [[InventoryMessage]] can be both requests and responses
-  */
-object InventoryMessageResponse extends Factory[InventoryMessageResponse] {
-
-  private case class InventoryMessageResponseImpl(inventoryCount : CompactSizeUInt,
-                                                  inventories : Seq[Inventory]) extends InventoryMessageResponse
-
-
-  override def fromBytes(bytes : Seq[Byte]) : InventoryMessageResponse = {
-    val invMessage = RawInventoryMessageSerializer.read(bytes)
-    InventoryMessageResponseImpl(invMessage.inventoryCount, invMessage.inventories)
-  }
-
-  def apply(inventoryCount : CompactSizeUInt, inventories : Seq[Inventory]) : InventoryMessageResponse = {
-    InventoryMessageResponseImpl(inventoryCount,inventories)
-  }
-}

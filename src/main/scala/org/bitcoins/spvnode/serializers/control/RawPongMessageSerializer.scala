@@ -3,7 +3,7 @@ package org.bitcoins.spvnode.serializers.control
 import org.bitcoins.core.number.UInt64
 import org.bitcoins.core.serializers.RawBitcoinSerializer
 import org.bitcoins.spvnode.messages.PongMessage
-import org.bitcoins.spvnode.messages.control.PongMessageResponse
+import org.bitcoins.spvnode.messages.control.PongMessage
 
 /**
   * Created by chris on 7/5/16.
@@ -11,7 +11,7 @@ import org.bitcoins.spvnode.messages.control.PongMessageResponse
 trait RawPongMessageSerializer extends RawBitcoinSerializer[PongMessage] {
 
   def read(bytes: List[Byte]): PongMessage = {
-    PongMessageResponse(UInt64(bytes.take(8)))
+    PongMessage(UInt64(bytes.take(8)))
   }
 
   def write(pongMessage: PongMessage): String = {

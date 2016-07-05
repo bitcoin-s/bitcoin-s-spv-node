@@ -10,6 +10,6 @@ class PingMessageSpec extends Properties("PingMessageSpec") {
 
   property("Symmetry serialization") =
     Prop.forAll(ControlMessageGenerator.pingMessage) { pingMessage =>
-      PingMessageRequest(pingMessage.hex) == pingMessage
+      PingMessage(pingMessage.hex) == pingMessage
     }
 }

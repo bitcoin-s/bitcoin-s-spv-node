@@ -50,13 +50,10 @@ sealed trait Client extends Actor with BitcoinSLogger {
     * This is set when we received a [[Tcp.Connected]] message
     */
   private def awaitNetworkRequest(peer: ActorRef) = LoggingReceive {
-    case networkMessage: NetworkMessage =>
-      self ! networkMessage.payload
-    case networkRequest: NetworkRequest =>
-      handleNetworkRequest(networkRequest,peer)
-    case networkResponse: NetworkResponse =>
-      logger.error("Client cannot receive network responses, PeerMessageHandler must receive them, received: " + networkResponse)
-      throw new IllegalArgumentException("Client cannot receive network responses, PeerMessageHandler must receive them")
+    case message: NetworkMessage => sendNetworkMessage(message,peer)
+    case payload: NetworkPayload =>
+      val networkMsg = NetworkMessage(network,payload)
+      self ! networkMsg
     case unknownMessage =>
       logger.error("Client recieved an unknown network message: "  + unknownMessage)
       throw new IllegalArgumentException("Unknown message for client in awaitNetworkRequest: " + unknownMessage)
@@ -116,15 +113,13 @@ sealed trait Client extends Actor with BitcoinSLogger {
 
   /**
     * Sends a network request to our peer on the network
-    * @param request
+    * @param message
     * @return
     */
-  private def handleNetworkRequest(request : NetworkRequest, x: ActorRef) = {
-    val header = NetworkHeader(Constants.networkParameters, request)
-    val message = NetworkMessage(header,request)
+  private def sendNetworkMessage(message : NetworkMessage, peer: ActorRef) = {
     val byteMessage = BitcoinSpvNodeUtil.buildByteString(message.bytes)
-    logger.debug("Network request: " + request)
-    x ! Tcp.Write(byteMessage)
+    logger.debug("Network message: " + message)
+    peer ! Tcp.Write(byteMessage)
   }
 
 }

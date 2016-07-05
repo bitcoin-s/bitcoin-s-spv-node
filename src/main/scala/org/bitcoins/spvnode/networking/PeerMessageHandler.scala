@@ -4,12 +4,11 @@ import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.event.LoggingReceive
 import akka.io.Tcp
 import akka.util.ByteString
-import org.bitcoins.core.config.TestNet3
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
 import org.bitcoins.spvnode.NetworkMessage
 import org.bitcoins.spvnode.constant.Constants
-import org.bitcoins.spvnode.messages.control.{PongMessageRequest, VersionMessage}
 import org.bitcoins.spvnode.messages._
+import org.bitcoins.spvnode.messages.control.{PongMessage, VersionMessage}
 import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 
 /**
@@ -82,7 +81,7 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
     case networkMessage : NetworkMessage => networkMessage.payload match {
       case VerAckMessage =>
         logger.debug("Received VERACK message")
-        val networkMessage = NetworkMessage(TestNet3, peerRequest.request)
+        val networkMessage = peerRequest.request
         peer ! networkMessage
         context.become(awaitPeerResponse(peerRequest,peer))
       case msg : NetworkPayload =>
@@ -104,10 +103,12 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
       logger.info("Recieved a networkMessage in awaitPeerResponse: " + networkMessage)
       self ! networkMessage.payload
 
-    case networkResponse: NetworkResponse => networkResponse match {
-      case pingMsg : PingMessage => peer ! PongMessageRequest(pingMsg.nonce)
+    case networkResponse: ControlPayload => networkResponse match {
+      case pingMsg : PingMessage => peer ! PongMessage(pingMsg.nonce)
 
     }
+
+    case networkResponse: DataPayload => ???
     case msg =>
       logger.error("Unknown message in awaitPeerResponse: " + msg)
   }

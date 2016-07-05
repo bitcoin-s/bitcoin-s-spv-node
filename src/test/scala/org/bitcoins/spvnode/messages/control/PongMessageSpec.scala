@@ -8,10 +8,8 @@ import org.scalacheck.{Prop, Properties}
   */
 class PongMessageSpec extends Properties("PongMessageSpec") {
 
-  property("Serializatoin symmetry") =
+  property("Serialization symmetry") =
     Prop.forAll(ControlMessageGenerator.pongMessage) { pongMsg =>
-
-      PongMessageRequest(pongMsg.hex) == pongMsg
-
+      PongMessage(pongMsg.hex) == pongMsg
     }
 }
