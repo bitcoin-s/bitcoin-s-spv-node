@@ -56,7 +56,9 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
       for {m <- messages} yield self ! m
     case networkMessage : NetworkMessage => networkMessage.payload match {
       case versionMesage: VersionMessage =>
+
         logger.info("Received version message: " + versionMesage)
+        peer ! VerAckMessage
         //need to wait for the peer to send back a verack message
         context.become(awaitVerack(peerRequest,peer))
       case msg : NetworkPayload =>
@@ -70,7 +72,7 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
   }
 
   private def awaitVerack(peerRequest: PeerRequest, peer: ActorRef): Receive = LoggingReceive {
-    case byteString: ByteString =>
+    case Tcp.Received(byteString: ByteString) =>
       logger.debug("Received byte string in awaitVerack: " + BitcoinSUtil.encodeHex(byteString.toArray))
       //this means that we receive a bunch of messages bundled into one [[ByteString]]
       //need to parse out the individual message
@@ -91,8 +93,9 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
   }
 
   def awaitPeerResponse(peerRequest: PeerRequest, peer: ActorRef): Receive = LoggingReceive {
-    case byteString: ByteString =>
-      logger.debug("Received byte string in awaitVersionMessage: " + BitcoinSUtil.encodeHex(byteString.toArray))
+    case Tcp.Received(byteString: ByteString) =>
+      logger.debug("Unaligned bytes: "+ BitcoinSUtil.encodeHex(unalignedBytes))
+      logger.debug("Received byte string in awaitPeerResponse " + BitcoinSUtil.encodeHex(byteString.toArray))
       //this means that we receive a bunch of messages bundled into one [[ByteString]]
       //need to parse out the individual message
       val bytes: Seq[Byte] = unalignedBytes ++ byteString.toArray.toSeq
@@ -100,11 +103,14 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
       unalignedBytes = remainingBytes
       for {m <- messages} yield self ! m
     case networkMessage: NetworkMessage =>
-      logger.info("Recieved a networkMessage in awaitPeerResponse: " + networkMessage)
+      logger.info("Received a networkMessage in awaitPeerResponse: " + networkMessage)
       self ! networkMessage.payload
 
     case networkResponse: ControlPayload => networkResponse match {
       case pingMsg : PingMessage => peer ! PongMessage(pingMsg.nonce)
+      case SendHeadersMessage =>
+        logger.debug("Received send header message")
+
 
     }
 

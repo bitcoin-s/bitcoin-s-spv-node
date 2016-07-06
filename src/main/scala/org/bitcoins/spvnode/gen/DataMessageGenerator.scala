@@ -1,7 +1,7 @@
 package org.bitcoins.spvnode.gen
 
 import org.bitcoins.core.gen.CryptoGenerators
-import org.bitcoins.spvnode.messages.GetHeadersMessage
+import org.bitcoins.spvnode.messages.{GetHeadersMessage, HeadersMessage}
 import org.bitcoins.spvnode.messages.data.GetHeadersMessage
 import org.scalacheck.Gen
 
@@ -17,6 +17,8 @@ trait DataMessageGenerator {
     hashes <- CryptoGenerators.doubleSha256DigestSeq(numHashes)
     hashStop <- CryptoGenerators.doubleSha256Digest
   } yield GetHeadersMessage(version,hashes,hashStop)
+
+
 }
 
 object DataMessageGenerator extends DataMessageGenerator

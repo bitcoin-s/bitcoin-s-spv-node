@@ -41,10 +41,6 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike wi
         version.userAgent.contains("Satoshi") must be (true)
       case _ : NetworkPayload => throw new IllegalArgumentException("Must be a version message")
     }
-
-    val verackMessage = messages(1)
-    verackMessage.header.commandName must be (NetworkPayload.verAckCommandName)
-
   }
 
 

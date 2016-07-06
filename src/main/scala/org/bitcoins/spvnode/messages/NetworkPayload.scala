@@ -120,7 +120,7 @@ trait GetHeadersMessage extends DataPayload {
   * which previously requested certain headers with a getheaders message.
   * https://bitcoin.org/en/developer-reference#headers
   */
-sealed trait HeadersMessage extends DataPayload {
+trait HeadersMessage extends DataPayload {
   /**
     * Number of block headers up to a maximum of 2,000.
     * Note: headers-first sync assumes the sending node
@@ -139,6 +139,8 @@ sealed trait HeadersMessage extends DataPayload {
   def headers : Seq[BlockHeader]
 
   override def commandName = NetworkPayload.headersCommandName
+
+  override def hex = RawHeadersMessageSerializer.write(this)
 }
 
 /**
@@ -482,8 +484,9 @@ sealed trait RejectMessage extends ControlPayload {
   * of a message without a payload.
   * https://bitcoin.org/en/developer-reference#sendheaders
   */
-sealed trait SendHeadersMessage extends ControlPayload {
+case object SendHeadersMessage extends ControlPayload {
   override def commandName = NetworkPayload.sendHeadersCommandName
+  override def hex = ""
 }
 
 
@@ -675,7 +678,7 @@ object NetworkPayload {
     pingCommandName -> { RawPingMessageSerializer.read(_)},
     pongCommandName -> { x : Seq[Byte] => ???},
     rejectCommandName -> { x : Seq[Byte] => ???},
-    sendHeadersCommandName -> { x : Seq[Byte] => ???},
+    sendHeadersCommandName -> { x : Seq[Byte] => SendHeadersMessage},
     verAckCommandName -> { x : Seq[Byte] => VerAckMessage},
     versionCommandName -> { RawVersionMessageSerializer.read(_) }
   )
