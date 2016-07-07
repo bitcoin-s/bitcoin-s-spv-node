@@ -1,9 +1,12 @@
 package org.bitcoins.spvnode.networking
 
+import java.net.InetSocketAddress
+
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.event.LoggingReceive
 import akka.io.Tcp
 import akka.util.ByteString
+import org.bitcoins.core.config.TestNet3
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
 import org.bitcoins.spvnode.NetworkMessage
 import org.bitcoins.spvnode.constant.Constants
@@ -26,6 +29,9 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
 
     case peerRequest: PeerRequest =>
       val peer = Client(peerRequest.networkParameters, self)(context.system)
+      val seed = new InetSocketAddress(peerRequest.networkParameters.dnsSeeds(0), peerRequest.networkParameters.port)
+      val local = new InetSocketAddress(peerRequest.networkParameters.port)
+      peer ! Tcp.Connect(seed,Some(local))
       context.become(awaitConnected(peerRequest,peer))
     case msg =>
       logger.error("Unknown message inside of PeerMessageHandler: " + msg)

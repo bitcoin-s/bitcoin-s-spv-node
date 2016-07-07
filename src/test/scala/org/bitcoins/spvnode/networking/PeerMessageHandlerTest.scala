@@ -32,6 +32,8 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     val peerRequest = PeerRequest(networkMsg,probe.ref,TestNet3)
     val peerMsgHandler = PeerMessageHandler(system)
 
+
+
     peerMsgHandler ! peerRequest
 
     val headerMsg = probe.expectMsgType[HeadersMessage](10.seconds)

@@ -106,6 +106,8 @@ sealed trait Client extends Actor with BitcoinSLogger {
   private def handleCommand(command : Tcp.Command, peer: Option[ActorRef]) = command match {
     case closeCmd @ (Tcp.ConfirmedClose | Tcp.Close | Tcp.Abort)  =>
       peer.map(p => p ! closeCmd)
+    case connectCmd : Tcp.Connect =>
+      manager ! connectCmd
     case x => throw new IllegalArgumentException("Unknown command: " + x)
   }
 
@@ -129,7 +131,6 @@ object Client {
   private case class ClientImpl(remote: InetSocketAddress, network : NetworkParameters,
                                 listener: ActorRef) extends Client {
 
-    manager ! Tcp.Connect(remote, Some(new InetSocketAddress(network.port)))
 
   }
 
