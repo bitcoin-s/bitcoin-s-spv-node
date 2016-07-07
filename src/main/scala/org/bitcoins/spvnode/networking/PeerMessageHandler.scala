@@ -33,9 +33,8 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
   }
 
 
-  def awaitConnected(peerRequest: PeerRequest, peer: ActorRef): Receive = {
+  def awaitConnected(peerRequest: PeerRequest, peer: ActorRef): Receive = LoggingReceive {
     case Tcp.Connected(remote,local) =>
-      logger.debug("Received Tcp.Connected inside of PeerMessageHandler")
       peer ! VersionMessage(Constants.networkParameters,local.getAddress)
       context.become(awaitVersionMessage(peerRequest,peer))
 
@@ -56,8 +55,6 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
       for {m <- messages} yield self ! m
     case networkMessage : NetworkMessage => networkMessage.payload match {
       case versionMesage: VersionMessage =>
-
-        logger.info("Received version message: " + versionMesage)
         peer ! VerAckMessage
         //need to wait for the peer to send back a verack message
         context.become(awaitVerack(peerRequest,peer))
@@ -82,7 +79,6 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
       for {m <- messages} yield self ! m
     case networkMessage : NetworkMessage => networkMessage.payload match {
       case VerAckMessage =>
-        logger.debug("Received VERACK message")
         val networkMessage = peerRequest.request
         peer ! networkMessage
         context.become(awaitPeerResponse(peerRequest,peer))
@@ -103,18 +99,17 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
       unalignedBytes = remainingBytes
       for {m <- messages} yield self ! m
     case networkMessage: NetworkMessage =>
-      logger.info("Received a networkMessage in awaitPeerResponse: " + networkMessage)
       self ! networkMessage.payload
 
     case networkResponse: ControlPayload => networkResponse match {
       case pingMsg : PingMessage => peer ! PongMessage(pingMsg.nonce)
       case SendHeadersMessage =>
-        logger.debug("Received send header message")
-
-
+      case addrMessage: AddrMessage =>
     }
 
-    case networkResponse: DataPayload => ???
+    case networkResponse: DataPayload =>
+      peerRequest.listener ! networkResponse
+      peer ! Tcp.Abort
     case msg =>
       logger.error("Unknown message in awaitPeerResponse: " + msg)
   }
@@ -137,24 +132,18 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
     case Tcp.Connected(remote, local) =>
       logger.debug("Tcp connection to: " + remote)
       logger.debug("Local: " + local)
-      //listener ! Tcp.Connected(remote,local)
-      //peer = Some(sender)
-      //peer.get ! Tcp.Register(listener)
-    case Tcp.ConfirmedClosed =>
-      logger.debug("Peer Message Handler received confirmed closed msg: " + Tcp.ConfirmedClosed)
-      //peer = None
-      //context stop self
     case Tcp.PeerClosed =>
-      logger.debug("Peer closed on network")
       context stop self
+    case Tcp.ConfirmedClosed | Tcp.Closed | Tcp.Aborted =>
+      context.stop(self)
   }
+
   /**
     * This function is responsible for handling a [[Tcp.Command]] algebraic data type
     * @param command
     */
   private def handleCommand(command : Tcp.Command) = command match {
     case Tcp.ConfirmedClose =>
-      logger.debug("Peer Message Handler received connection closed msg: " + Tcp.ConfirmedClose)
       //listener ! Tcp.ConfirmedClose
       //peer.get ! Tcp.ConfirmedClose
   }

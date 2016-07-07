@@ -18,7 +18,8 @@ object BitcoinSSpvNodeBuild extends Build {
     "com.typesafe.akka" %% "akka-actor" % akkaV withSources() withJavadoc(), 
     "com.typesafe.akka" %% "akka-testkit" % akkaV withSources() withJavadoc(), 
     "ch.qos.logback" % "logback-classic" % logbackV, 
-    "joda-time" % "joda-time" % "2.9.4"
+    "joda-time" % "joda-time" % "2.9.4",
+    "com.typesafe.akka" %% "akka-slf4j" % akkaV withSources() withJavadoc()
   )
   
   lazy val root = Project(appName, file(".")).enablePlugins(BuildInfoPlugin).settings(

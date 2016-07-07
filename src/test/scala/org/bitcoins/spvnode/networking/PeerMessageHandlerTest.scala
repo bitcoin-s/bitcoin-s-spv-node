@@ -1,5 +1,7 @@
 package org.bitcoins.spvnode.networking
 
+import java.net.InetSocketAddress
+
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import org.bitcoins.core.config.TestNet3
@@ -16,7 +18,7 @@ import scala.concurrent.duration.DurationInt
 /**
   * Created by chris on 7/1/16.
   */
-class PeerMessageHandlerTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike with MustMatchers
+class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest")) with FlatSpecLike with MustMatchers
   with BeforeAndAfter with BeforeAndAfterAll with BitcoinSLogger {
 
 
@@ -33,7 +35,12 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("ClientTest")) with Fla
     peerMsgHandler ! peerRequest
 
     val headerMsg = probe.expectMsgType[HeadersMessage](10.seconds)
+
+
+
+
   }
+
 
   override def afterAll = {
     TestKit.shutdownActorSystem(system)

@@ -1,5 +1,7 @@
 package org.bitcoins.spvnode.networking
 
+import java.net.{InetSocketAddress, ServerSocket}
+
 import akka.actor.ActorSystem
 import akka.io.Tcp
 import akka.testkit.{TestKit, TestProbe}
@@ -11,6 +13,7 @@ import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FlatSpecLike, MustMatchers}
 
 import scala.concurrent.duration._
+import scala.util.Try
 /**
   * Created by chris on 6/7/16.
   */
@@ -25,27 +28,22 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike wi
     //val bound : Tcp.Bound = probe.expectMsgType[Tcp.Bound]
     val conn : Tcp.Connected = probe.expectMsgType[Tcp.Connected]
 
-    val versionMessage = VersionMessage(TestNet3, conn.localAddress.getAddress,conn.remoteAddress.getAddress)
-    client ! versionMessage
-    val receivedMsg = probe.expectMsgType[Tcp.Received](5.seconds)
-    logger.debug("ReceivedMsg: " + BitcoinSUtil.encodeHex(receivedMsg.data.toArray))
-    val bytes = receivedMsg.data.toArray
-    val (messages,_) = BitcoinSpvNodeUtil.parseIndividualMessages(bytes)
+    //make sure the socket is currently bound
+    Try(new ServerSocket(TestNet3.port)).isSuccess must be (false)
+    client ! Tcp.Abort
+    val confirmedClosed = probe.expectMsg(Tcp.Aborted)
 
-    val peerVersionMessage = messages.head
-    logger.debug("Peer header: " + peerVersionMessage.header)
-    logger.debug("Peer version message: " + peerVersionMessage)
+    //make sure the port is now available
+    val boundSocket = Try(new ServerSocket(TestNet3.port))
+    boundSocket.isSuccess must be (true)
 
-    peerVersionMessage.payload match {
-      case version : VersionMessage =>
-        version.userAgent.contains("Satoshi") must be (true)
-      case _ : NetworkPayload => throw new IllegalArgumentException("Must be a version message")
-    }
+    boundSocket.get.close()
+
   }
 
 
   override def afterAll: Unit = {
-    TestKit.shutdownActorSystem(system)
+    //TestKit.shutdownActorSystem(system)
   }
 
 

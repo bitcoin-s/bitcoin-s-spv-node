@@ -663,8 +663,8 @@ object NetworkPayload {
   def commandNames : Map[String, Seq[Byte] => NetworkPayload] = Map(
     blockCommandName -> { x : Seq[Byte] => ???},
     getBlocksCommandName -> { RawGetBlocksMessageSerializer.read(_) },
-    getHeadersCommandName -> {RawGetHeadersMessageSerializer.read(_)},
-    headersCommandName -> { x : Seq[Byte] => ???},
+    getHeadersCommandName -> { RawGetHeadersMessageSerializer.read(_) },
+    headersCommandName -> { RawHeadersMessageSerializer.read(_) },
     invCommandName -> { RawInventoryMessageSerializer.read(_) },
     memPoolCommandName -> { x : Seq[Byte] => ???},
     merkleBlockCommandName -> { RawMerkleBlockMessageSerializer.read(_) },

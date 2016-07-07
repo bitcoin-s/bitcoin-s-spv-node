@@ -49,28 +49,28 @@ sealed trait Client extends Actor with BitcoinSLogger {
     * This actor signifies the node we are connected to on the p2p network
     * This is set when we received a [[Tcp.Connected]] message
     */
-  private def awaitNetworkRequest(peer: ActorRef) = LoggingReceive {
+  private def awaitNetworkRequest(peer: ActorRef): Receive = LoggingReceive {
     case message: NetworkMessage => sendNetworkMessage(message,peer)
     case payload: NetworkPayload =>
       val networkMsg = NetworkMessage(network,payload)
       self ! networkMsg
+    case message: Tcp.Message =>
+      handleTcpMessage(message,Some(peer))
     case unknownMessage =>
       logger.error("Client recieved an unknown network message: "  + unknownMessage)
       throw new IllegalArgumentException("Unknown message for client in awaitNetworkRequest: " + unknownMessage)
   }
 
-  def receive  = LoggingReceive {
-    case message : Tcp.Message => message match {
-      case event : Tcp.Event =>
-        logger.debug("Event: " + event)
-        handleEvent(event)
-      case command : Tcp.Command =>
-        logger.debug("Command: " + command)
-        handleCommand(command)
-    }
+  def receive = LoggingReceive {
+    case message : Tcp.Message => handleTcpMessage(message,None)
     case unknownMessage =>
       logger.error("Client.receive recieved an unknown network message: "  + unknownMessage)
       throw new IllegalArgumentException("Unknown message for client receive: " + unknownMessage)
+  }
+
+  private def handleTcpMessage(message: Tcp.Message, peer: Option[ActorRef]) = message match {
+    case event: Tcp.Event => handleEvent(event)
+    case command: Tcp.Command => handleCommand(command,peer)
   }
 
   /**
@@ -88,18 +88,14 @@ sealed trait Client extends Actor with BitcoinSLogger {
       //listener ! "write failed"
     case Tcp.CommandFailed(command) =>
       logger.debug("Client Command failed:" + command)
-    case Tcp.Received(data) =>
-      logger.debug("Received data from our peer on the network: " + BitcoinSUtil.encodeHex(data.toArray))
-      //listener ! data
     case Tcp.Connected(remote, local) =>
       logger.debug("Tcp connection to: " + remote)
       logger.debug("Local: " + local)
       sender ! Tcp.Register(listener)
       listener ! Tcp.Connected(remote,local)
       context.become(awaitNetworkRequest(sender))
-    case Tcp.ConfirmedClosed =>
-      logger.debug("Client received confirmed closed msg: " + Tcp.ConfirmedClosed)
-      context stop self
+    case Tcp.ConfirmedClosed | Tcp.Closed | Tcp.Aborted =>
+      context.stop(self)
   }
 
 
@@ -107,7 +103,9 @@ sealed trait Client extends Actor with BitcoinSLogger {
     * This function is responsible for handling a [[Tcp.Command]] algebraic data type
     * @param command
     */
-  private def handleCommand(command : Tcp.Command) = command match {
+  private def handleCommand(command : Tcp.Command, peer: Option[ActorRef]) = command match {
+    case closeCmd @ (Tcp.ConfirmedClose | Tcp.Close | Tcp.Abort)  =>
+      peer.map(p => p ! closeCmd)
     case x => throw new IllegalArgumentException("Unknown command: " + x)
   }
 
@@ -131,9 +129,6 @@ object Client {
   private case class ClientImpl(remote: InetSocketAddress, network : NetworkParameters,
                                 listener: ActorRef) extends Client {
 
-    //manager ! Tcp.Bind(listener, new InetSocketAddress(network.port))
-    //this eagerly connects the client with our peer on the network as soon
-    //as the case class is instantiated
     manager ! Tcp.Connect(remote, Some(new InetSocketAddress(network.port)))
 
   }
