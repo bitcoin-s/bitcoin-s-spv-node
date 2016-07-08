@@ -68,6 +68,12 @@ sealed trait Client extends Actor with BitcoinSLogger {
       throw new IllegalArgumentException("Unknown message for client receive: " + unknownMessage)
   }
 
+  /**
+    * Handles boiler plate [[Tcp.Message]] types
+    * @param message
+    * @param peer
+    * @return
+    */
   private def handleTcpMessage(message: Tcp.Message, peer: Option[ActorRef]) = message match {
     case event: Tcp.Event => handleEvent(event)
     case command: Tcp.Command => handleCommand(command,peer)

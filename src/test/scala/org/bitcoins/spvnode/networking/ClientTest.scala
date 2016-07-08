@@ -48,7 +48,7 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike wi
 
 
   override def afterAll: Unit = {
-    //TestKit.shutdownActorSystem(system)
+    TestKit.shutdownActorSystem(system)
   }
 
 

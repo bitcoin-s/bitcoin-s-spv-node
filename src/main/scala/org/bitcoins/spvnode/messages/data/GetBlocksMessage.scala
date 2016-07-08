@@ -23,5 +23,10 @@ object GetBlocksMessage extends Factory[GetBlocksMessage] {
     GetBlocksMessageImpl(version,hashCount,blockHeaderHashes,stopHash)
   }
 
+  def apply(version: ProtocolVersion, blockHeaderHashes: Seq[DoubleSha256Digest], stopHash: DoubleSha256Digest): GetBlocksMessage = {
+    val hashCount = CompactSizeUInt(blockHeaderHashes.length)
+    GetBlocksMessage(version, hashCount, blockHeaderHashes, stopHash)
+  }
+
   def fromBytes(bytes : Seq[Byte]) : GetBlocksMessage = RawGetBlocksMessageSerializer.read(bytes)
 }
