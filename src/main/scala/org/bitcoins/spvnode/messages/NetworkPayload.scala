@@ -96,7 +96,23 @@ trait GetBlocksMessage extends DataPayload {
   * which the requesting node typically previously received by way of an inv message.
   * https://bitcoin.org/en/developer-reference#getdata
   */
-sealed trait GetDataPayload extends DataPayload
+trait GetDataMessage extends DataPayload {
+  /**
+    * The number of inventory enteries
+    * @return
+    */
+  def inventoryCount : CompactSizeUInt
+
+  /**
+    * One or more inventory entries up to a maximum of 50,000 entries.
+    * @return
+    */
+  def inventories : Seq[Inventory]
+
+  override def commandName = NetworkPayload.getDataCommandName
+
+  def hex = RawGetDataMessageSerializer.write(this)
+}
 
 /**
   * The getheaders message requests a headers message that provides block headers starting
@@ -512,7 +528,7 @@ case object VerAckMessage extends ControlPayload {
   * by first sending a version message.
   * https://bitcoin.org/en/developer-reference#version
   */
-sealed trait VersionMessage extends ControlPayload {
+trait VersionMessage extends ControlPayload {
 
   /**
     * The highest protocol version understood by the transmitting node. See the protocol version section.
@@ -619,17 +635,6 @@ sealed trait VersionMessage extends ControlPayload {
   override def hex = RawVersionMessageSerializer.write(this)
 }
 
-/**
-  * A [[VersionMessage]] that is sent as a request to a peer on the network
-  */
-trait VersionMessageRequest extends VersionMessage
-
-/**
-  * A [[VersionMessage]] that is sent as a response from a peer on the network
-  */
-trait VersionMessageResponse extends VersionMessage
-
-
 object NetworkPayload {
 
   def blockCommandName = "block"
@@ -637,6 +642,7 @@ object NetworkPayload {
   def getHeadersCommandName = "getheaders"
   def headersCommandName = "headers"
   def invCommandName = "inv"
+  def getDataCommandName = "getdata"
   def memPoolCommandName = "mempool"
   def merkleBlockCommandName = "merkleblock"
   def notFoundCommandName = "notfound"
@@ -664,6 +670,7 @@ object NetworkPayload {
     blockCommandName -> { x : Seq[Byte] => ???},
     getBlocksCommandName -> { RawGetBlocksMessageSerializer.read(_) },
     getHeadersCommandName -> { RawGetHeadersMessageSerializer.read(_) },
+    getDataCommandName -> { RawGetDataMessageSerializer.read(_) },
     headersCommandName -> { RawHeadersMessageSerializer.read(_) },
     invCommandName -> { RawInventoryMessageSerializer.read(_) },
     memPoolCommandName -> { x : Seq[Byte] => ???},

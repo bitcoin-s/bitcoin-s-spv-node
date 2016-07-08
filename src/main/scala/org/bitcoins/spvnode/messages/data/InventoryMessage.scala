@@ -18,5 +18,10 @@ object InventoryMessage extends Factory[InventoryMessage] {
   def apply(inventoryCount : CompactSizeUInt, inventories : Seq[Inventory]) : InventoryMessage = {
     InventoryMessageImpl(inventoryCount,inventories)
   }
+
+  def apply(inventories: Seq[Inventory]): InventoryMessage = {
+    val count = CompactSizeUInt(inventories.length)
+    InventoryMessage(count, inventories)
+  }
 }
 

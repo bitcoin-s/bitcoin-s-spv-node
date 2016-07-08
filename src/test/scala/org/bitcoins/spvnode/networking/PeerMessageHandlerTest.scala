@@ -65,6 +65,10 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
 
   }
 
+  it must "request a full block from another node" in {
+
+  }
+
 
   private def buildPeerRequest(payload: NetworkPayload): (PeerRequest,TestProbe) = {
     val networkMsg = NetworkMessage(TestNet3, payload)

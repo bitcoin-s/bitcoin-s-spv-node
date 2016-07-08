@@ -27,7 +27,7 @@ object VersionMessage extends Factory[VersionMessage] {
                                                addressReceivePort : Int, addressTransServices : ServiceIdentifier,
                                                addressTransIpAddress : InetAddress, addressTransPort : Int,
                                                nonce : UInt64, userAgentSize : CompactSizeUInt, userAgent : String,
-                                               startHeight : Int32, relay : Boolean) extends VersionMessageRequest
+                                               startHeight : Int32, relay : Boolean) extends VersionMessage
 
   override def fromBytes(bytes : Seq[Byte]) : VersionMessage = RawVersionMessageSerializer.read(bytes)
 
