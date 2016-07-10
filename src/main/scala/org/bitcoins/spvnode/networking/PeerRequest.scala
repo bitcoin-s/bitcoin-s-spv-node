@@ -10,12 +10,11 @@ import org.bitcoins.spvnode.NetworkMessage
 sealed trait PeerRequest {
   def request: NetworkMessage
   def listener: ActorRef
-  def networkParameters: NetworkParameters
 }
 
 object PeerRequest {
-  private case class PeerRequestImpl(request: NetworkMessage, listener: ActorRef, networkParameters: NetworkParameters) extends PeerRequest
-  def apply(request: NetworkMessage, listener: ActorRef, networkParameters: NetworkParameters): PeerRequest = {
-    PeerRequestImpl(request, listener, networkParameters)
-  }
+  private case class PeerRequestImpl(request: NetworkMessage, listener: ActorRef) extends PeerRequest
+
+  def apply(request: NetworkMessage, listener: ActorRef): PeerRequest = PeerRequestImpl(request, listener)
+
 }

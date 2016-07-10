@@ -144,7 +144,12 @@ object Client {
     Props(classOf[ClientImpl], remote, network, listener)
   }
 
-  def apply(remote : InetSocketAddress, network : NetworkParameters, listener : ActorRef)(implicit actorSystem: ActorSystem) : ActorRef = {
+  def props(network : NetworkParameters, listener : ActorRef): Props = {
+    val remote = new InetSocketAddress(network.dnsSeeds(0), network.port)
+    Props(classOf[ClientImpl], remote, network, listener)
+  }
+
+/*  def apply(remote : InetSocketAddress, network : NetworkParameters, listener : ActorRef)(implicit actorSystem: ActorSystem) : ActorRef = {
    actorSystem.actorOf(props(remote, network, listener))
   }
 
@@ -152,7 +157,7 @@ object Client {
     //val randomSeed = ((Math.random() * 10) % network.dnsSeeds.size).toInt
     val remote = new InetSocketAddress(network.dnsSeeds(0), network.port)
     Client(remote, network, listener)
-  }
+  }*/
 
 }
 

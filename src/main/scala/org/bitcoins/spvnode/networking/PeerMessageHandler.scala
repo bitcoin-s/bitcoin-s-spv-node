@@ -13,6 +13,7 @@ import org.bitcoins.spvnode.NetworkMessage
 import org.bitcoins.spvnode.constant.Constants
 import org.bitcoins.spvnode.messages._
 import org.bitcoins.spvnode.messages.control.{PongMessage, VersionMessage}
+import org.bitcoins.spvnode.messages.data.Inventory
 import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 
 import scala.util.{Failure, Success}
@@ -20,9 +21,9 @@ import scala.util.{Failure, Success}
 /**
   * Created by chris on 6/7/16.
   */
-trait PeerMessageHandler extends Actor with BitcoinSLogger {
+sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
 
-  lazy val peer: ActorRef = Client(Constants.networkParameters, self)(context.system)
+  lazy val peer: ActorRef = context.actorOf(Client.props(Constants.networkParameters, self))
 
   //var unalignedBytes: Seq[Byte] = Nil
 
@@ -66,6 +67,7 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
       case versionMesage: VersionMessage =>
         peer ! VerAckMessage
         //need to wait for the peer to send back a verack message
+        logger.debug("Switching to awaitVerack")
         context.become(awaitVerack(peerRequests))
       case msg : NetworkPayload =>
         logger.error("Expected a version message, got: " + msg)
@@ -107,7 +109,7 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
     * @param peer
     * @return
     */
-  private def sendPeerRequests(peerRequests: Seq[(ActorRef,PeerRequest)], peer: ActorRef): Seq[PeerMessageHandlerMsg] = for {
+  private def sendPeerRequests(peerRequests: Seq[(ActorRef,PeerRequest)], peer: ActorRef) = for {
     (sender, peerRequest) <- peerRequests
   } yield sendPeerRequest(peerRequest,peer,sender)
 
@@ -119,20 +121,13 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
     * @param peer
     * @return
     */
-  private def sendPeerRequest(peerRequest: PeerRequest, peer: ActorRef, sender: ActorRef): PeerMessageHandlerMsg = {
-    peer ! peerRequest.request
-    val success = PeerMessageHandlerSuccess(peerRequest)
-    logger.debug("Sending confirm message back to sender for: " + peerRequest)
-    sender ! success
-    success
-  }
+  private def sendPeerRequest(peerRequest: PeerRequest, peer: ActorRef, sender: ActorRef) = peer ! peerRequest.request
+
 
   /**
-    * We wait in this state until our peer responds to us
-    * after we receive the response, we send the response to the listener
-    * inside of [[PeerRequest]]. After receiving the response we transition
-    * to awaitPeerRequest to wait for the next peer request sent to [[PeerMessageHandler]]
-    * @param peerRequest
+    * This is the main receive function inside of [[PeerMessageHandler]]
+    * This will receive peer requests, then send the payload to the the corresponding
+    * actor responsible for handling that specific message
     * @return
     */
   def peerMessageHandler : Receive = LoggingReceive {
@@ -158,9 +153,7 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
       case addrMessage: AddrMessage =>
     }
 
-    case networkResponse: DataPayload =>
-      //peerRequest.listener ! networkResponse
-      logger.debug("Network response in peerMessageHandler: " + networkResponse)
+    case payload: DataPayload => handleDataPayload(payload)
     case msg =>
       logger.error("Unknown message in peerMessageHandler: " + msg)
   }
@@ -204,32 +197,24 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
     case command: Tcp.Command => handleCommand(command,peer)
   }
 
+
+  private def handleDataPayload(payload: DataPayload) = {
+    logger.debug("Forwarding data payload to parent: " + payload)
+    logger.debug("COntext.parent: " + context.parent)
+    context.parent ! payload
+  }
+
 }
 
 
 
 object PeerMessageHandler {
-  private case class PeerMessageHandlerImpl(actorSystem: ActorSystem) extends PeerMessageHandler {
+  private case class PeerMessageHandlerImpl() extends PeerMessageHandler {
     val seed = new InetSocketAddress(Constants.networkParameters.dnsSeeds(0), Constants.networkParameters.port)
     val local = new InetSocketAddress(Constants.networkParameters.port)
     peer ! Tcp.Connect(seed,Some(local))
   }
 
-  def props(actorSystem: ActorSystem): Props = Props(PeerMessageHandlerImpl(actorSystem))
-  def apply(actorSystem : ActorSystem): ActorRef = actorSystem.actorOf(props(actorSystem))
+  def props: Props = Props(classOf[PeerMessageHandlerImpl])
+  //def apply(actorSystem : ActorSystem): ActorRef = actorSystem.actorOf(props)
 }
-
-
-sealed trait PeerMessageHandlerMsg
-
-/**
-  * Indicates we successfully sent the [[PeerRequest]]
-  * @param peerRequest
-  */
-case class PeerMessageHandlerSuccess(peerRequest: PeerRequest) extends PeerMessageHandlerMsg
-
-/**
-  * Indicates we failed to send the [[PeerRequest]]
-  * @param peerRequest
-  */
-case class PeerMessageHandlerFailure(peerRequest: PeerRequest) extends PeerMessageHandlerMsg

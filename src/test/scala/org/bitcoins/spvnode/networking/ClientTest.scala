@@ -24,7 +24,7 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike wi
     "send a version message to a peer on the network and receive a version message back, then close that connection" in {
     val probe = TestProbe()
 
-    val client = Client(TestNet3, probe.ref)
+    val client = system.actorOf(Client.props(TestNet3, probe.ref))
     val remote = new InetSocketAddress(TestNet3.dnsSeeds(0), TestNet3.port)
     val randomPort = 23521
     //random port
