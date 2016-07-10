@@ -5,6 +5,7 @@ import java.net.InetSocketAddress
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.event.LoggingReceive
 import akka.io.Tcp
+import akka.pattern.ask
 import akka.util.ByteString
 import org.bitcoins.core.config.TestNet3
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
@@ -13,6 +14,8 @@ import org.bitcoins.spvnode.constant.Constants
 import org.bitcoins.spvnode.messages._
 import org.bitcoins.spvnode.messages.control.{PongMessage, VersionMessage}
 import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
+
+import scala.util.{Failure, Success}
 
 /**
   * Created by chris on 6/7/16.
@@ -26,25 +29,28 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
   def receive = LoggingReceive {
     case message : Tcp.Message => handleTcpMessage(message,None)
     case peerRequest: PeerRequest =>
-      context.become(awaitConnected(peerRequest))
+      context.become(awaitConnected(Seq((sender,peerRequest))))
     case msg =>
       logger.error("Unknown message inside of PeerMessageHandler: " + msg)
       throw new IllegalArgumentException("Unknown message inside of PeerMessageHandler: " + msg)
   }
 
 
-  def awaitConnected(peerRequest: PeerRequest): Receive = LoggingReceive {
+  def awaitConnected(peerRequests: Seq[(ActorRef,PeerRequest)]): Receive = LoggingReceive {
     case Tcp.Connected(remote,local) =>
       peer ! VersionMessage(Constants.networkParameters,local.getAddress)
-      context.become(awaitVersionMessage(peerRequest))
+      context.become(awaitVersionMessage(peerRequests))
 
+    case peerRequest: PeerRequest =>
+      logger.debug("Received another peer request while waiting for Tcp.Connected: " + peerRequest)
+      context.become(awaitConnected((sender,peerRequest) +: peerRequests))
     case msg =>
       logger.error("Expected a Tcp.Connected message, got: " + msg)
       throw new IllegalArgumentException("Unknown message in awaitConnected: " + msg)
   }
 
 
-  private def awaitVersionMessage(peerRequest: PeerRequest): Receive = LoggingReceive {
+  private def awaitVersionMessage(peerRequests: Seq[(ActorRef,PeerRequest)]): Receive = LoggingReceive {
     case Tcp.Received(byteString: ByteString) =>
       logger.debug("Received byte string in awaitVersionMessage: " + BitcoinSUtil.encodeHex(byteString.toArray))
       //this means that we receive a bunch of messages bundled into one [[ByteString]]
@@ -53,11 +59,14 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
       val (messages,remainingBytes) = BitcoinSpvNodeUtil.parseIndividualMessages(bytes)
       //unalignedBytes = remainingBytes
       for {m <- messages} yield self ! m
+    case peerRequest: PeerRequest =>
+      logger.debug("Received a peerRequest while waiting for VersionMessage: " + peerRequest)
+      context.become(awaitVersionMessage((sender,peerRequest) +: peerRequests))
     case networkMessage : NetworkMessage => networkMessage.payload match {
       case versionMesage: VersionMessage =>
         peer ! VerAckMessage
         //need to wait for the peer to send back a verack message
-        context.become(awaitVerack(peerRequest))
+        context.become(awaitVerack(peerRequests))
       case msg : NetworkPayload =>
         logger.error("Expected a version message, got: " + msg)
         context.unbecome()
@@ -68,7 +77,7 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
 
   }
 
-  private def awaitVerack(peerRequest: PeerRequest): Receive = LoggingReceive {
+  private def awaitVerack(peerRequests: Seq[(ActorRef,PeerRequest)]): Receive = LoggingReceive {
     case Tcp.Received(byteString: ByteString) =>
       logger.debug("Received byte string in awaitVerack: " + BitcoinSUtil.encodeHex(byteString.toArray))
       //this means that we receive a bunch of messages bundled into one [[ByteString]]
@@ -77,23 +86,45 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
       val (messages,remainingBytes) = BitcoinSpvNodeUtil.parseIndividualMessages(bytes)
       //unalignedBytes = remainingBytes
       for {m <- messages} yield self ! m
+
+    case peerRequest: PeerRequest =>
+      logger.debug("Received a peerRequest while waiting for Verack: " + peerRequest)
+      context.become(awaitVerack((sender,peerRequest) +: peerRequests))
     case networkMessage : NetworkMessage => networkMessage.payload match {
       case VerAckMessage =>
-        val networkMessage = peerRequest.request
-        peer ! networkMessage
-        context.become(awaitPeerResponse(peerRequest))
+        sendPeerRequests(peerRequests,peer)
+        context.become(peerMessageHandler)
       case msg : NetworkPayload =>
         logger.error("Expected a verack message, got: " + msg)
     }
   }
 
-  def awaitPeerRequest: Receive = LoggingReceive {
-    case message : Tcp.Message => handleTcpMessage(message,None)
-    case peerRequest: PeerRequest =>
-      peer ! peerRequest.request
-      context.become(awaitPeerResponse(peerRequest))
-    case msg =>
-      logger.error("awaitPeerRequest expects a peer request, got: " + msg)
+  /**
+    * Sends all of the given [[PeerRequest]] to our peer on the p2p network
+    * Sends a message to the original sender of the peer request
+    * confirming that the message was sent to the p2p network
+    * @param peerRequests
+    * @param peer
+    * @return
+    */
+  private def sendPeerRequests(peerRequests: Seq[(ActorRef,PeerRequest)], peer: ActorRef): Seq[PeerMessageHandlerMsg] = for {
+    (sender, peerRequest) <- peerRequests
+  } yield sendPeerRequest(peerRequest,peer,sender)
+
+  /**
+    * Sends the given [[PeerRequest]] to our peer on the bitcoin p2p network
+    * Sends a message to the original sender of the peer request
+    * confirming that the message was sent to the p2p network
+    * @param peerRequest
+    * @param peer
+    * @return
+    */
+  private def sendPeerRequest(peerRequest: PeerRequest, peer: ActorRef, sender: ActorRef): PeerMessageHandlerMsg = {
+    peer ! peerRequest.request
+    val success = PeerMessageHandlerSuccess(peerRequest)
+    logger.debug("Sending confirm message back to sender for: " + peerRequest)
+    sender ! success
+    success
   }
 
   /**
@@ -104,7 +135,7 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
     * @param peerRequest
     * @return
     */
-  def awaitPeerResponse(peerRequest: PeerRequest): Receive = LoggingReceive {
+  def peerMessageHandler : Receive = LoggingReceive {
     case Tcp.Received(byteString: ByteString) =>
       //logger.info("Unaligned bytes: "+ BitcoinSUtil.encodeHex(unalignedBytes))
       logger.info("Received byte string in awaitPeerResponse " + BitcoinSUtil.encodeHex(byteString.toArray))
@@ -114,6 +145,9 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
       val (messages,remainingBytes) = BitcoinSpvNodeUtil.parseIndividualMessages(bytes)
       //unalignedBytes = remainingBytes
       for {m <- messages} yield self ! m
+
+    case peerRequest: PeerRequest =>
+      sendPeerRequest(peerRequest,peer,sender)
     case networkMessage: NetworkMessage =>
       self ! networkMessage.payload
 
@@ -125,10 +159,10 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
     }
 
     case networkResponse: DataPayload =>
-      peerRequest.listener ! networkResponse
-      context.become(awaitPeerRequest)
+      //peerRequest.listener ! networkResponse
+      logger.debug("Network response in peerMessageHandler: " + networkResponse)
     case msg =>
-      logger.error("Unknown message in awaitPeerResponse: " + msg)
+      logger.error("Unknown message in peerMessageHandler: " + msg)
   }
 
   /**
@@ -147,7 +181,7 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
       logger.debug("Received data from our peer on the network: " + Tcp.Received(data))
       //listener ! data
     case Tcp.Connected(remote, local) =>
-      logger.debug("Tcp connection to: " + remote)
+      logger.debug("Tcp connection to: " + remote + " inside of peer message handler")
       logger.debug("Local: " + local)
     case Tcp.PeerClosed =>
       context stop self
@@ -174,7 +208,6 @@ trait PeerMessageHandler extends Actor with BitcoinSLogger {
 
 
 
-
 object PeerMessageHandler {
   private case class PeerMessageHandlerImpl(actorSystem: ActorSystem) extends PeerMessageHandler {
     val seed = new InetSocketAddress(Constants.networkParameters.dnsSeeds(0), Constants.networkParameters.port)
@@ -182,5 +215,21 @@ object PeerMessageHandler {
     peer ! Tcp.Connect(seed,Some(local))
   }
 
-  def apply(actorSystem : ActorSystem) : ActorRef = actorSystem.actorOf(Props(PeerMessageHandlerImpl(actorSystem)))
+  def props(actorSystem: ActorSystem): Props = Props(PeerMessageHandlerImpl(actorSystem))
+  def apply(actorSystem : ActorSystem): ActorRef = actorSystem.actorOf(props(actorSystem))
 }
+
+
+sealed trait PeerMessageHandlerMsg
+
+/**
+  * Indicates we successfully sent the [[PeerRequest]]
+  * @param peerRequest
+  */
+case class PeerMessageHandlerSuccess(peerRequest: PeerRequest) extends PeerMessageHandlerMsg
+
+/**
+  * Indicates we failed to send the [[PeerRequest]]
+  * @param peerRequest
+  */
+case class PeerMessageHandlerFailure(peerRequest: PeerRequest) extends PeerMessageHandlerMsg

@@ -25,4 +25,6 @@ object GetDataMessage extends Factory[GetDataMessage] {
     val inventoryCount = CompactSizeUInt(inventories.length)
     GetDataMessage(inventoryCount, inventories)
   }
+
+  def apply(inventory: Inventory): GetDataMessage = GetDataMessage(Seq(inventory))
 }

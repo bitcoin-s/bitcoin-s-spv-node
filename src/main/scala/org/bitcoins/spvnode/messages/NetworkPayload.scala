@@ -4,7 +4,7 @@ import java.net.InetAddress
 
 import org.bitcoins.core.crypto.{DoubleSha256Digest, ECDigitalSignature}
 import org.bitcoins.core.number.{Int32, Int64, UInt32, UInt64}
-import org.bitcoins.core.protocol.blockchain.BlockHeader
+import org.bitcoins.core.protocol.blockchain.{Block, BlockHeader}
 import org.bitcoins.core.protocol.transaction.Transaction
 import org.bitcoins.core.protocol.{CompactSizeUInt, NetworkElement}
 import org.bitcoins.core.serializers.RawBitcoinSerializer
@@ -43,7 +43,17 @@ sealed trait DataPayload extends NetworkPayload
   * The block message transmits a single serialized block
   * https://bitcoin.org/en/developer-reference#block
   */
-sealed trait BlockMessage extends DataPayload
+trait BlockMessage extends DataPayload {
+  /**
+    * The block being transmitted inside of this [[BlockMessage]]
+    * @return
+    */
+  def block: Block
+
+  override def commandName = NetworkPayload.blockCommandName
+
+  override def hex = RawBlockMessageSerializer.write(this)
+}
 
 /**
   * The getblocks message requests an inv message that provides block header hashes
@@ -265,6 +275,10 @@ trait NotFoundMessage extends DataPayload with InventoryMessage {
   * https://bitcoin.org/en/developer-reference#tx
   */
 trait TransactionMessage extends DataPayload {
+  /**
+    * The transaction being sent over the wire
+    * @return
+    */
   def transaction : Transaction
   override def commandName = NetworkPayload.transactionCommandName
   override def hex = RawTransactionMessageSerializer.write(this)
@@ -667,7 +681,7 @@ object NetworkPayload {
     * @return
     */
   def commandNames : Map[String, Seq[Byte] => NetworkPayload] = Map(
-    blockCommandName -> { x : Seq[Byte] => ???},
+    blockCommandName -> { RawBlockMessageSerializer.read(_)},
     getBlocksCommandName -> { RawGetBlocksMessageSerializer.read(_) },
     getHeadersCommandName -> { RawGetHeadersMessageSerializer.read(_) },
     getDataCommandName -> { RawGetDataMessageSerializer.read(_) },
