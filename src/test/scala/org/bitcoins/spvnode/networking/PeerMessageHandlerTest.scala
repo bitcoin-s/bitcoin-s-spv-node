@@ -24,7 +24,7 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
   with FlatSpecLike with MustMatchers with ImplicitSender
   with BeforeAndAfter with BeforeAndAfterAll with BitcoinSLogger {
 
-  val peerMsgHandler = TestActorRef(PeerMessageHandler.props,self)
+  def peerMsgHandlerRef = TestActorRef(PeerMessageHandler.props,self)
 
   "PeerMessageHandler" must "be able to send a GetHeadersMessage then receive a list of headers back" in {
     val hashStart = DoubleSha256Digest("0000000000000000000000000000000000000000000000000000000000000000")
@@ -33,6 +33,8 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     val getHeadersMessage = GetHeadersMessage(Constants.version,Seq(hashStart),hashStop)
 
     val peerRequest = buildPeerRequest(getHeadersMessage)
+
+    val peerMsgHandler = peerMsgHandlerRef
 
     peerMsgHandler ! peerRequest
 
@@ -43,7 +45,7 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
 
     val secondHeader = headersMsg.headers(1)
     secondHeader.hash.hex must be (BitcoinSUtil.flipEndianess("000000006c02c8ea6e4ff69651f7fcde348fb9d557a06e6957b65552002a7820"))
-
+    peerMsgHandler ! Tcp.Close
 
   }
 
@@ -55,7 +57,7 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     val getBlocksMsg = GetBlocksMessage(Constants.version,Seq(hashStart),hashStop)
 
     val peerRequest = buildPeerRequest(getBlocksMsg)
-
+    val peerMsgHandler = peerMsgHandlerRef
     peerMsgHandler ! peerRequest
 
     val invMsg = expectMsgType[InventoryMessage]
@@ -63,7 +65,7 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     invMsg.inventoryCount must be (CompactSizeUInt(1,1))
     invMsg.inventories.head.hash.hex must be (BitcoinSUtil.flipEndianess("00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206"))
     invMsg.inventories.head.typeIdentifier must be (MsgBlock)
-
+    peerMsgHandler ! Tcp.Close
   }
 
   it must "request a full block from another node" in {
@@ -72,7 +74,7 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     val blockHash = DoubleSha256Digest(BitcoinSUtil.flipEndianess("00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206"))
     val getDataMessage = GetDataMessage(Inventory(MsgBlock, blockHash))
     val peerRequest = buildPeerRequest(getDataMessage)
-
+    val peerMsgHandler = peerMsgHandlerRef
     peerMsgHandler ! peerRequest
 
     val blockMsg = expectMsgType[BlockMessage]
@@ -82,6 +84,7 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     blockMsg.block.transactions.length must be (1)
     blockMsg.block.transactions.head.txId must be
     (DoubleSha256Digest(BitcoinSUtil.flipEndianess("f0315ffc38709d70ad5647e22048358dd3745f3ce3874223c80a7c92fab0c8ba")))
+    peerMsgHandler ! Tcp.Close
   }
 
 /*
@@ -100,11 +103,8 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     txMsg.transaction.txId must be (txId)
   }*/
 
-  private def buildPeerRequest(payload: NetworkPayload): PeerRequest = {
-    val networkMsg = NetworkMessage(TestNet3, payload)
-    val peerRequest = PeerRequest(networkMsg,peerMsgHandler)
-    peerRequest
-  }
+  private def buildPeerRequest(payload: NetworkPayload): NetworkMessage = NetworkMessage(TestNet3, payload)
+
 
   override def afterAll = {
     //peerMsgHandler ! Tcp.Close

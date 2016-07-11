@@ -159,5 +159,8 @@ object Client {
     Client(remote, network, listener)
   }*/
 
+
+  var instance: Option[ActorRef] = None
+
 }
 
