@@ -25,6 +25,7 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike wi
     val probe = TestProbe()
 
     val client = system.actorOf(Client.props(TestNet3, probe.ref))
+
     val remote = new InetSocketAddress(TestNet3.dnsSeeds(0), TestNet3.port)
     val randomPort = 23521
     //random port
@@ -45,7 +46,6 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike wi
     boundSocket.get.close()
 
   }
-
 
   override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)

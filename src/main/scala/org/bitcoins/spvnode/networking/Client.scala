@@ -114,6 +114,8 @@ sealed trait Client extends Actor with BitcoinSLogger {
       peer.map(p => p ! closeCmd)
     case connectCmd : Tcp.Connect =>
       manager ! connectCmd
+    case bind: Tcp.Bind =>
+      manager ! bind
     case x => throw new IllegalArgumentException("Unknown command: " + x)
   }
 
@@ -135,11 +137,7 @@ sealed trait Client extends Actor with BitcoinSLogger {
 
 object Client {
   private case class ClientImpl(remote: InetSocketAddress, network : NetworkParameters,
-                                listener: ActorRef) extends Client {
-
-
-  }
-
+                                listener: ActorRef) extends Client
   def props(remote : InetSocketAddress, network : NetworkParameters, listener : ActorRef) : Props = {
     Props(classOf[ClientImpl], remote, network, listener)
   }

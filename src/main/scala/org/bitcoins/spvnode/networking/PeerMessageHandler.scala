@@ -19,11 +19,10 @@ import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
 
   lazy val peer: ActorRef = context.actorOf(Client.props(Constants.networkParameters,self))
-
   //var unalignedBytes: Seq[Byte] = Nil
 
   def receive = LoggingReceive {
-    case message : Tcp.Message => handleTcpMessage(message,None)
+    case message : Tcp.Message => handleTcpMessage(message)
     case msg: NetworkMessage =>
       context.become(awaitConnected(Seq((sender,msg))))
     case msg =>
@@ -139,8 +138,8 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
       case SendHeadersMessage =>
       case addrMessage: AddrMessage =>
     }
-
     case payload: DataPayload => handleDataPayload(payload)
+    case msg: Tcp.Message => handleTcpMessage(msg)
     case msg =>
       logger.error("Unknown message in peerMessageHandler: " + msg)
   }
@@ -165,7 +164,8 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
       logger.debug("Local: " + local)
     case Tcp.PeerClosed =>
       context stop self
-    case Tcp.ConfirmedClosed | Tcp.Closed | Tcp.Aborted =>
+    case closed @ (Tcp.ConfirmedClosed | Tcp.Closed | Tcp.Aborted) =>
+      context.parent ! closed
       context.stop(self)
   }
 
@@ -173,15 +173,14 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
     * This function is responsible for handling a [[Tcp.Command]] algebraic data type
     * @param command
     */
-  private def handleCommand(command : Tcp.Command, peer: Option[ActorRef]) = command match {
-    case Tcp.ConfirmedClose =>
-      //listener ! Tcp.ConfirmedClose
-      //peer.get ! Tcp.ConfirmedClose
+  private def handleCommand(command : Tcp.Command) = command match {
+    case close @ (Tcp.ConfirmedClose | Tcp.Close | Tcp.Abort) =>
+      peer ! close
   }
 
-  private def handleTcpMessage(message: Tcp.Message, peer: Option[ActorRef]) = message match {
+  private def handleTcpMessage(message: Tcp.Message) = message match {
     case event: Tcp.Event => handleEvent(event)
-    case command: Tcp.Command => handleCommand(command,peer)
+    case command: Tcp.Command => handleCommand(command)
   }
 
 
@@ -197,12 +196,16 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
 
 
 object PeerMessageHandler {
-  private case class PeerMessageHandlerImpl() extends PeerMessageHandler {
-    val seed = new InetSocketAddress(Constants.networkParameters.dnsSeeds(0), Constants.networkParameters.port)
-    val local = new InetSocketAddress(Constants.networkParameters.port)
-    peer ! Tcp.Connect(seed,Some(local))
+  private case class PeerMessageHandlerImpl(seed: InetSocketAddress) extends PeerMessageHandler {
+
+    peer ! Tcp.Connect(seed)
   }
 
-  def props: Props = Props(classOf[PeerMessageHandlerImpl])
+  def props: Props = {
+    val seed = new InetSocketAddress(Constants.networkParameters.dnsSeeds(0), Constants.networkParameters.port)
+    props(seed)
+  }
+
+  def props(seed: InetSocketAddress): Props = Props(classOf[PeerMessageHandlerImpl],seed)
   //def apply(actorSystem : ActorSystem): ActorRef = actorSystem.actorOf(props)
 }

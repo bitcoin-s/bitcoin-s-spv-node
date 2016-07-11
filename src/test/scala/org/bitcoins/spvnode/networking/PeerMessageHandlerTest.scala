@@ -2,7 +2,7 @@ package org.bitcoins.spvnode.networking
 
 import java.net.InetSocketAddress
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.io.Tcp
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import org.bitcoins.core.config.TestNet3
@@ -24,9 +24,13 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
   with FlatSpecLike with MustMatchers with ImplicitSender
   with BeforeAndAfter with BeforeAndAfterAll with BitcoinSLogger {
 
-  def peerMsgHandlerRef = TestActorRef(PeerMessageHandler.props,self)
+  def peerMsgHandlerRef: (ActorRef, TestProbe) = {
+    val probe = TestProbe()
+    (TestActorRef(PeerMessageHandler.props,probe.ref),probe)
+  }
 
   "PeerMessageHandler" must "be able to send a GetHeadersMessage then receive a list of headers back" in {
+
     val hashStart = DoubleSha256Digest("0000000000000000000000000000000000000000000000000000000000000000")
     //this is the hash of block 2, so this test will send two blocks
     val hashStop = DoubleSha256Digest(BitcoinSUtil.flipEndianess("000000006c02c8ea6e4ff69651f7fcde348fb9d557a06e6957b65552002a7820"))
@@ -34,11 +38,11 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
 
     val peerRequest = buildPeerRequest(getHeadersMessage)
 
-    val peerMsgHandler = peerMsgHandlerRef
+    val (peerMsgHandler,probe) = peerMsgHandlerRef
 
     peerMsgHandler ! peerRequest
 
-    val headersMsg = expectMsgType[HeadersMessage](10.seconds)
+    val headersMsg = probe.expectMsgType[HeadersMessage](10.seconds)
     headersMsg.commandName must be (NetworkPayload.headersCommandName)
     val firstHeader = headersMsg.headers.head
     firstHeader.hash.hex must be (BitcoinSUtil.flipEndianess("00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206"))
@@ -46,6 +50,8 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     val secondHeader = headersMsg.headers(1)
     secondHeader.hash.hex must be (BitcoinSUtil.flipEndianess("000000006c02c8ea6e4ff69651f7fcde348fb9d557a06e6957b65552002a7820"))
     peerMsgHandler ! Tcp.Close
+
+    probe.expectMsg(Tcp.Closed)
 
   }
 
@@ -57,15 +63,17 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     val getBlocksMsg = GetBlocksMessage(Constants.version,Seq(hashStart),hashStop)
 
     val peerRequest = buildPeerRequest(getBlocksMsg)
-    val peerMsgHandler = peerMsgHandlerRef
+
+    val (peerMsgHandler,probe) = peerMsgHandlerRef
     peerMsgHandler ! peerRequest
 
-    val invMsg = expectMsgType[InventoryMessage]
+    val invMsg = probe.expectMsgType[InventoryMessage]
 
     invMsg.inventoryCount must be (CompactSizeUInt(1,1))
     invMsg.inventories.head.hash.hex must be (BitcoinSUtil.flipEndianess("00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206"))
     invMsg.inventories.head.typeIdentifier must be (MsgBlock)
     peerMsgHandler ! Tcp.Close
+    probe.expectMsg(Tcp.Closed)
   }
 
   it must "request a full block from another node" in {
@@ -74,10 +82,10 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     val blockHash = DoubleSha256Digest(BitcoinSUtil.flipEndianess("00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206"))
     val getDataMessage = GetDataMessage(Inventory(MsgBlock, blockHash))
     val peerRequest = buildPeerRequest(getDataMessage)
-    val peerMsgHandler = peerMsgHandlerRef
+    val (peerMsgHandler,probe) = peerMsgHandlerRef
     peerMsgHandler ! peerRequest
 
-    val blockMsg = expectMsgType[BlockMessage]
+    val blockMsg = probe.expectMsgType[BlockMessage]
     logger.debug("BlockMsg: " + blockMsg)
     blockMsg.block.blockHeader.hash must be (blockHash)
 
@@ -85,6 +93,7 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     blockMsg.block.transactions.head.txId must be
     (DoubleSha256Digest(BitcoinSUtil.flipEndianess("f0315ffc38709d70ad5647e22048358dd3745f3ce3874223c80a7c92fab0c8ba")))
     peerMsgHandler ! Tcp.Close
+    probe.expectMsg(Tcp.Closed)
   }
 
 /*
@@ -94,7 +103,7 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     val txId = DoubleSha256Digest(BitcoinSUtil.flipEndianess("a4dd00d23de4f0f96963e16b72afea547bc9ad1d0c1dda5653110eddd83fe0e2"))
     val getDataMessage = GetDataMessage(Inventory(MsgTx, txId))
     val peerRequest = buildPeerRequest(getDataMessage)
-
+    val (peerMsgHandler,probe) = peerMsgHandlerRef
     peerMsgHandler ! peerRequest
 
     logger.debug("Serialized request: " + peerRequest.request.hex)
