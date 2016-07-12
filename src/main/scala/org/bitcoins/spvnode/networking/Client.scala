@@ -74,7 +74,6 @@ sealed trait Client extends Actor with BitcoinSLogger {
   /**
     * Handles boiler plate [[Tcp.Message]] types
     * @param message
-    * @param peer
     * @return
     */
   private def handleTcpMessage(message: Tcp.Message, peer: Option[ActorRef]) = message match {
@@ -103,7 +102,9 @@ sealed trait Client extends Actor with BitcoinSLogger {
       sender ! Tcp.Register(listener)
       listener ! Tcp.Connected(remote,local)
       context.become(awaitNetworkRequest(sender))
-    case Tcp.ConfirmedClosed | Tcp.Closed | Tcp.Aborted =>
+    case closeCmd @ (Tcp.ConfirmedClosed | Tcp.Closed | Tcp.Aborted) =>
+      logger.debug("Closed command received: " + closeCmd)
+      context.parent ! closeCmd
       context.stop(self)
   }
 
@@ -113,7 +114,7 @@ sealed trait Client extends Actor with BitcoinSLogger {
     * @param command
     */
   private def handleCommand(command : Tcp.Command, peer: Option[ActorRef]) = command match {
-    case closeCmd @ (Tcp.ConfirmedClose | Tcp.Close | Tcp.Abort)  =>
+    case closeCmd @ (Tcp.ConfirmedClose | Tcp.Close | Tcp.Abort) =>
       peer.map(p => p ! closeCmd)
     case connectCmd : Tcp.Connect =>
       manager ! connectCmd

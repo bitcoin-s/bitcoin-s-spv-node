@@ -4,7 +4,7 @@ import java.net.{InetSocketAddress, ServerSocket}
 
 import akka.actor.ActorSystem
 import akka.io.Tcp
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.{TestActorRef, TestKit, TestProbe}
 import org.bitcoins.core.config.TestNet3
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
 import org.bitcoins.spvnode.messages.control.VersionMessage
@@ -24,7 +24,7 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike wi
     "send a version message to a peer on the network and receive a version message back, then close that connection" in {
     val probe = TestProbe()
 
-    val client = system.actorOf(Client.props(TestNet3, probe.ref))
+    val client = TestActorRef(Client.props(TestNet3, probe.ref))
 
     val remote = new InetSocketAddress(TestNet3.dnsSeeds(0), TestNet3.port)
     val randomPort = 23521
