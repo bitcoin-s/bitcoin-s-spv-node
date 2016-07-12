@@ -76,6 +76,22 @@ trait BitcoinSpvNodeUtil extends BitcoinSLogger {
   def buildByteString(bytes: Seq[Byte]) : ByteString = {
     CompactByteString(bytes.toArray)
   }
+
+  /**
+    * Creates a unique actor name for a actor
+    * @param className
+    * @return
+    */
+  def createActorName(className : String): String = {
+    className.replace(" ","")  + "-" + scala.util.Random.nextInt
+  }
+
+  /**
+    * Creates a unique actor name for a given class
+    * @param className
+    * @return
+    */
+  def createActorName(className: Class[_]): String = createActorName(className.toString)
 }
 
 object BitcoinSpvNodeUtil extends BitcoinSpvNodeUtil

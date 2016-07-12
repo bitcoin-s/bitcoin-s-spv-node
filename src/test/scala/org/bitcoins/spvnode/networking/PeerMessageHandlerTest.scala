@@ -67,7 +67,7 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     val (peerMsgHandler,probe) = peerMsgHandlerRef
     peerMsgHandler ! peerRequest
 
-    val invMsg = probe.expectMsgType[InventoryMessage]
+    val invMsg = probe.expectMsgType[InventoryMessage](5.seconds)
 
     invMsg.inventoryCount must be (CompactSizeUInt(1,1))
     invMsg.inventories.head.hash.hex must be (BitcoinSUtil.flipEndianess("00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206"))
@@ -85,7 +85,7 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     val (peerMsgHandler,probe) = peerMsgHandlerRef
     peerMsgHandler ! peerRequest
 
-    val blockMsg = probe.expectMsgType[BlockMessage]
+    val blockMsg = probe.expectMsgType[BlockMessage](5.seconds)
     logger.debug("BlockMsg: " + blockMsg)
     blockMsg.block.blockHeader.hash must be (blockHash)
 
@@ -94,9 +94,9 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     (DoubleSha256Digest(BitcoinSUtil.flipEndianess("f0315ffc38709d70ad5647e22048358dd3745f3ce3874223c80a7c92fab0c8ba")))
     peerMsgHandler ! Tcp.Close
     probe.expectMsg(Tcp.Closed)
+
   }
 
-/*
   it must "request a transaction from another node" in {
     //this tx is the coinbase tx in the first block on testnet
     //https://tbtc.blockr.io/tx/info/f0315ffc38709d70ad5647e22048358dd3745f3ce3874223c80a7c92fab0c8ba
@@ -106,11 +106,10 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     val (peerMsgHandler,probe) = peerMsgHandlerRef
     peerMsgHandler ! peerRequest
 
-    logger.debug("Serialized request: " + peerRequest.request.hex)
-    val txMsg = expectMsgType[TransactionMessage]
-
-    txMsg.transaction.txId must be (txId)
-  }*/
+    //we cannot request an arbitrary tx from a node,
+    //therefore the node responds with a [[NotFoundMessage]]
+    probe.expectMsgType[NotFoundMessage](5.seconds)
+  }
 
   private def buildPeerRequest(payload: NetworkPayload): NetworkMessage = NetworkMessage(TestNet3, payload)
 

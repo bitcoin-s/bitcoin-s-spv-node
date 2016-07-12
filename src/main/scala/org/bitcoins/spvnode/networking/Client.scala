@@ -2,7 +2,7 @@ package org.bitcoins.spvnode.networking
 
 import java.net.InetSocketAddress
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorContext, ActorRef, ActorSystem, Props}
 import akka.event.LoggingReceive
 import akka.io.{IO, Tcp}
 import akka.util.{ByteString, CompactByteString}
@@ -29,13 +29,6 @@ sealed trait Client extends Actor with BitcoinSLogger {
   def remote: InetSocketAddress
 
   /**
-    * The actor that is listening to all communications between the
-    * client and its peer on the network
-    * @return
-    */
-  def listener : ActorRef
-
-  /**
     * The manager is an actor that handles the underlying low level I/O resources (selectors, channels)
     * and instantiates workers for specific tasks, such as listening to incoming connections.
     */
@@ -46,7 +39,7 @@ sealed trait Client extends Actor with BitcoinSLogger {
     * i.e. [[org.bitcoins.core.config.MainNet]] or [[org.bitcoins.core.config.TestNet3]]
     * @return
     */
-  def network : NetworkParameters
+  def network : NetworkParameters = Constants.networkParameters
 
   /**
     * This actor signifies the node we are connected to on the p2p network
@@ -88,7 +81,7 @@ sealed trait Client extends Actor with BitcoinSLogger {
   private def handleEvent(event : Tcp.Event) = event match {
     case Tcp.Bound(localAddress) =>
       logger.debug("Actor is now bound to the local address: " + localAddress)
-      listener ! Tcp.Bound(localAddress)
+      context.parent ! Tcp.Bound(localAddress)
     case Tcp.CommandFailed(w: Tcp.Write) =>
       logger.debug("Client write command failed: " + Tcp.CommandFailed(w))
       logger.debug("O/S buffer was full")
@@ -99,8 +92,8 @@ sealed trait Client extends Actor with BitcoinSLogger {
     case Tcp.Connected(remote, local) =>
       logger.debug("Tcp connection to: " + remote)
       logger.debug("Local: " + local)
-      sender ! Tcp.Register(listener)
-      listener ! Tcp.Connected(remote,local)
+      sender ! Tcp.Register(context.parent)
+      context.parent ! Tcp.Connected(remote,local)
       context.become(awaitNetworkRequest(sender))
     case closeCmd @ (Tcp.ConfirmedClosed | Tcp.Closed | Tcp.Aborted) =>
       logger.debug("Closed command received: " + closeCmd)
@@ -140,16 +133,15 @@ sealed trait Client extends Actor with BitcoinSLogger {
 
 
 object Client {
-  private case class ClientImpl(remote: InetSocketAddress, network : NetworkParameters,
-                                listener: ActorRef) extends Client
-  def props(remote : InetSocketAddress, network : NetworkParameters, listener : ActorRef) : Props = {
-    Props(classOf[ClientImpl], remote, network, listener)
+  private case class ClientImpl(remote: InetSocketAddress) extends Client
+
+  def props : Props = {
+    val network = Constants.networkParameters
+    val remote = new InetSocketAddress(network.dnsSeeds(0), network.port)
+    props(remote)
   }
 
-  def props(network : NetworkParameters, listener : ActorRef): Props = {
-    val remote = new InetSocketAddress(network.dnsSeeds(0), network.port)
-    Props(classOf[ClientImpl], remote, network, listener)
-  }
+  def props(remote: InetSocketAddress): Props = Props(classOf[ClientImpl], remote)
 
 /*  def apply(remote : InetSocketAddress, network : NetworkParameters, listener : ActorRef)(implicit actorSystem: ActorSystem) : ActorRef = {
    actorSystem.actorOf(props(remote, network, listener))
@@ -161,8 +153,15 @@ object Client {
     Client(remote, network, listener)
   }*/
 
+  def apply(context: ActorContext, remote: InetSocketAddress): ActorRef = {
+    context.actorOf(props(remote))
+  }
 
-  var instance: Option[ActorRef] = None
+  def apply(context: ActorContext): ActorRef = {
+    val network = Constants.networkParameters
+    val remote = new InetSocketAddress(network.dnsSeeds(0), network.port)
+    Client(context,remote)
+  }
 
 }
 

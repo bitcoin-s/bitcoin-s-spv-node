@@ -2,7 +2,7 @@ package org.bitcoins.spvnode.networking
 
 import java.net.InetSocketAddress
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, ActorContext, ActorRef, Props}
 import akka.event.LoggingReceive
 import akka.io.Tcp
 import akka.util.ByteString
@@ -23,7 +23,7 @@ import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
   */
 sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
 
-  lazy val peer: ActorRef = context.actorOf(Client.props(Constants.networkParameters,self))
+  lazy val peer: ActorRef = Client(context)
   //var unalignedBytes: Seq[Byte] = Nil
 
   def receive = LoggingReceive {
@@ -212,5 +212,6 @@ object PeerMessageHandler {
   }
 
   def props(seed: InetSocketAddress): Props = Props(classOf[PeerMessageHandlerImpl],seed)
-  //def apply(actorSystem : ActorSystem): ActorRef = actorSystem.actorOf(props)
+
+  def apply(context : ActorContext): ActorRef = context.actorOf(props, BitcoinSpvNodeUtil.createActorName(this.getClass))
 }

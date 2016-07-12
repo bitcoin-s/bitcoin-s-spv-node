@@ -4,7 +4,7 @@ import java.net.{InetSocketAddress, ServerSocket}
 
 import akka.actor.ActorSystem
 import akka.io.Tcp
-import akka.testkit.{TestActorRef, TestKit, TestProbe}
+import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import org.bitcoins.core.config.TestNet3
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
 import org.bitcoins.spvnode.messages.control.VersionMessage
@@ -17,14 +17,15 @@ import scala.util.Try
 /**
   * Created by chris on 6/7/16.
   */
-class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike with MustMatchers
+class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike
+  with MustMatchers with ImplicitSender
   with BeforeAndAfter with BeforeAndAfterAll with BitcoinSLogger {
 
   "Client" must "connect to a node on the bitcoin network, " +
     "send a version message to a peer on the network and receive a version message back, then close that connection" in {
     val probe = TestProbe()
 
-    val client = TestActorRef(Client.props(TestNet3, probe.ref))
+    val client = TestActorRef(Client.props,probe.ref)
 
     val remote = new InetSocketAddress(TestNet3.dnsSeeds(0), TestNet3.port)
     val randomPort = 23521

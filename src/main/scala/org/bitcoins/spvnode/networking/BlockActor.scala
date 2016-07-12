@@ -1,6 +1,6 @@
 package org.bitcoins.spvnode.networking
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorContext, ActorRef, ActorSystem, Props}
 import akka.event.LoggingReceive
 import org.bitcoins.core.crypto.DoubleSha256Digest
 import org.bitcoins.core.protocol.CompactSizeUInt
@@ -10,6 +10,7 @@ import org.bitcoins.spvnode.NetworkMessage
 import org.bitcoins.spvnode.constant.Constants
 import org.bitcoins.spvnode.messages.{BlockMessage, GetBlocksMessage, InventoryMessage, MsgBlock}
 import org.bitcoins.spvnode.messages.data.{GetBlocksMessage, GetDataMessage, Inventory, InventoryMessage}
+import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 
 /**
   * Created by chris on 7/10/16.
@@ -19,16 +20,15 @@ sealed trait BlockActor extends Actor with BitcoinSLogger {
 
   def receive: Receive = LoggingReceive {
     case getBlocksMessage: GetBlocksMessage =>
-      val peerMsgHandler = context.actorOf(PeerMessageHandler.props)
+      val peerMsgHandler = PeerMessageHandler(context)
       val networkMessage = NetworkMessage(Constants.networkParameters, getBlocksMessage)
       peerMsgHandler ! networkMessage
       context.become(awaitBlockMsg)
     case hash: DoubleSha256Digest =>
-      val peerMsgHandler = context.actorOf(PeerMessageHandler.props,"PeerMessageHandlerBlockActor")
+      val peerMsgHandler = PeerMessageHandler(context)
       val inv = Inventory(MsgBlock,hash)
       val getDataMessage = GetDataMessage(inv)
       val networkMessage = NetworkMessage(Constants.networkParameters, getDataMessage)
-      logger.debug("self: " + self)
       peerMsgHandler ! networkMessage
       context.become(awaitBlockMsg)
     case blockHeader: BlockHeader =>
@@ -49,6 +49,6 @@ object BlockActor {
   private case class BlockActorImpl() extends BlockActor
   def props = Props(classOf[BlockActorImpl])
 
-  def apply(actorSystem: ActorSystem): ActorRef = actorSystem.actorOf(props)
+  def apply(context: ActorContext): ActorRef = context.actorOf(props)
 
 }
