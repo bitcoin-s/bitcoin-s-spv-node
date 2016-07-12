@@ -1,6 +1,7 @@
 package org.bitcoins.spvnode.serializers.messages.data
 
 import org.bitcoins.core.crypto.DoubleSha256Digest
+import org.bitcoins.core.number.{UInt32, UInt64}
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
 import org.scalatest.{FlatSpec, MustMatchers}
@@ -25,9 +26,9 @@ class RawHeadersMessageSerializerTest extends FlatSpec with MustMatchers with Bi
     headersMsg.count must be (CompactSizeUInt(1,1))
     header.previousBlockHash must be (DoubleSha256Digest("b6ff0b1b1680a2862a30ca44d346d9e8910d334beb48ca0c0000000000000000"))
     header.merkleRootHash must be (DoubleSha256Digest("9d10aa52ee949386ca9385695f04ede270dda20810decd12bc9b048aaab31471"))
-    header.time must be (1415239972)
-    header.nBits.toHexString must be (BitcoinSUtil.flipEndianess("30c31b18"))
-    header.nonce.toHexString must be (BitcoinSUtil.flipEndianess("fe9f0864"))
+    header.time must be (UInt32(1415239972))
+    header.nBits must be (UInt32(BitcoinSUtil.flipEndianess("30c31b18")))
+    header.nonce must be (UInt32(BitcoinSUtil.flipEndianess("fe9f0864")))
   }
 
   it must "read then write a HeaderMessage" in {
