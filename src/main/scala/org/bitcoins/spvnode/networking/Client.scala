@@ -15,6 +15,9 @@ import org.bitcoins.spvnode.messages._
 import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 /**
   * Created by chris on 6/6/16.
+  * This actor is responsible for creating a connection,
+  * relaying messages and closing a connection to our peer on
+  * the p2p network
   */
 sealed trait Client extends Actor with BitcoinSLogger {
 

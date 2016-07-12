@@ -15,6 +15,11 @@ import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 
 /**
   * Created by chris on 6/7/16.
+  * This actor is the middle man between our [[Client]] and higher level actors such as
+  * [[BlockActor]]. When it receives a message, it tells [[Client]] to create connectino to a peer,
+  * then it exchanges [[VersionMessage]], [[VerackMessage]] and [[PingMessage]]/[[PongMessage]] message
+  * with our peer on the network. When the Client finally responds to the [[NetworkMessage]] we originally
+  * sent it sends that [[NetworkMessage]] back to the actor that requested it. 
   */
 sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
 
