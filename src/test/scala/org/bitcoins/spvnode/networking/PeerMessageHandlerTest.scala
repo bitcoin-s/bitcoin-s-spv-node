@@ -37,9 +37,7 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     val getHeadersMessage = GetHeadersMessage(Constants.version,Seq(hashStart),hashStop)
 
     val peerRequest = buildPeerRequest(getHeadersMessage)
-
     val (peerMsgHandler,probe) = peerMsgHandlerRef
-
     peerMsgHandler ! peerRequest
 
     val headersMsg = probe.expectMsgType[HeadersMessage](10.seconds)
@@ -109,9 +107,21 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     //we cannot request an arbitrary tx from a node,
     //therefore the node responds with a [[NotFoundMessage]]
     probe.expectMsgType[NotFoundMessage](5.seconds)
+
+    peerMsgHandler ! Tcp.Close
+    probe.expectMsg(Tcp.Closed)
   }
 
-  private def buildPeerRequest(payload: NetworkPayload): NetworkMessage = NetworkMessage(TestNet3, payload)
+  it must "send a GetAddressMessage and then receive an AddressMessage back" in {
+    val (peerMsgHandler,probe) = peerMsgHandlerRef
+    val peerRequest = buildPeerRequest(GetAddrMessage)
+    peerMsgHandler ! peerRequest
+    val unsolicitiedAddrMessage = probe.expectMsgType[AddrMessage](7.seconds)
+    peerMsgHandler ! Tcp.Close
+    probe.expectMsg(Tcp.Closed)
+  }
+
+  private def buildPeerRequest(payload: NetworkPayload): NetworkMessage = NetworkMessage(Constants.networkParameters, payload)
 
 
   override def afterAll = {

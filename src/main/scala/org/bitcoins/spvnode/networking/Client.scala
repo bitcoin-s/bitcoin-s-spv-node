@@ -60,7 +60,7 @@ sealed trait Client extends Actor with BitcoinSLogger {
   def receive = LoggingReceive {
     case message : Tcp.Message => handleTcpMessage(message,None)
     case unknownMessage =>
-      logger.error("Client.receive recieved an unknown network message: "  + unknownMessage)
+      logger.error("Client.receive received an unknown network message: "  + unknownMessage)
       throw new IllegalArgumentException("Unknown message for client receive: " + unknownMessage)
   }
 
@@ -142,16 +142,6 @@ object Client {
   }
 
   def props(remote: InetSocketAddress): Props = Props(classOf[ClientImpl], remote)
-
-/*  def apply(remote : InetSocketAddress, network : NetworkParameters, listener : ActorRef)(implicit actorSystem: ActorSystem) : ActorRef = {
-   actorSystem.actorOf(props(remote, network, listener))
-  }
-
-  def apply(network : NetworkParameters, listener : ActorRef)(implicit actorSystem: ActorSystem) : ActorRef = {
-    //val randomSeed = ((Math.random() * 10) % network.dnsSeeds.size).toInt
-    val remote = new InetSocketAddress(network.dnsSeeds(0), network.port)
-    Client(remote, network, listener)
-  }*/
 
   def apply(context: ActorContext, remote: InetSocketAddress): ActorRef = {
     context.actorOf(props(remote))

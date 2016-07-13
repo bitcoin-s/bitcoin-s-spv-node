@@ -413,8 +413,9 @@ sealed trait FilterLoadMessage extends ControlPayload {
   * database of available nodes rather than waiting for unsolicited addr messages to arrive over time.
   * https://bitcoin.org/en/developer-reference#getaddr
   */
-sealed trait GetAddressMessage extends ControlPayload {
-  override def commandName = NetworkPayload.getAddressCommandName
+case object GetAddrMessage extends ControlPayload {
+  override def commandName = NetworkPayload.getAddrCommandName
+  override def hex = ""
 }
 
 /**
@@ -665,7 +666,7 @@ object NetworkPayload {
   def filterAddCommandName = "filteradd"
   def filterClearCommandName = "filterclear"
   def filterLoadCommandName = "filterload"
-  def getAddressCommandName = "getaddr"
+  def getAddrCommandName = "getaddr"
   def pingCommandName = "ping"
   def pongCommandName = "pong"
   def rejectCommandName = "reject"
@@ -695,7 +696,7 @@ object NetworkPayload {
     filterAddCommandName -> { x : Seq[Byte] => ???},
     filterClearCommandName -> { x : Seq[Byte] => ???},
     filterLoadCommandName -> { x : Seq[Byte] => ???},
-    getAddressCommandName -> { x : Seq[Byte] => ???},
+    getAddrCommandName -> { x : Seq[Byte] => GetAddrMessage},
     pingCommandName -> { RawPingMessageSerializer.read(_)},
     pongCommandName -> { x : Seq[Byte] => ???},
     rejectCommandName -> { x : Seq[Byte] => ???},
