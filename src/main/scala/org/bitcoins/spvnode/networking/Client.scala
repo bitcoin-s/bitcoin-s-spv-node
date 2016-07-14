@@ -95,7 +95,7 @@ sealed trait Client extends Actor with BitcoinSLogger {
       sender ! Tcp.Register(context.parent)
       context.parent ! Tcp.Connected(remote,local)
       context.become(awaitNetworkRequest(sender))
-    case closeCmd @ (Tcp.ConfirmedClosed | Tcp.Closed | Tcp.Aborted) =>
+    case closeCmd @ (Tcp.ConfirmedClosed | Tcp.Closed | Tcp.Aborted | Tcp.PeerClosed) =>
       logger.debug("Closed command received: " + closeCmd)
       context.parent ! closeCmd
       context.stop(self)

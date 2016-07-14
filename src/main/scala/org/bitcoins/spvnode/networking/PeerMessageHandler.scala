@@ -24,7 +24,7 @@ import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
 
   lazy val peer: ActorRef = Client(context)
-  //var unalignedBytes: Seq[Byte] = Nil
+  var unalignedBytes: Seq[Byte] = Nil
 
   def receive = LoggingReceive {
     case message : Tcp.Message => handleTcpMessage(message)
@@ -57,8 +57,9 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
       logger.debug("Received byte string in awaitVersionMessage: " + BitcoinSUtil.encodeHex(byteString.toArray))
       //this means that we receive a bunch of messages bundled into one [[ByteString]]
       //need to parse out the individual message
-      val bytes: Seq[Byte] = /*unalignedBytes ++ */byteString.toArray.toSeq
+      val bytes: Seq[Byte] = unalignedBytes ++ byteString.toArray.toSeq
       val (messages,remainingBytes) = BitcoinSpvNodeUtil.parseIndividualMessages(bytes)
+      unalignedBytes = remainingBytes
       //unalignedBytes = remainingBytes
       for {m <- messages} yield self ! m
     case networkMessage : NetworkMessage => networkMessage.payload match {
@@ -71,6 +72,7 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
         logger.error("Expected a version message, got: " + msg)
         context.become(awaitVersionMessage(networkMessage +: peerRequests))
     }
+    case msg: Tcp.Message => handleTcpMessage(msg)
     case msg =>
       logger.error("Unknown message inside of awaitVersionMessage: " + msg)
       throw new IllegalArgumentException("Unknown message inside of awaitVersionMessage: " + msg)
@@ -82,8 +84,9 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
       logger.debug("Received byte string in awaitVerack: " + BitcoinSUtil.encodeHex(byteString.toArray))
       //this means that we receive a bunch of messages bundled into one [[ByteString]]
       //need to parse out the individual message
-      val bytes: Seq[Byte] = /*unalignedBytes ++*/ byteString.toArray.toSeq
+      val bytes: Seq[Byte] = unalignedBytes ++ byteString.toArray.toSeq
       val (messages,remainingBytes) = BitcoinSpvNodeUtil.parseIndividualMessages(bytes)
+      unalignedBytes = remainingBytes
       //unalignedBytes = remainingBytes
       for {m <- messages} yield self ! m
 
@@ -96,6 +99,10 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
       case _ : NetworkPayload =>
         context.become(awaitVerack(networkMessage +: peerRequests))
     }
+    case msg: Tcp.Message => handleTcpMessage(msg)
+    case msg =>
+      logger.error("Unknown message inside of awaitVerack: " + msg)
+      throw new IllegalArgumentException("Unknown message inside of awaitVerack: " + msg)
   }
 
   /**
@@ -133,8 +140,9 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
       logger.info("Received byte string in peerMessageHandler " + BitcoinSUtil.encodeHex(byteString.toArray))
       //this means that we receive a bunch of messages bundled into one [[ByteString]]
       //need to parse out the individual message
-      val bytes: Seq[Byte] = /*unalignedBytes ++*/ byteString.toArray.toSeq
+      val bytes: Seq[Byte] = unalignedBytes ++ byteString.toArray.toSeq
       val (messages,remainingBytes) = BitcoinSpvNodeUtil.parseIndividualMessages(bytes)
+      unalignedBytes = remainingBytes
       //unalignedBytes = remainingBytes
       for {m <- messages} yield self ! m
 
@@ -168,7 +176,7 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
       logger.debug("Local: " + local)
     case Tcp.PeerClosed =>
       context.stop(self)
-    case closed @ (Tcp.ConfirmedClosed | Tcp.Closed | Tcp.Aborted) =>
+    case closed @ (Tcp.ConfirmedClosed | Tcp.Closed | Tcp.Aborted | Tcp.PeerClosed) =>
       context.parent ! closed
       context.stop(self)
   }
@@ -212,9 +220,10 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
     case pingMsg : PingMessage => peer ! PongMessage(pingMsg.nonce)
     case SendHeadersMessage => ()
     case GetAddrMessage =>
-      logger.info("Sending another getaddr message")
       peer ! GetAddrMessage
-    case addrMessage: AddrMessage => context.parent ! addrMessage
+    case addrMessage: AddrMessage =>
+      //need to save addresses to disk to have them on next restart
+      context.parent ! addrMessage
   }
 }
 
@@ -222,7 +231,7 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
 
 object PeerMessageHandler {
   private case class PeerMessageHandlerImpl(seed: InetSocketAddress) extends PeerMessageHandler {
-    peer ! Tcp.Connect(seed)
+    peer ! Tcp.Connect(seed, Some(new InetSocketAddress(18333)))
   }
 
   def props: Props = {
@@ -233,4 +242,8 @@ object PeerMessageHandler {
   def props(seed: InetSocketAddress): Props = Props(classOf[PeerMessageHandlerImpl],seed)
 
   def apply(context : ActorContext): ActorRef = context.actorOf(props, BitcoinSpvNodeUtil.createActorName(this.getClass))
+
+  def apply(context: ActorContext, seed: InetSocketAddress) = {
+    context.actorOf(props(seed), BitcoinSpvNodeUtil.createActorName(this.getClass))
+  }
 }

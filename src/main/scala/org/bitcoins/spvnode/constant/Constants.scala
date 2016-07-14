@@ -3,7 +3,8 @@ package org.bitcoins.spvnode.constant
 import akka.actor.ActorSystem
 import org.bitcoins.core.config.TestNet3
 import org.bitcoins.spvnode.messages.control.VersionMessage
-import org.bitcoins.spvnode.versions.ProtocolVersion70012
+import org.bitcoins.spvnode.versions.{ProtocolVersion70002, ProtocolVersion70012}
+
 import scala.concurrent.duration.DurationInt
 
 /**
