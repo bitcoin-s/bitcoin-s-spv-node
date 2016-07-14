@@ -22,13 +22,6 @@ import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 sealed trait Client extends Actor with BitcoinSLogger {
 
   /**
-    * The address of the peer we are attempting to connect to
-    * on the p2p network
-    * @return
-    */
-  def remote: InetSocketAddress
-
-  /**
     * The manager is an actor that handles the underlying low level I/O resources (selectors, channels)
     * and instantiates workers for specific tasks, such as listening to incoming connections.
     */
@@ -133,25 +126,12 @@ sealed trait Client extends Actor with BitcoinSLogger {
 
 
 object Client {
-  private case class ClientImpl(remote: InetSocketAddress) extends Client
+  private case class ClientImpl() extends Client
 
-  def props : Props = {
-    val network = Constants.networkParameters
-    val remote = new InetSocketAddress(network.dnsSeeds(0), network.port)
-    props(remote)
-  }
+  def props: Props = Props(classOf[ClientImpl])
 
-  def props(remote: InetSocketAddress): Props = Props(classOf[ClientImpl], remote)
 
-  def apply(context: ActorContext, remote: InetSocketAddress): ActorRef = {
-    context.actorOf(props(remote))
-  }
-
-  def apply(context: ActorContext): ActorRef = {
-    val network = Constants.networkParameters
-    val remote = new InetSocketAddress(network.dnsSeeds(0), network.port)
-    Client(context,remote)
-  }
+  def apply(context: ActorContext): ActorRef = context.actorOf(props,BitcoinSpvNodeUtil.createActorName(this.getClass))
 
 }
 

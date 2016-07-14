@@ -133,7 +133,7 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
     */
   private def handleEvent(event : Tcp.Event) = event match {
     case Tcp.Received(byteString: ByteString) =>
-      logger.info("Received byte string in peerMessageHandler " + BitcoinSUtil.encodeHex(byteString.toArray))
+      logger.debug("Received byte string in peerMessageHandler " + BitcoinSUtil.encodeHex(byteString.toArray))
       //this means that we receive a bunch of messages bundled into one [[ByteString]]
       //need to parse out the individual message
       val bytes: Seq[Byte] = unalignedBytes ++ byteString.toArray.toSeq
@@ -227,9 +227,6 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
       val getAddrMessage: Option[ControlPayload] = requests.find(_ == GetAddrMessage)
       if (getAddrMessage.isDefined) {
         destination ! addrMessage
-        logger.debug("We requested this addrMessage")
-        logger.info("Sending to context.parent: " + (destination == context.parent))
-
         //remove the GetAddrMessage request
         requests.filterNot(_ == GetAddrMessage)
       } else requests
