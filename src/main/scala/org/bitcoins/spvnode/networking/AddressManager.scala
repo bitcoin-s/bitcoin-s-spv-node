@@ -1,3 +1,4 @@
+/*
 package org.bitcoins.spvnode.networking
 
 import akka.actor.{Actor, ActorContext, ActorRef, Props}
@@ -15,8 +16,9 @@ sealed trait AddressManager extends Actor {
 
 
 object AddressManager {
-  
+
   def props: Props = Props(AddressManagerImpl())
 
   def apply(context: ActorContext): ActorRef = context.actorOf(props, BitcoinSpvNodeUtil.createActorName(this.getClass))
 }
+*/

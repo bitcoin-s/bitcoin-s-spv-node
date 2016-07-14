@@ -29,7 +29,6 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     (TestActorRef(PeerMessageHandler.props,probe.ref),probe)
   }
 
-/*
   "PeerMessageHandler" must "be able to send a GetHeadersMessage then receive a list of headers back" in {
 
     val hashStart = DoubleSha256Digest("0000000000000000000000000000000000000000000000000000000000000000")
@@ -112,7 +111,6 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     peerMsgHandler ! Tcp.Close
     probe.expectMsg(Tcp.Closed)
   }
-*/
 
   it must "send a GetAddressMessage and then receive an AddressMessage back" in {
     val (peerMsgHandler,probe) = peerMsgHandlerRef
