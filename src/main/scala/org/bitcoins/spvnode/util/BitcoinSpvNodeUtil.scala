@@ -50,10 +50,7 @@ trait BitcoinSpvNodeUtil extends BitcoinSLogger {
         val messageTry = Try(NetworkMessage(remainingBytes))
         messageTry match {
           case Success(message) =>
-            logger.debug("Parsed network message: " + message)
             val newRemainingBytes = remainingBytes.slice(message.bytes.length, remainingBytes.length)
-            logger.debug("Command names accum: " + accum.map(_.header.commandName))
-            logger.debug("New Remaining bytes: " + BitcoinSUtil.encodeHex(newRemainingBytes))
             loop(newRemainingBytes, message +: accum)
           case Failure(_) =>
             //this case means that our TCP frame was not aligned with bitcoin protocol

@@ -116,7 +116,7 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     val (peerMsgHandler,probe) = peerMsgHandlerRef
     val peerRequest = buildPeerRequest(GetAddrMessage)
     peerMsgHandler ! peerRequest
-    val addrMsg = probe.expectMsgType[AddrMessage](5.seconds)
+    val addrMsg = probe.expectMsgType[AddrMessage](10.seconds)
     logger.debug("" + addrMsg)
     peerMsgHandler ! Tcp.Close
     probe.expectMsg(Tcp.Closed)

@@ -119,8 +119,8 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
     case networkMessage: NetworkMessage =>
       self ! networkMessage.payload
     case controlPayload: ControlPayload =>
-
-      handleControlPayload(controlPayload,peer,controlMessages)
+      val newControlMsgs = handleControlPayload(controlPayload,peer,sender,controlMessages)
+      context.become(peerMessageHandler(newControlMsgs))
     case dataPayload: DataPayload => handleDataPayload(dataPayload,peer,sender)
     case msg: Tcp.Message => handleTcpMessage(msg)
     case msg =>
@@ -178,8 +178,8 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
     * @param sender
     */
   private def handleDataPayload(payload: DataPayload, peer : ActorRef, sender: ActorRef): Unit = {
-    if (sender == context.parent) handleDataPayload(payload,peer)
-    else handleDataPayload(payload,context.parent)
+    val destination = deriveDestination(peer,sender)
+    handleDataPayload(payload,destination)
   }
 
   /**
@@ -194,28 +194,59 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
     * Handles a control payload.
     * @param payload
     * @param peer
+    * @param sender
     * @param requests
     * @return
     */
-  private def handleControlPayload(payload: ControlPayload, peer: ActorRef,
+  private def handleControlPayload(payload: ControlPayload, peer: ActorRef, sender: ActorRef,
+                                   requests: Seq[ControlPayload]): Seq[ControlPayload] = {
+    val destination = deriveDestination(peer,sender)
+    handleControlPayload(payload,destination,requests)
+  }
+
+  private def handleControlPayload(payload: ControlPayload, destination: ActorRef,
                                    requests: Seq[ControlPayload]): Seq[ControlPayload] = payload match {
     case pingMsg : PingMessage =>
-      peer ! PongMessage(pingMsg.nonce)
-      requests
-    case SendHeadersMessage => ()
+      if (destination == context.parent) {
+        //means that our peer sent us a ping message, we respond with a pong
+        peer ! PongMessage(pingMsg.nonce)
+        requests.filterNot(_.isInstanceOf[PingMessage])
+      } else {
+        //means we initialized the ping message, send it to our peer
+        peer ! pingMsg
+        requests
+      }
+    case SendHeadersMessage =>
       requests
     case GetAddrMessage =>
-      peer ! GetAddrMessage
+      destination ! GetAddrMessage
       requests
     case addrMessage: AddrMessage =>
       //figure out if this was a solicited AddrMessage or an Unsolicited AddrMessage
       //see https://bitcoin.org/en/developer-reference#addr
       val getAddrMessage: Option[ControlPayload] = requests.find(_ == GetAddrMessage)
       if (getAddrMessage.isDefined) {
-        context.parent ! addrMessage
+        destination ! addrMessage
+        logger.debug("We requested this addrMessage")
+        logger.info("Sending to context.parent: " + (destination == context.parent))
+
         //remove the GetAddrMessage request
         requests.filterNot(_ == GetAddrMessage)
       } else requests
+  }
+
+
+  /**
+    * Figures out the actor that is the destination for a message
+    * For messages, if the sender was context.parent, we need to send the message to our peer on the network
+    * if the sender was the peer, we need to relay the message to the context.parent
+    * @param peer
+    * @param sender
+    * @return
+    */
+  private def deriveDestination(peer: ActorRef, sender: ActorRef): ActorRef = {
+    if (sender == context.parent) peer
+    else context.parent
   }
 }
 
