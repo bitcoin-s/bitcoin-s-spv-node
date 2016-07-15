@@ -52,7 +52,9 @@ trait BitcoinSpvNodeUtil extends BitcoinSLogger {
           case Success(message) =>
             val newRemainingBytes = remainingBytes.slice(message.bytes.length, remainingBytes.length)
             loop(newRemainingBytes, message +: accum)
-          case Failure(_) =>
+          case Failure(exception) =>
+            logger.error("Failed to parse network message, could be because tcp frame isn't aligned")
+            logger.error(exception.getMessage)
             //this case means that our TCP frame was not aligned with bitcoin protocol
             //return the unaligned bytes so we can apply them to the next tcp frame of bytes we receive
             //http://stackoverflow.com/a/37979529/967713

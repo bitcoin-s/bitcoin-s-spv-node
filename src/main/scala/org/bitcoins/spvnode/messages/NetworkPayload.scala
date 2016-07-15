@@ -10,7 +10,7 @@ import org.bitcoins.core.protocol.{CompactSizeUInt, NetworkElement}
 import org.bitcoins.core.serializers.RawBitcoinSerializer
 import org.bitcoins.core.util.BitcoinSUtil
 import org.bitcoins.spvnode.headers.NetworkHeader
-import org.bitcoins.spvnode.messages.control.{Alert, ServiceIdentifier}
+import org.bitcoins.spvnode.messages.control.{Alert, PongMessage, ServiceIdentifier}
 import org.bitcoins.spvnode.messages.data.Inventory
 import org.bitcoins.spvnode.serializers.control.{RawAddrMessageSerializer, RawPingMessageSerializer, RawPongMessageSerializer, RawVersionMessageSerializer}
 import org.bitcoins.spvnode.serializers.messages.data._
@@ -698,7 +698,7 @@ object NetworkPayload {
     filterLoadCommandName -> { x : Seq[Byte] => ???},
     getAddrCommandName -> { x : Seq[Byte] => GetAddrMessage},
     pingCommandName -> { RawPingMessageSerializer.read(_)},
-    pongCommandName -> { x : Seq[Byte] => ???},
+    pongCommandName -> { PongMessage(_) },
     rejectCommandName -> { x : Seq[Byte] => ???},
     sendHeadersCommandName -> { x : Seq[Byte] => SendHeadersMessage},
     verAckCommandName -> { x : Seq[Byte] => VerAckMessage},

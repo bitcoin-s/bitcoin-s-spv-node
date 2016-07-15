@@ -7,11 +7,13 @@ import akka.io.Tcp
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import org.bitcoins.core.config.TestNet3
 import org.bitcoins.core.crypto.DoubleSha256Digest
+import org.bitcoins.core.number.UInt64
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
 import org.bitcoins.spvnode.NetworkMessage
 import org.bitcoins.spvnode.constant.Constants
 import org.bitcoins.spvnode.messages._
+import org.bitcoins.spvnode.messages.control.PingMessage
 import org.bitcoins.spvnode.messages.data.{GetBlocksMessage, GetDataMessage, GetHeadersMessage, Inventory}
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FlatSpecLike, MustMatchers}
 
@@ -38,7 +40,8 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
 
     val peerRequest = buildPeerRequest(getHeadersMessage)
     val (peerMsgHandler,probe) = peerMsgHandlerRef
-    peerMsgHandler ! peerRequest
+
+    probe.send(peerMsgHandler, peerRequest)
 
     val headersMsg = probe.expectMsgType[HeadersMessage](10.seconds)
     headersMsg.commandName must be (NetworkPayload.headersCommandName)
@@ -63,7 +66,7 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     val peerRequest = buildPeerRequest(getBlocksMsg)
 
     val (peerMsgHandler,probe) = peerMsgHandlerRef
-    peerMsgHandler ! peerRequest
+    probe.send(peerMsgHandler,peerRequest)
 
     val invMsg = probe.expectMsgType[InventoryMessage](5.seconds)
 
@@ -81,7 +84,7 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     val getDataMessage = GetDataMessage(Inventory(MsgBlock, blockHash))
     val peerRequest = buildPeerRequest(getDataMessage)
     val (peerMsgHandler,probe) = peerMsgHandlerRef
-    peerMsgHandler ! peerRequest
+    probe.send(peerMsgHandler,peerRequest)
 
     val blockMsg = probe.expectMsgType[BlockMessage](5.seconds)
     logger.debug("BlockMsg: " + blockMsg)
@@ -102,8 +105,7 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     val getDataMessage = GetDataMessage(Inventory(MsgTx, txId))
     val peerRequest = buildPeerRequest(getDataMessage)
     val (peerMsgHandler,probe) = peerMsgHandlerRef
-    peerMsgHandler ! peerRequest
-
+    probe.send(peerMsgHandler,peerRequest)
     //we cannot request an arbitrary tx from a node,
     //therefore the node responds with a [[NotFoundMessage]]
     probe.expectMsgType[NotFoundMessage](5.seconds)
@@ -115,9 +117,24 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
   it must "send a GetAddressMessage and then receive an AddressMessage back" in {
     val (peerMsgHandler,probe) = peerMsgHandlerRef
     val peerRequest = buildPeerRequest(GetAddrMessage)
-    peerMsgHandler ! peerRequest
+    probe.send(peerMsgHandler,peerRequest)
     val addrMsg = probe.expectMsgType[AddrMessage](10.seconds)
     logger.debug("" + addrMsg)
+    peerMsgHandler ! Tcp.Close
+    probe.expectMsg(Tcp.Closed)
+  }
+
+  it must "send a PingMessage to our peer and receive a PongMessage back" in {
+    val (peerMsgHandler,probe) = peerMsgHandlerRef
+    val nonce = UInt64(scala.util.Random.nextLong.abs)
+
+    val peerRequest = buildPeerRequest(PingMessage(nonce))
+
+    probe.send(peerMsgHandler,peerRequest)
+    val pongMessage = probe.expectMsgType[PongMessage](5.seconds)
+
+    pongMessage.nonce must be (nonce)
+
     peerMsgHandler ! Tcp.Close
     probe.expectMsg(Tcp.Closed)
   }

@@ -23,7 +23,7 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike
 
   "Client" must "connect to a node on the bitcoin network, " +
     "send a version message to a peer on the network and receive a version message back, then close that connection" in {
-/*    val probe = TestProbe()
+    val probe = TestProbe()
 
     val client = TestActorRef(Client.props,probe.ref)
 
@@ -44,13 +44,13 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike
     val boundSocket = Try(new ServerSocket(randomPort))
     boundSocket.isSuccess must be (true)
 
-    boundSocket.get.close()*/
+    boundSocket.get.close()
 
   }
 
   it must "bind connect to two nodes on one port" in {
     val remote1 = new InetSocketAddress(TestNet3.dnsSeeds(0), TestNet3.port)
-    val remote2 = new InetSocketAddress(TestNet3.dnsSeeds(1), TestNet3.port)
+    val remote2 = new InetSocketAddress(TestNet3.dnsSeeds(2), TestNet3.port)
 
     val probe1 = TestProbe()
     val probe2 = TestProbe()
