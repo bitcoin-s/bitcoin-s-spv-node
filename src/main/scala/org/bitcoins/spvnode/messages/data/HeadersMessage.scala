@@ -1,5 +1,6 @@
 package org.bitcoins.spvnode.messages.data
 
+import org.bitcoins.core.number.UInt64
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.protocol.blockchain.BlockHeader
 import org.bitcoins.core.util.Factory
@@ -17,7 +18,7 @@ object HeadersMessage extends Factory[HeadersMessage] {
   def apply(count: CompactSizeUInt, headers: Seq[BlockHeader]): HeadersMessage = HeadersMessageImpl(count,headers)
 
   def apply(headers: Seq[BlockHeader]): HeadersMessage = {
-    val count = CompactSizeUInt(headers.length)
+    val count = CompactSizeUInt(UInt64(headers.length))
     HeadersMessageImpl(count,headers)
   }
 }

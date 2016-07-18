@@ -57,7 +57,7 @@ trait RawMerkleBlockMessageSerializer extends RawBitcoinSerializer[MerkleBlockMe
       else loop(remainingHashes-1, remainingBytes.slice(32,remainingBytes.size), DoubleSha256Digest(remainingBytes.take(32)) :: accum)
     }
 
-    loop(hashCount.num, bytes, List())
+    loop(hashCount.num.toInt, bytes, List())
   }
 }
 

@@ -1,7 +1,7 @@
 package org.bitcoins.spvnode.serializers.messages.data
 
 import org.bitcoins.core.crypto.DoubleSha256Digest
-import org.bitcoins.core.number.UInt32
+import org.bitcoins.core.number.{UInt32, UInt64}
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.util.BitcoinSUtil
 import org.scalatest.{FlatSpec, MustMatchers}
@@ -26,7 +26,7 @@ class RawMerkleBlockMessageSerializerTest extends FlatSpec with MustMatchers {
     val merkleBlockMessage = RawMerkleBlockMessageSerializer.read(hex)
 
     merkleBlockMessage.transactionCount must be (UInt32(7))
-    merkleBlockMessage.hashCount must be (CompactSizeUInt(4,1))
+    merkleBlockMessage.hashCount must be (CompactSizeUInt(UInt64(4),1))
 
     merkleBlockMessage.hashes must be (Seq(
       DoubleSha256Digest(BitcoinSUtil.decodeHex("3612262624047ee87660be1a707519a443b1c1ce3d248cbfc6c15870f6c5daa2")),
@@ -35,7 +35,7 @@ class RawMerkleBlockMessageSerializerTest extends FlatSpec with MustMatchers {
       DoubleSha256Digest(BitcoinSUtil.decodeHex("20d2a7bc994987302e5b1ac80fc425fe25f8b63169ea78e68fbaaefa59379bbf"))
     ))
 
-    merkleBlockMessage.flagCount must be (CompactSizeUInt(1,1))
+    merkleBlockMessage.flagCount must be (CompactSizeUInt(UInt64.one,1))
 
     merkleBlockMessage.flags must be (Seq(0x1d))
   }

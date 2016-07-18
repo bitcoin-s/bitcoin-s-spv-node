@@ -1,5 +1,6 @@
 package org.bitcoins.spvnode.serializers.messages.data
 
+import org.bitcoins.core.number.UInt64
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.scalatest.{FlatSpec, MustMatchers}
 
@@ -15,7 +16,7 @@ class RawInventoryMessageSerializerTest extends FlatSpec with MustMatchers {
 
   "RawInventoryMessageSerializer" must "read a InventoryMessage object from its hex serialization" in {
     val inventoryMessage = RawInventoryMessageSerializer.read(hex)
-    inventoryMessage.inventoryCount must be (CompactSizeUInt(2,1))
+    inventoryMessage.inventoryCount must be (CompactSizeUInt(UInt64(2),1))
     inventoryMessage.inventories.size must be (2)
   }
 

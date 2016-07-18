@@ -1,6 +1,7 @@
 package org.bitcoins.spvnode.messages.data
 
 import org.bitcoins.core.crypto.DoubleSha256Digest
+import org.bitcoins.core.number.UInt64
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.util.Factory
 import org.bitcoins.spvnode.messages.GetHeadersMessage
@@ -22,7 +23,7 @@ object GetHeadersMessage extends Factory[GetHeadersMessage] {
   }
 
   def apply(version: ProtocolVersion, hashes: Seq[DoubleSha256Digest], hashStop: DoubleSha256Digest): GetHeadersMessage = {
-    val hashCount = CompactSizeUInt(hashes.length)
+    val hashCount = CompactSizeUInt(UInt64(hashes.length))
     GetHeadersMessage(version, hashCount, hashes, hashStop)
   }
 }

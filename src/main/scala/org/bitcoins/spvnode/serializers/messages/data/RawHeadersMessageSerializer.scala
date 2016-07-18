@@ -34,7 +34,7 @@ trait RawHeadersMessageSerializer extends RawBitcoinSerializer[HeadersMessage] {
       else loop(remainingBytes.slice(81,remainingBytes.length), remainingHeaders - 1,
         BlockHeader(remainingBytes.take(80)) :: accum )
     }
-    loop(bytes,compactSizeUInt.num, List()).reverse
+    loop(bytes,compactSizeUInt.num.toInt, List()).reverse
   }
 }
 

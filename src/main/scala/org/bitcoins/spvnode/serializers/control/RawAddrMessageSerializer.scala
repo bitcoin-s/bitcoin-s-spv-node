@@ -36,7 +36,7 @@ trait RawAddrMessageSerializer extends RawBitcoinSerializer[AddrMessage] {
     */
   private def parseNetworkIpAddresses(ipCount : CompactSizeUInt, bytes : Seq[Byte]) : (Seq[NetworkIpAddress], Seq[Byte]) = {
     @tailrec
-    def loop(remainingAddresses : Long, remainingBytes : Seq[Byte], accum : List[NetworkIpAddress]) : (Seq[NetworkIpAddress], Seq[Byte]) = {
+    def loop(remainingAddresses : BigInt, remainingBytes : Seq[Byte], accum : List[NetworkIpAddress]) : (Seq[NetworkIpAddress], Seq[Byte]) = {
       if (remainingAddresses <= 0) (accum.reverse, remainingBytes)
       else {
         val networkIpAddress = RawNetworkIpAddressSerializer.read(remainingBytes)
@@ -44,7 +44,7 @@ trait RawAddrMessageSerializer extends RawBitcoinSerializer[AddrMessage] {
         loop(remainingAddresses - 1, newRemainingBytes, networkIpAddress :: accum)
       }
     }
-    loop(ipCount.num,bytes, List())
+    loop(ipCount.num.toInt,bytes, List())
   }
 }
 

@@ -1,6 +1,7 @@
 package org.bitcoins.spvnode.messages.data
 
 import org.bitcoins.core.crypto.DoubleSha256Digest
+import org.bitcoins.core.number.UInt64
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.util.Factory
 import org.bitcoins.spvnode.messages._
@@ -24,7 +25,7 @@ object GetBlocksMessage extends Factory[GetBlocksMessage] {
   }
 
   def apply(version: ProtocolVersion, blockHeaderHashes: Seq[DoubleSha256Digest], stopHash: DoubleSha256Digest): GetBlocksMessage = {
-    val hashCount = CompactSizeUInt(blockHeaderHashes.length)
+    val hashCount = CompactSizeUInt(UInt64(blockHeaderHashes.length))
     GetBlocksMessage(version, hashCount, blockHeaderHashes, stopHash)
   }
 

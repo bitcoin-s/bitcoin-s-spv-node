@@ -53,7 +53,7 @@ trait RawInventoryMessageSerializer extends RawBitcoinSerializer[InventoryMessag
         loop(remainingInventories - 1, remainingBytes.slice(36,remainingBytes.size), inventory :: accum )
       }
     }
-    loop(requiredInventories.num, bytes, List())
+    loop(requiredInventories.num.toInt, bytes, List())
   }
 }
 

@@ -70,7 +70,7 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
 
     val invMsg = probe.expectMsgType[InventoryMessage](5.seconds)
 
-    invMsg.inventoryCount must be (CompactSizeUInt(1,1))
+    invMsg.inventoryCount must be (CompactSizeUInt(UInt64.one,1))
     invMsg.inventories.head.hash.hex must be (BitcoinSUtil.flipEndianess("00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206"))
     invMsg.inventories.head.typeIdentifier must be (MsgBlock)
     peerMsgHandler ! Tcp.Close

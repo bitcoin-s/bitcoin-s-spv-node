@@ -49,7 +49,7 @@ trait RawGetBlocksMessageSerializer extends RawBitcoinSerializer[GetBlocksMessag
       else loop(remainingHeaders - 1, DoubleSha256Digest(remainingBytes.slice(0,32)) :: accum,
         remainingBytes.slice(32,remainingBytes.size))
     }
-    loop(compactSizeUInt.num, List(), bytes)
+    loop(compactSizeUInt.num.toInt, List(), bytes)
   }
 }
 

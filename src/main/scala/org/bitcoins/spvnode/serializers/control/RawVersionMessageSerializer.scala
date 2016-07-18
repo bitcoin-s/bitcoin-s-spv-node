@@ -33,7 +33,7 @@ trait RawVersionMessageSerializer extends RawBitcoinSerializer[VersionMessage] w
     val userAgentBytesStartIndex = 80 + userAgentSize.size.toInt
     val userAgentBytes = bytes.slice(userAgentBytesStartIndex, userAgentBytesStartIndex + userAgentSize.num.toInt)
     val userAgent = userAgentBytes.map(_.toChar).mkString
-    val startHeightStartIndex = (userAgentBytesStartIndex + userAgentSize.num).toInt
+    val startHeightStartIndex = (userAgentBytesStartIndex + userAgentSize.num.toInt).toInt
     val startHeight = Int32(bytes.slice(startHeightStartIndex, startHeightStartIndex + 4).reverse)
     val relay = bytes(startHeightStartIndex + 4) != 0
 

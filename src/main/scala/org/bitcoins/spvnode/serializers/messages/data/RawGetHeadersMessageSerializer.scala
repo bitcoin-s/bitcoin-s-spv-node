@@ -18,7 +18,7 @@ trait RawGetHeadersMessageSerializer extends RawBitcoinSerializer[GetHeadersMess
     val version = ProtocolVersion(bytes.take(4))
     val hashCount = CompactSizeUInt.parseCompactSizeUInt(bytes.slice(4,bytes.length))
     val hashesStartIndex = (hashCount.size + 4).toInt
-    val (hashes, remainingBytes) = parseHashes(bytes.slice(hashesStartIndex, bytes.length), hashCount.num)
+    val (hashes, remainingBytes) = parseHashes(bytes.slice(hashesStartIndex, bytes.length), hashCount)
     val hashStop = DoubleSha256Digest(remainingBytes.take(32))
     GetHeadersMessage(version,hashCount,hashes,hashStop)
   }
@@ -34,7 +34,7 @@ trait RawGetHeadersMessageSerializer extends RawBitcoinSerializer[GetHeadersMess
     * @param numHashes the number of hases that need to be parsed
     * @return the parsed hases and the remaining bytes in the network message
     */
-  private def parseHashes(bytes : Seq[Byte], numHashes : Long): (Seq[DoubleSha256Digest], Seq[Byte]) = {
+  private def parseHashes(bytes : Seq[Byte], numHashes : CompactSizeUInt): (Seq[DoubleSha256Digest], Seq[Byte]) = {
     @tailrec
     def loop(remainingBytes : Seq[Byte], remainingHashes : Long, accum : Seq[DoubleSha256Digest]): (Seq[DoubleSha256Digest], Seq[Byte]) = {
       if (remainingHashes <= 0) (accum.reverse, remainingBytes)
@@ -43,7 +43,7 @@ trait RawGetHeadersMessageSerializer extends RawBitcoinSerializer[GetHeadersMess
         loop(remainingBytes.slice(32,remainingBytes.length), remainingHashes-1, hash +: accum)
       }
     }
-    loop(bytes, numHashes, Seq())
+    loop(bytes, numHashes.num.toInt, Seq())
   }
 }
 

@@ -1,5 +1,6 @@
 package org.bitcoins.spvnode.serializers.control
 
+import org.bitcoins.core.number.UInt64
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.scalatest.{FlatSpec, MustMatchers}
 
@@ -18,7 +19,7 @@ class RawAddrMessageSerializerTest extends FlatSpec with MustMatchers {
   val hex = addressCount + time + services + address + port
   "RawAddrMessageSerializer" must "read a AddrMessage from a hex string" in {
     val addrMessage = RawAddrMessageSerializer.read(hex)
-    addrMessage.ipCount must be (CompactSizeUInt(1,1))
+    addrMessage.ipCount must be (CompactSizeUInt(UInt64.one,1))
     addrMessage.addresses.size must be (1)
   }
 

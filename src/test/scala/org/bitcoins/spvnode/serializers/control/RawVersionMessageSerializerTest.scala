@@ -55,7 +55,7 @@ class RawVersionMessageSerializerTest extends FlatSpec with MustMatchers {
 
     versionMessage.nonce.underlying must be (BigInt(BitcoinSUtil.decodeHex(nonce).toArray))
 
-    versionMessage.userAgentSize must be (CompactSizeUInt(15,1))
+    versionMessage.userAgentSize must be (CompactSizeUInt(UInt64(15),1))
     versionMessage.userAgent must be ("/Satoshi:0.9.3/")
 
     versionMessage.startHeight must be (Int32(329167))
@@ -104,7 +104,7 @@ class RawVersionMessageSerializerTest extends FlatSpec with MustMatchers {
     versionMessage.addressTransIpAddress must be (new InetSocketAddress(41963).getAddress)
     versionMessage.addressTransPort must be (41963)
     versionMessage.nonce must be (UInt64(BigInt("9223372036854775809")))
-    versionMessage.userAgentSize must be (CompactSizeUInt(86,1))
+    versionMessage.userAgentSize must be (CompactSizeUInt(UInt64(86),1))
     versionMessage.userAgent must be ("NcQHwZ87bRe9y4m6PA7lX2iVA5If1jWjUycykFOQeqB0REj92awaKy0zMRdckvEKq1j97i3Mal3Eo7QxgdjcpV")
     versionMessage.startHeight must be (Int32(-919905282))
     versionMessage.relay must be (false)

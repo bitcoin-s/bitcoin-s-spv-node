@@ -1,5 +1,6 @@
 package org.bitcoins.spvnode.serializers.messages.data
 
+import org.bitcoins.core.number.UInt64
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.scalatest.{FlatSpec, MustMatchers}
 
@@ -17,7 +18,7 @@ class RawNotFoundMessageSerializerTest extends FlatSpec with MustMatchers {
 
   "RawNotFoundMessageSerializer" must "read a not found message from its hex representation" in {
     val notFoundMessage = RawNotFoundMessageSerializer.read(hex)
-    notFoundMessage.inventoryCount must be (CompactSizeUInt(2,1))
+    notFoundMessage.inventoryCount must be (CompactSizeUInt(UInt64(2),1))
     notFoundMessage.inventories.size must be (2)
   }
 

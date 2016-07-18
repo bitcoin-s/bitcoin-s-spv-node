@@ -1,6 +1,7 @@
 package org.bitcoins.spvnode.serializers.messages.data
 
 import org.bitcoins.core.crypto.DoubleSha256Digest
+import org.bitcoins.core.number.UInt64
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.util.BitcoinSUtil
 import org.bitcoins.spvnode.messages.GetBlocksMessage
@@ -19,7 +20,7 @@ class RawGetBlocksMessageSerializerTest extends FlatSpec with MustMatchers {
 
     getBlocksMessage.protocolVersion must be (ProtocolVersion70001)
 
-    getBlocksMessage.hashCount must be (CompactSizeUInt(2,1))
+    getBlocksMessage.hashCount must be (CompactSizeUInt(UInt64(2),1))
 
     getBlocksMessage.blockHeaderHashes.head must be
     (DoubleSha256Digest(BitcoinSUtil.decodeHex("d39f608a7775b537729884d4e6633bb2105e55a16a14d31b0000000000000000")))

@@ -1,5 +1,6 @@
 package org.bitcoins.spvnode.messages.data
 
+import org.bitcoins.core.number.UInt64
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.util.Factory
 import org.bitcoins.spvnode.messages.GetDataMessage
@@ -22,7 +23,7 @@ object GetDataMessage extends Factory[GetDataMessage] {
   }
 
   def apply(inventories: Seq[Inventory]): GetDataMessage = {
-    val inventoryCount = CompactSizeUInt(inventories.length)
+    val inventoryCount = CompactSizeUInt(UInt64(inventories.length))
     GetDataMessage(inventoryCount, inventories)
   }
 
