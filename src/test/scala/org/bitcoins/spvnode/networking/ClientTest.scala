@@ -54,14 +54,14 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike
 
     val probe1 = TestProbe()
     val probe2 = TestProbe()
-    val options = List(Inet.SO.ReuseAddress(true))
+
 
     val client1 = TestActorRef(Client.props, probe1.ref)
     val client2 = TestActorRef(Client.props, probe2.ref)
 
     val local1 = new InetSocketAddress(TestNet3.port)
     //val local2 = new InetSocketAddress(TestNet3.port)
-
+    val options = List(Inet.SO.ReuseAddress(true))
     client1 ! Tcp.Connect(remote1,Some(local1),options)
 
 

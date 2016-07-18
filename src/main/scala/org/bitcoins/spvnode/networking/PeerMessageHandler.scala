@@ -24,64 +24,69 @@ import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
 
   lazy val peer: ActorRef = Client(context)
-  var unalignedBytes: Seq[Byte] = Nil
 
   def receive = LoggingReceive {
-    case message : Tcp.Message => handleTcpMessage(message)
+    case message : Tcp.Message => handleTcpMessage(message, Seq())
     case msg: NetworkMessage =>
       logger.info("Switching to awaitConnected from default receive")
-      context.become(awaitConnected(Seq((sender,msg))))
+      context.become(awaitConnected(Seq((sender,msg)), Seq()))
     case msg =>
       logger.error("Unknown message inside of PeerMessageHandler: " + msg)
       throw new IllegalArgumentException("Unknown message inside of PeerMessageHandler: " + msg)
   }
 
 
-  def awaitConnected(requests: Seq[(ActorRef,NetworkMessage)]): Receive = LoggingReceive {
+  def awaitConnected(requests: Seq[(ActorRef,NetworkMessage)], unalignedBytes: Seq[Byte]): Receive = LoggingReceive {
     case Tcp.Connected(remote,local) =>
       peer ! VersionMessage(Constants.networkParameters,local.getAddress)
       logger.info("Switching to awaitVersionMessage from awaitConnected")
-      context.become(awaitVersionMessage(requests))
+      context.become(awaitVersionMessage(requests, unalignedBytes))
 
-    case msg: Tcp.Message => handleTcpMessage(msg)
+    case msg: Tcp.Message =>
+      val newUnalignedBytes = handleTcpMessage(msg, unalignedBytes)
+      context.become(awaitConnected(requests, newUnalignedBytes))
     case msg: NetworkMessage =>
       logger.debug("Received another peer request while waiting for Tcp.Connected: " + msg)
-      context.become(awaitConnected((sender,msg) +: requests))
+      context.become(awaitConnected((sender,msg) +: requests, unalignedBytes))
     case msg =>
       logger.error("Expected a Tcp.Connected message, got: " + msg)
       throw new IllegalArgumentException("Unknown message in awaitConnected: " + msg)
   }
 
 
-  private def awaitVersionMessage(requests: Seq[(ActorRef,NetworkMessage)]): Receive = LoggingReceive {
+  private def awaitVersionMessage(requests: Seq[(ActorRef,NetworkMessage)], unalignedBytes: Seq[Byte]): Receive = LoggingReceive {
     case networkMessage : NetworkMessage => networkMessage.payload match {
       case versionMesage: VersionMessage =>
         peer ! VerAckMessage
         //need to wait for the peer to send back a verack message
         logger.debug("Switching to awaitVerack from awaitVersionMessage")
-        context.become(awaitVerack(requests))
+        context.become(awaitVerack(requests, unalignedBytes))
       case msg : NetworkPayload =>
         logger.error("Expected a version message, got: " + msg)
-        context.become(awaitVersionMessage((sender,networkMessage) +: requests))
+        context.become(awaitVersionMessage((sender,networkMessage) +: requests, unalignedBytes))
     }
-    case msg: Tcp.Message => handleTcpMessage(msg)
+    case msg: Tcp.Message =>
+      val newUnalignedBytes = handleTcpMessage(msg, unalignedBytes)
+      context.become(awaitVersionMessage(requests,newUnalignedBytes))
     case msg =>
       logger.error("Unknown message inside of awaitVersionMessage: " + msg)
       throw new IllegalArgumentException("Unknown message inside of awaitVersionMessage: " + msg)
   }
 
-  private def awaitVerack(requests: Seq[(ActorRef,NetworkMessage)]): Receive = LoggingReceive {
+  private def awaitVerack(requests: Seq[(ActorRef,NetworkMessage)], unalignedBytes: Seq[Byte]): Receive = LoggingReceive {
     case networkMessage : NetworkMessage => networkMessage.payload match {
       case VerAckMessage =>
         logger.info("Received verack message, sending queued messages: " + requests)
         sendPeerRequests(requests,peer)
         logger.info("Switching to peerMessageHandler from awaitVerack")
         val controlPayloads = findControlPayloads(requests)
-        context.become(peerMessageHandler(controlPayloads))
+        context.become(peerMessageHandler(controlPayloads, unalignedBytes))
       case _ : NetworkPayload =>
-        context.become(awaitVerack((sender,networkMessage) +: requests))
+        context.become(awaitVerack((sender,networkMessage) +: requests, unalignedBytes))
     }
-    case msg: Tcp.Message => handleTcpMessage(msg)
+    case msg: Tcp.Message =>
+      val newUnalignedBytes = handleTcpMessage(msg,unalignedBytes)
+      context.become(awaitVerack(requests,newUnalignedBytes))
     case msg =>
       logger.error("Unknown message inside of awaitVerack: " + msg)
       throw new IllegalArgumentException("Unknown message inside of awaitVerack: " + msg)
@@ -122,44 +127,56 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
     * actor responsible for handling that specific message
     * @return
     */
-  def peerMessageHandler(controlMessages: Seq[(ActorRef,ControlPayload)]) : Receive = LoggingReceive {
+  def peerMessageHandler(controlMessages: Seq[(ActorRef,ControlPayload)], unalignedBytes: Seq[Byte]) : Receive = LoggingReceive {
     case networkMessage: NetworkMessage =>
       self ! networkMessage.payload
     case controlPayload: ControlPayload =>
       val newControlMsgs = handleControlPayload(controlPayload,peer,sender,controlMessages)
-      context.become(peerMessageHandler(newControlMsgs))
+      context.become(peerMessageHandler(newControlMsgs,unalignedBytes))
     case dataPayload: DataPayload => handleDataPayload(dataPayload,peer,sender)
-    case msg: Tcp.Message => handleTcpMessage(msg)
+    case msg: Tcp.Message =>
+      val newUnalignedBytes = handleTcpMessage(msg,unalignedBytes)
+      context.become(peerMessageHandler(controlMessages,newUnalignedBytes))
     case msg =>
       logger.error("Unknown message in peerMessageHandler: " + msg)
   }
 
   /**
     * This function is responsible for handling a [[Tcp.Event]] algebraic data type
-    * @param event
+    * @param event the event that needs to be handled
+    * @param unalignedBytes the unaligned bytes from previous tcp frames
+    *                       These can be used to constructuct a full message, since the last frame could
+    *                       have transmitted the first half of the message, and this frame transmits the
+    *                       rest of the message
+    * @return the new unaligned bytes, if there are any
     */
-  private def handleEvent(event : Tcp.Event) = event match {
+  private def handleEvent(event : Tcp.Event, unalignedBytes: Seq[Byte]): Seq[Byte] = event match {
     case Tcp.Received(byteString: ByteString) =>
       logger.debug("Received byte string in peerMessageHandler " + BitcoinSUtil.encodeHex(byteString.toArray))
       //this means that we receive a bunch of messages bundled into one [[ByteString]]
       //need to parse out the individual message
       val bytes: Seq[Byte] = unalignedBytes ++ byteString.toArray.toSeq
       val (messages,remainingBytes) = BitcoinSpvNodeUtil.parseIndividualMessages(bytes)
-      unalignedBytes = remainingBytes
       for {m <- messages} yield self ! m
+      remainingBytes
     case Tcp.CommandFailed(w: Tcp.Write) =>
       logger.debug("Peer message Handler command failed: " + Tcp.CommandFailed(w))
+      unalignedBytes
     case Tcp.CommandFailed(command) =>
       logger.debug("PeerMessageHandler command failed: " + command)
+      unalignedBytes
     case Tcp.Received(data) =>
       logger.debug("Received data from our peer on the network: " + Tcp.Received(data))
-      //listener ! data
+      unalignedBytes
     case Tcp.Connected(remote, local) =>
+      unalignedBytes
     case Tcp.PeerClosed =>
       context.stop(self)
+      unalignedBytes
     case closed @ (Tcp.ConfirmedClosed | Tcp.Closed | Tcp.Aborted | Tcp.PeerClosed) =>
       context.parent ! closed
       context.stop(self)
+      unalignedBytes
   }
 
   /**
@@ -171,9 +188,11 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
       peer ! close
   }
 
-  private def handleTcpMessage(message: Tcp.Message) = message match {
-    case event: Tcp.Event => handleEvent(event)
-    case command: Tcp.Command => handleCommand(command)
+  private def handleTcpMessage(message: Tcp.Message, unalignedBytes: Seq[Byte]): Seq[Byte] = message match {
+    case event: Tcp.Event => handleEvent(event, unalignedBytes)
+    case command: Tcp.Command =>
+      handleCommand(command)
+      Seq()
   }
 
   /**
