@@ -11,8 +11,6 @@ class VersionMessageSpec extends Properties("VersionMessageSpec") with BitcoinSL
 
   property("Serialization symmetry") =
     Prop.forAll(ControlMessageGenerator.versionMessage) { versionMessage =>
-      logger.info("Version message: " + versionMessage)
-      logger.info("Version message hex: " + versionMessage.hex)
       VersionMessage(versionMessage.hex) == versionMessage
 
     }

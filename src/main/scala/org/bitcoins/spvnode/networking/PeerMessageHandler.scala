@@ -9,7 +9,7 @@ import akka.util.ByteString
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
 import org.bitcoins.spvnode.NetworkMessage
 import org.bitcoins.spvnode.constant.Constants
-import org.bitcoins.spvnode.messages.{GetAddrMessage, _}
+import org.bitcoins.spvnode.messages.{GetAddrMessage, VerAckMessage, _}
 import org.bitcoins.spvnode.messages.control.{PongMessage, VersionMessage}
 import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 
@@ -38,7 +38,8 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
 
   def awaitConnected(requests: Seq[(ActorRef,NetworkMessage)], unalignedBytes: Seq[Byte]): Receive = LoggingReceive {
     case Tcp.Connected(remote,local) =>
-      peer ! VersionMessage(Constants.networkParameters,local.getAddress)
+      val versionMsg = VersionMessage(Constants.networkParameters,local.getAddress)
+      peer ! versionMsg
       logger.info("Switching to awaitVersionMessage from awaitConnected")
       context.become(awaitVersionMessage(requests, unalignedBytes))
 
@@ -56,7 +57,7 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
 
   private def awaitVersionMessage(requests: Seq[(ActorRef,NetworkMessage)], unalignedBytes: Seq[Byte]): Receive = LoggingReceive {
     case networkMessage : NetworkMessage => networkMessage.payload match {
-      case versionMesage: VersionMessage =>
+      case _ : VersionMessage =>
         peer ! VerAckMessage
         //need to wait for the peer to send back a verack message
         logger.debug("Switching to awaitVerack from awaitVersionMessage")
@@ -230,10 +231,16 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
     handleControlPayload(payload,destination,requests)
   }
 
+  /**
+    * Handles control payloads defined here https://bitcoin.org/en/developer-reference#control-messages
+    * @param payload the payload we need to do something with
+    * @param destination where the payload is going
+    * @param requests the @payload may be a response to a request inside this sequence
+    * @return the requests with the request removed for which the @payload is responding too
+    */
   private def handleControlPayload(payload: ControlPayload, destination: ActorRef,
                                    requests: Seq[(ActorRef,ControlPayload)]): Seq[(ActorRef,ControlPayload)] = payload match {
     case pingMsg: PingMessage =>
-      logger.debug("ping message hex: " + pingMsg.hex)
       if (destination == context.parent) {
         //means that our peer sent us a ping message, we respond with a pong
         peer ! PongMessage(pingMsg.nonce)
@@ -245,14 +252,9 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
         peer ! pingMsg
         requests
       }
-    case pongMsg: PongMessage =>
-      destination ! pongMsg
-      requests
     case SendHeadersMessage =>
       requests
-    case GetAddrMessage =>
-      destination ! GetAddrMessage
-      requests
+
     case addrMessage: AddrMessage =>
       //figure out if this was a solicited AddrMessage or an Unsolicited AddrMessage
       //see https://bitcoin.org/en/developer-reference#addr
@@ -262,6 +264,9 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
         //remove the GetAddrMessage request
         requests.filterNot{ case (sender,msg) => msg == GetAddrMessage }
       } else requests
+    case controlMsg @ (GetAddrMessage | VerAckMessage | _ : VersionMessage | _ : PongMessage) =>
+      destination ! controlMsg
+      requests
   }
 
 
@@ -278,6 +283,11 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
     else context.parent
   }
 
+  /**
+    * Finds all control payloads inside of a given sequence of requests
+    * @param requests
+    * @return
+    */
   private def findControlPayloads(requests: Seq[(ActorRef,NetworkMessage)]): Seq[(ActorRef,ControlPayload)] = {
     val controlPayloads = requests.filter { case (sender,msg) => msg.payload.isInstanceOf[ControlPayload] }
     controlPayloads.map { case (sender, msg) => (sender, msg.payload.asInstanceOf[ControlPayload]) }
