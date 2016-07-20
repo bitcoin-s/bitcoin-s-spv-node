@@ -10,9 +10,9 @@ import org.bitcoins.core.protocol.{CompactSizeUInt, NetworkElement}
 import org.bitcoins.core.serializers.RawBitcoinSerializer
 import org.bitcoins.core.util.BitcoinSUtil
 import org.bitcoins.spvnode.headers.NetworkHeader
-import org.bitcoins.spvnode.messages.control.{Alert, PongMessage, ServiceIdentifier}
+import org.bitcoins.spvnode.messages.control.{Alert, ServiceIdentifier}
 import org.bitcoins.spvnode.messages.data.Inventory
-import org.bitcoins.spvnode.serializers.control.{RawAddrMessageSerializer, RawPingMessageSerializer, RawPongMessageSerializer, RawVersionMessageSerializer}
+import org.bitcoins.spvnode.serializers.control._
 import org.bitcoins.spvnode.serializers.messages.data._
 import org.bitcoins.spvnode.util.NetworkIpAddress
 import org.bitcoins.spvnode.versions.ProtocolVersion
@@ -370,40 +370,42 @@ sealed trait FilterClearMessage extends ControlPayload {
   * rate of false positive transactions which can provide plausible-deniability privacy.
   * https://bitcoin.org/en/developer-reference#filterload
   */
-sealed trait FilterLoadMessage extends ControlPayload {
+trait FilterLoadMessage extends ControlPayload {
 
   /**
     * Number of bytes in the following filter bit field.
     * @return
     */
-  def filterBytes : Int
+  def filterSize : CompactSizeUInt
 
   /**
     * A bit field of arbitrary byte-aligned size. The maximum size is 36,000 bytes.
     * @return
     */
-  def filter : Int
+  def filter : Seq[Byte]
 
   /**
     * The number of hash functions to use in this filter. The maximum value allowed in this field is 50.
     * @return
     */
-  def hashFuncs : Long
+  def hashFuncs : UInt32
 
   /**
     * An arbitrary value to add to the seed value in the hash function used by the bloom filter.
     * @return
     */
-  def tweak : Long
+  def tweak : UInt32
 
   /**
     * A set of flags that control how outpoints corresponding to a matched pubkey script are added to the filter.
     * See the table in the Updating A Bloom Filter subsection below.
     * @return
     */
-  def flags : Int
+  def flags : Byte
 
   override def commandName = NetworkPayload.filterLoadCommandName
+
+  override def hex = RawFilterLoadMessageSerializer.write(this)
 }
 
 /**
@@ -698,7 +700,7 @@ object NetworkPayload {
     filterLoadCommandName -> { x : Seq[Byte] => ???},
     getAddrCommandName -> { x : Seq[Byte] => GetAddrMessage},
     pingCommandName -> { RawPingMessageSerializer.read(_)},
-    pongCommandName -> { PongMessage(_) },
+    pongCommandName -> { RawPongMessageSerializer.read(_) },
     rejectCommandName -> { x : Seq[Byte] => ???},
     sendHeadersCommandName -> { x : Seq[Byte] => SendHeadersMessage},
     verAckCommandName -> { x : Seq[Byte] => VerAckMessage},

@@ -4,7 +4,7 @@ import java.net.{InetAddress, InetSocketAddress}
 
 import org.bitcoins.core.gen.{NumberGenerator, StringGenerators}
 import org.bitcoins.spvnode.messages.control._
-import org.bitcoins.spvnode.messages.{PingMessage, PongMessage, VersionMessage}
+import org.bitcoins.spvnode.messages.{FilterLoadMessage, PingMessage, PongMessage, VersionMessage}
 import org.bitcoins.spvnode.versions.ProtocolVersion
 import org.scalacheck.Gen
 
@@ -60,6 +60,13 @@ trait ControlMessageGenerator {
   } yield new InetSocketAddress(p)
 
   def portNumber : Gen[Int] = Gen.choose(0,65535)
+
+  def filterLoadMessage: Gen[FilterLoadMessage] = for {
+    filter <- NumberGenerator.bytes
+    hashFuncs <- NumberGenerator.uInt32s
+    tweak <- NumberGenerator.uInt32s
+    flags <- NumberGenerator.byte
+  } yield FilterLoadMessage(filter,hashFuncs, tweak, flags)
 
 }
 
