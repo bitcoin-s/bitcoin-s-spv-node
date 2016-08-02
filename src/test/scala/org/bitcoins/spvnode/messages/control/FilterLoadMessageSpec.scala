@@ -11,6 +11,5 @@ class FilterLoadMessageSpec extends Properties("FilterLoadMessageSpec") {
   property("Serialization symmetry") =
     Prop.forAll(ControlMessageGenerator.filterLoadMessage) { filterMsg =>
       FilterLoadMessage(filterMsg.hex) == filterMsg
-
     }
 }

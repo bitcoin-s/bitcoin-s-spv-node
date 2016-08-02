@@ -11,7 +11,10 @@ import org.bitcoins.spvnode.serializers.control.RawFilterLoadMessageSerializer
   */
 object FilterLoadMessage extends Factory[FilterLoadMessage] {
   private case class FilterLoadMessageImpl(filterSize: CompactSizeUInt, filter: Seq[Byte], hashFuncs: UInt32,
-                                           tweak: UInt32, flags: Byte) extends FilterLoadMessage
+                                           tweak: UInt32, flags: Byte) extends FilterLoadMessage {
+    require(filter.bytes.size <= 36000, "Can only have a maximum of 36,000 bytes in our filter, got: " + filter.bytes.size)
+    require(hashFuncs <= UInt32(50), "Can only have a maximum of 50 hashFuncs inside FilterLoadMessage, got: " + hashFuncs)
+  }
 
   override def fromBytes(bytes: Seq[Byte]): FilterLoadMessage = RawFilterLoadMessageSerializer.read(bytes)
 
