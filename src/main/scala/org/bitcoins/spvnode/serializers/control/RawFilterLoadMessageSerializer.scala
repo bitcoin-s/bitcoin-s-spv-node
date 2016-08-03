@@ -4,6 +4,7 @@ import org.bitcoins.core.number.UInt32
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.serializers.RawBitcoinSerializer
 import org.bitcoins.core.util.BitcoinSUtil
+import org.bitcoins.spvnode.bloom.BloomFlag
 import org.bitcoins.spvnode.messages.FilterLoadMessage
 import org.bitcoins.spvnode.messages.control.FilterLoadMessage
 
@@ -21,7 +22,7 @@ trait RawFilterLoadMessageSerializer extends RawBitcoinSerializer[FilterLoadMess
     val hashFuncs = UInt32(BitcoinSUtil.flipEndianess(bytes.slice(hashFuncsIndex,hashFuncsIndex + 4)))
     val tweakIndex = hashFuncsIndex + 4
     val tweak = UInt32(BitcoinSUtil.flipEndianess(bytes.slice(tweakIndex, tweakIndex + 4)))
-    val flags = bytes(tweakIndex+4)
+    val flags = BloomFlag(bytes(tweakIndex+4))
     FilterLoadMessage(filterSize,filter,hashFuncs,tweak,flags)
 
   }
@@ -30,7 +31,7 @@ trait RawFilterLoadMessageSerializer extends RawBitcoinSerializer[FilterLoadMess
     filterLoadMessage.filterSize.hex + BitcoinSUtil.encodeHex(filterLoadMessage.filter) +
       BitcoinSUtil.flipEndianess(filterLoadMessage.hashFuncs.hex) +
       BitcoinSUtil.flipEndianess(filterLoadMessage.tweak.hex) +
-      BitcoinSUtil.encodeHex(filterLoadMessage.flags)
+      BitcoinSUtil.encodeHex(filterLoadMessage.flags.byte)
   }
 }
 

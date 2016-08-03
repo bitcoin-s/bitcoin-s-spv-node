@@ -3,6 +3,8 @@ package org.bitcoins.spvnode.gen
 import java.net.{InetAddress, InetSocketAddress}
 
 import org.bitcoins.core.gen.{NumberGenerator, StringGenerators}
+import org.bitcoins.core.number.UInt32
+import org.bitcoins.spvnode.bloom.{BloomFlag, BloomUpdateAll, BloomUpdateNone, BloomUpdateP2PubKeyOnly}
 import org.bitcoins.spvnode.messages.control._
 import org.bitcoins.spvnode.messages.{FilterLoadMessage, PingMessage, PongMessage, VersionMessage}
 import org.bitcoins.spvnode.versions.ProtocolVersion
@@ -63,11 +65,19 @@ trait ControlMessageGenerator {
 
   def filterLoadMessage: Gen[FilterLoadMessage] = for {
     filter <- NumberGenerator.bytes
-    hashFuncs <- NumberGenerator.uInt32s
+    hashFuncs <- Gen.choose(0,50)
     tweak <- NumberGenerator.uInt32s
-    flags <- NumberGenerator.byte
-  } yield FilterLoadMessage(filter,hashFuncs, tweak, flags)
+    flags <- bloomFlag
+  } yield FilterLoadMessage(filter,UInt32(hashFuncs), tweak, flags)
 
+
+  def bloomFlag: Gen[BloomFlag] = for {
+    randomNum <- Gen.choose(0,2)
+  } yield {
+    if (randomNum == 0) BloomUpdateNone
+    else if (randomNum == 1) BloomUpdateAll
+    else BloomUpdateP2PubKeyOnly
+  }
 }
 
 object ControlMessageGenerator extends ControlMessageGenerator

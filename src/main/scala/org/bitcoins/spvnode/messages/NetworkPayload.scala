@@ -9,6 +9,7 @@ import org.bitcoins.core.protocol.transaction.Transaction
 import org.bitcoins.core.protocol.{CompactSizeUInt, NetworkElement}
 import org.bitcoins.core.serializers.RawBitcoinSerializer
 import org.bitcoins.core.util.BitcoinSUtil
+import org.bitcoins.spvnode.bloom.BloomFlag
 import org.bitcoins.spvnode.headers.NetworkHeader
 import org.bitcoins.spvnode.messages.control.{Alert, ServiceIdentifier}
 import org.bitcoins.spvnode.messages.data.Inventory
@@ -401,7 +402,7 @@ trait FilterLoadMessage extends ControlPayload {
     * See the table in the Updating A Bloom Filter subsection below.
     * @return
     */
-  def flags : Byte
+  def flags : BloomFlag
 
   override def commandName = NetworkPayload.filterLoadCommandName
 
