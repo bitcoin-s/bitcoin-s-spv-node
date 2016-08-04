@@ -87,9 +87,7 @@ sealed trait BloomFilter extends NetworkElement with BitcoinSLogger {
     //TODO: The call of .toInt is probably the source of a bug here, need to come back and look at this
     //since this isn't consensus critical though I'm leaving this for now
     val seed = (hashNum * murmurConstant.underlying + tweak.underlying).toInt
-    logger.debug("Seed: " + seed)
     val murmurHash = MurmurHash3.bytesHash(hash.bytes.toArray, seed)
-    logger.debug("Murmur hash from native impl: " + murmurHash)
     val uint32 = UInt32(BitcoinSUtil.encodeHex(murmurHash))
     val modded = uint32.underlying % (filterSize.num.toInt * 8)
     //remove sign bit
