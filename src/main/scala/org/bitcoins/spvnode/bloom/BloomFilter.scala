@@ -36,14 +36,19 @@ sealed trait BloomFilter extends NetworkElement with BitcoinSLogger {
   def insert(hash: DoubleSha256Digest): BloomFilter = {
     //these are the bit indexes that need to be set inside of data
     val bitIndexes = (0 until hashFuncs.toInt).map(i => murmurHash(i,hash))
+    logger.debug("Bitindexes that need to be set: " + bitIndexes)
     @tailrec
     def loop(remainingBitIndexes: Seq[Int], accum: Seq[Byte]): Seq[Byte] = {
       if (remainingBitIndexes.isEmpty) accum
       else {
         val currentIndex = remainingBitIndexes.head
-        val byteIndex = currentIndex % 8
+        //since we are dealing with a bit vector, this gets the byteIndex we need to set
+        //the bit inside of.
+        val byteIndex = currentIndex >>> 3
+        //we need to calculate the bitIndex we need to set inside of our byte
+        val bitIndex = (1 << (7 & currentIndex)).toByte
         val byte = accum(byteIndex)
-        val setBitByte: Byte = (byte | (1 << byteIndex)).toByte
+        val setBitByte: Byte = (byte | bitIndex ).toByte
         //replace old byte with new byte with bit set
         val newAccum: Seq[Byte] = accum.updated(byteIndex,setBitByte)
         loop(remainingBitIndexes.tail,newAccum)
@@ -62,8 +67,9 @@ sealed trait BloomFilter extends NetworkElement with BitcoinSLogger {
       else {
         val currentIndex = remainingBitIndexes.head
         val byteIndex = currentIndex >>> 3
+        val bitIndex = (1 << (7 & currentIndex)).toByte
         val byte = data(byteIndex)
-        val isBitSet = (byte & (1 << byteIndex)) != 0
+        val isBitSet = (byte & bitIndex) != 0
         loop(remainingBitIndexes.tail, isBitSet +: accum)
       }
     }
@@ -80,8 +86,10 @@ sealed trait BloomFilter extends NetworkElement with BitcoinSLogger {
   private def murmurHash(hashNum: Int, hash: DoubleSha256Digest): Int = {
     //TODO: The call of .toInt is probably the source of a bug here, need to come back and look at this
     //since this isn't consensus critical though I'm leaving this for now
-    val seed = (hashNum * murmurConstant.underlying * tweak.underlying).toInt
+    val seed = (hashNum * murmurConstant.underlying + tweak.underlying).toInt
+    logger.debug("Seed: " + seed)
     val murmurHash = MurmurHash3.bytesHash(hash.bytes.toArray, seed)
+    logger.debug("Murmur hash from native impl: " + murmurHash)
     val uint32 = UInt32(BitcoinSUtil.encodeHex(murmurHash))
     val modded = uint32.underlying % (filterSize.num.toInt * 8)
     //remove sign bit

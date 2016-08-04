@@ -19,6 +19,8 @@ class BloomFilterTest extends FlatSpec with MustMatchers with BitcoinSLogger {
     filter.hex must be ("03000000050000000000000001")
     val hash = DoubleSha256Digest("99108ad8ed9bb6274d3980bab5a85c048f0950c8")
     val newFilter = filter.insert(hash)
+    //hex from bitcoin core
+    newFilter.hex must be ("03010098050000000000000001")
     newFilter.contains(hash) must be (true)
 
     val hash1BitDifferent = DoubleSha256Digest("19108ad8ed9bb6274d3980bab5a85c048f0950c8")
