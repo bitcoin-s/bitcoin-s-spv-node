@@ -1,6 +1,6 @@
 package org.bitcoins.spvnode.bloom
 
-import org.bitcoins.core.crypto.{DoubleSha256Digest, Sha256Hash160Digest}
+import org.bitcoins.core.crypto.{DoubleSha256Digest, HashDigest, Sha256Hash160Digest}
 import org.bitcoins.core.number.{UInt32, UInt64}
 import org.bitcoins.core.protocol.transaction.{Transaction, TransactionOutPoint}
 import org.bitcoins.core.protocol.{CompactSizeUInt, NetworkElement}
@@ -60,11 +60,14 @@ sealed trait BloomFilter extends NetworkElement with BitcoinSLogger {
     BloomFilter(filterSize,newData,hashFuncs,tweak,flags)
   }
 
-  /** Inserts a [[DoubleSha256Digest]] into [[data]] */
-  def insert(hash: DoubleSha256Digest): BloomFilter = insert(hash.bytes)
+  /** Inserts a [[HashDigest]] into [[data]] */
+  def insert(hash: HashDigest): BloomFilter = insert(hash.bytes)
 
-  /** Inserts a [[Sha256Hash160Digest]] into [[data]] */
-  def insert(hash: Sha256Hash160Digest): BloomFilter = insert(hash.bytes)
+  /** Inserts a sequence of [[HashDigest]]'s into our BloomFilter */
+  def insertHashes(hashes: Seq[HashDigest]): BloomFilter = {
+    val byteVectors = hashes.map(_.bytes)
+    insertByteVectors(byteVectors)
+  }
 
   /** Inserts a [[TransactionOutPoint]] into [[data]] */
   def insert(outPoint: TransactionOutPoint): BloomFilter = insert(outPoint.bytes)
