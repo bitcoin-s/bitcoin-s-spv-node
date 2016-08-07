@@ -1,8 +1,10 @@
 package org.bitcoins.spvnode.bloom
 
-import org.bitcoins.core.crypto.DoubleSha256Digest
+import org.bitcoins.core.crypto.{DoubleSha256Digest, Sha256Hash160Digest}
 import org.bitcoins.core.number.{UInt32, UInt64}
+import org.bitcoins.core.protocol.transaction.{Transaction, TransactionOutPoint}
 import org.bitcoins.core.protocol.{CompactSizeUInt, NetworkElement}
+import org.bitcoins.core.script.constant.ScriptConstant
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil, Factory, NumberUtil}
 import org.bitcoins.spvnode.serializers.control.RawBloomFilterSerializer
 
@@ -32,10 +34,10 @@ sealed trait BloomFilter extends NetworkElement with BitcoinSLogger {
     */
   def flags: BloomFlag
 
-  /** Inserts a hash into the [[BloomFilter]] */
-  def insert(hash: DoubleSha256Digest): BloomFilter = {
+  /** Inserts a sequence of bytes into the [[BloomFilter]] */
+  def insert(bytes: Seq[Byte]): BloomFilter = {
     //these are the bit indexes that need to be set inside of data
-    val bitIndexes = (0 until hashFuncs.toInt).map(i => murmurHash(i,hash))
+    val bitIndexes = (0 until hashFuncs.toInt).map(i => murmurHash(i,bytes))
     logger.debug("Bitindexes that need to be set: " + bitIndexes)
     @tailrec
     def loop(remainingBitIndexes: Seq[Int], accum: Seq[Byte]): Seq[Byte] = {
@@ -58,9 +60,18 @@ sealed trait BloomFilter extends NetworkElement with BitcoinSLogger {
     BloomFilter(filterSize,newData,hashFuncs,tweak,flags)
   }
 
-  /** Checks if [[data]] contains the given hash */
-  def contains(hash: DoubleSha256Digest): Boolean = {
-    val bitIndexes = (0 until hashFuncs.toInt).map(i => murmurHash(i,hash))
+  /** Inserts a [[DoubleSha256Digest]] into [[data]] */
+  def insert(hash: DoubleSha256Digest): BloomFilter = insert(hash.bytes)
+
+  /** Inserts a [[Sha256Hash160Digest]] into [[data]] */
+  def insert(hash: Sha256Hash160Digest): BloomFilter = insert(hash.bytes)
+
+  /** Inserts a [[TransactionOutPoint]] into [[data]] */
+  def insert(outPoint: TransactionOutPoint): BloomFilter = insert(outPoint.bytes)
+
+  /** Checks if [[data]] contains the given sequence of bytes */
+  def contains(bytes: Seq[Byte]): Boolean = {
+    val bitIndexes = (0 until hashFuncs.toInt).map(i => murmurHash(i,bytes))
     @tailrec
     def loop(remainingBitIndexes: Seq[Int], accum: Seq[Boolean]): Boolean = {
       if (remainingBitIndexes.isEmpty) !accum.exists(_ == false)
@@ -76,18 +87,114 @@ sealed trait BloomFilter extends NetworkElement with BitcoinSLogger {
     loop(bitIndexes,Seq())
   }
 
+  /** Checks if [[data]] contains a [[DoubleSha256Digest]] */
+  def contains(hash: DoubleSha256Digest): Boolean = contains(hash.bytes)
+
+  /** Checks if [[data]] contains a [[TransactionOutPoint]] */
+  def contains(outPoint: TransactionOutPoint): Boolean = contains(outPoint.bytes)
+
+  /** Checks if [[data]] contains a [[Sha256Hash160Digest]] */
+  def contains(hash: Sha256Hash160Digest): Boolean = contains(hash.bytes)
+
+  /**
+    * Checks if the given [[Transaction]] matches inside of our bloom filter
+    * Also adds the transaction's scriptPubKey's to the BloomFilter as outPoints
+    * so that if another transaction attempts to spend the given transaction it will match the filter
+    * https://github.com/bitcoin/bitcoin/blob/master/src/test/bloom_tests.cpp#L114
+    */
+  def isRelevantAndUpdate(transaction: Transaction): Boolean = {
+    val containsTxId = contains(transaction.txId)
+    val scriptPubKeys = transaction.outputs.map(_.scriptPubKey)
+    //pull out all of the constants in the scriptPubKey's
+    val constantsWithOuputIndex = scriptPubKeys.zipWithIndex.map { case (scriptPubKey, index) =>
+      val constants = scriptPubKey.asm.filterNot(_.isInstanceOf[ScriptConstant])
+      constants.map(c => (c,index))
+    }.flatten
+
+    //if the constant is contained in our BloomFilter, we need to add this txs outPoint to the bloom filter
+    val constants = constantsWithOuputIndex.filterNot {
+      case (c,index) => contains(c.bytes)
+    }
+
+    val outPointsThatNeedToBeInserted = constants.map {
+      case (_,index) => TransactionOutPoint(transaction.txId,UInt32(index)).bytes
+    }
+    val newFilter = insertByteVectors(outPointsThatNeedToBeInserted)
+    containsTxId || outPointsThatNeedToBeInserted.nonEmpty
+  }
+
+
+  /** Checks if the transaction's txid, or any of the constant's in it's scriptPubKey match our BloomFilter */
+  def isRelevant(transaction: Transaction): Boolean = {
+    val scriptPubKeys = transaction.outputs.map(_.scriptPubKey)
+    //pull out all of the constants in the scriptPubKey's
+    val constantsWithOuputIndex = scriptPubKeys.zipWithIndex.flatMap { case (scriptPubKey, index) =>
+      val constants = scriptPubKey.asm.filter(_.isInstanceOf[ScriptConstant])
+      constants.map(c => (c,index))
+    }
+
+    //check if the bloom filter contains any of the script constants in our outputs
+    val constantsOutput = constantsWithOuputIndex.filter {
+      case (c,index) => contains(c.bytes)
+    }
+
+    val scriptSigs = transaction.inputs.map(_.scriptSignature)
+    val constantsWithInputIndex = scriptSigs.zipWithIndex.flatMap { case (scriptSig, index) =>
+      val constants = scriptSig.asm.filter(_.isInstanceOf[ScriptConstant])
+      constants.map(c => (c,index))
+    }
+    //check if the filter contains any of the prevouts in this tx
+    val containsOutPoint = transaction.inputs.filter(i => contains(i.previousOutput))
+
+    //check if the bloom filter contains any of the script constants in our inputs
+    val constantsInput = constantsWithInputIndex.filter {
+      case (c, index) =>
+        logger.debug("Checking input constant: " + c)
+        contains(c.bytes)
+    }
+
+    logger.debug("Contains txid: " + contains(transaction.txId))
+    logger.debug("Contains constant output: " + constantsOutput.nonEmpty)
+    logger.debug("Contains constants input: "+  constantsInput.nonEmpty)
+    logger.debug("Contains outpoint: " + containsOutPoint.nonEmpty)
+    constantsOutput.nonEmpty || constantsInput.nonEmpty ||
+      containsOutPoint.nonEmpty || contains(transaction.txId)
+  }
+
+
+  def update(transaction: Transaction): BloomFilter = {
+
+
+    val scriptPubKeys = transaction.outputs.map(_.scriptPubKey)
+    //a sequence of outPoints that need to be inserted into the filter
+    val outPoints: Seq[TransactionOutPoint] = scriptPubKeys.zipWithIndex.flatMap {
+      case (scriptPubKey,index) =>
+        //constants that matched inside of our current filter
+        val constants = scriptPubKey.asm.filter(c => c.isInstanceOf[ScriptConstant] && contains(c.bytes))
+        //we need to create a new outpoint in the filter if a constant in the scriptPubKey matched
+        constants.map(c => TransactionOutPoint(transaction.txId,UInt32(index)))
+    }
+
+    logger.debug("Inserting outPoints: " + outPoints)
+    val outPointsBytes = outPoints.map(_.bytes)
+    val filterWithOutPoints = insertByteVectors(outPointsBytes)
+    //add txid
+    val filterWithTxIdAndOutPoints = filterWithOutPoints.insert(transaction.txId)
+    filterWithTxIdAndOutPoints
+  }
 
   /**
     * Performs the [[MurmurHash3]] on the given hash
+    *
     * @param hashNum the nth hash function we are using
-    * @param hash the hash of the data that needs to be inserted into the [[BloomFilter]]
+    * @param bytes the bytes of the data that needs to be inserted into the [[BloomFilter]]
     * @return the index of the bit inside of [[data]] that needs to be set to 1
     */
-  private def murmurHash(hashNum: Int, hash: DoubleSha256Digest): Int = {
+  private def murmurHash(hashNum: Int, bytes: Seq[Byte]): Int = {
     //TODO: The call of .toInt is probably the source of a bug here, need to come back and look at this
     //since this isn't consensus critical though I'm leaving this for now
     val seed = (hashNum * murmurConstant.underlying + tweak.underlying).toInt
-    val murmurHash = MurmurHash3.bytesHash(hash.bytes.toArray, seed)
+    val murmurHash = MurmurHash3.bytesHash(bytes.toArray, seed)
     val uint32 = UInt32(BitcoinSUtil.encodeHex(murmurHash))
     val modded = uint32.underlying % (filterSize.num.toInt * 8)
     //remove sign bit
@@ -96,6 +203,16 @@ sealed trait BloomFilter extends NetworkElement with BitcoinSLogger {
 
   /** See BIP37 to see where this number comes from https://github.com/bitcoin/bips/blob/master/bip-0037.mediawiki#bloom-filter-format */
   private def murmurConstant = UInt32("fba4c795")
+
+  /** Adds a sequence of byte vectors to our bloom filter then returns that new filter*/
+  private def insertByteVectors(bytes: Seq[Seq[Byte]]): BloomFilter = {
+    @tailrec
+    def loop(remainingByteVectors: Seq[Seq[Byte]], accumBloomFilter: BloomFilter): BloomFilter = {
+      if (remainingByteVectors.isEmpty) accumBloomFilter
+      else loop(remainingByteVectors.tail,accumBloomFilter.insert(remainingByteVectors.head))
+    }
+    loop(bytes,this)
+  }
 
   override def hex = RawBloomFilterSerializer.write(this)
 }
