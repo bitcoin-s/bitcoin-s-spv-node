@@ -1,7 +1,5 @@
 package org.bitcoins.spvnode.bloom
 
-import org.bitcoins.core.crypto.DoubleSha256Digest
-import org.bitcoins.core.gen.CryptoGenerators
 import org.bitcoins.spvnode.gen.BloomFilterGenerator
 import org.scalacheck.{Prop, Properties}
 

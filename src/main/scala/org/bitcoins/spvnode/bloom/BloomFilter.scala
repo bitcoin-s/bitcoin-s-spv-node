@@ -127,7 +127,7 @@ sealed trait BloomFilter extends NetworkElement with BitcoinSLogger {
   }
 
 
-  /** Checks if the transaction's txid, or any of the constant's in it's scriptPubKey match our BloomFilter */
+  /** Checks if the transaction's txid, or any of the constant's in it's scriptPubKeys/scriptSigs match our BloomFilter */
   def isRelevant(transaction: Transaction): Boolean = {
     val scriptPubKeys = transaction.outputs.map(_.scriptPubKey)
     //pull out all of the constants in the scriptPubKey's
@@ -156,18 +156,12 @@ sealed trait BloomFilter extends NetworkElement with BitcoinSLogger {
         contains(c.bytes)
     }
 
-    logger.debug("Contains txid: " + contains(transaction.txId))
-    logger.debug("Contains constant output: " + constantsOutput.nonEmpty)
-    logger.debug("Contains constants input: "+  constantsInput.nonEmpty)
-    logger.debug("Contains outpoint: " + containsOutPoint.nonEmpty)
     constantsOutput.nonEmpty || constantsInput.nonEmpty ||
       containsOutPoint.nonEmpty || contains(transaction.txId)
   }
 
-
+  /** Updates this bloom filter to contain the relevant information for the given Transaction */
   def update(transaction: Transaction): BloomFilter = {
-
-
     val scriptPubKeys = transaction.outputs.map(_.scriptPubKey)
     //a sequence of outPoints that need to be inserted into the filter
     val outPoints: Seq[TransactionOutPoint] = scriptPubKeys.zipWithIndex.flatMap {
