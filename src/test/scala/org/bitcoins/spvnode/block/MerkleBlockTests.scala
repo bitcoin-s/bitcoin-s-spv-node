@@ -24,5 +24,7 @@ class MerkleBlockTests extends FlatSpec with MustMatchers {
     merkleBlock.matchedTransactions.head._1 must be (8)
 
     merkleBlock.partialMerkleTree.extractMatches.size must be (merkleBlock.matchedTransactions.size)
+
+    merkleBlock.partialMerkleTree.extractMatches must be (merkleBlock.matchedTransactions.map(_._2))
   }
 }

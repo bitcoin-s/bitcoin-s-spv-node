@@ -5,7 +5,7 @@ import org.bitcoins.core.crypto.DoubleSha256Digest
 import org.bitcoins.core.protocol.blockchain.Block
 import org.bitcoins.core.number.UInt32
 import org.bitcoins.core.util._
-
+import scala.math._
 import scala.annotation.tailrec
 
 /**
@@ -32,7 +32,7 @@ trait PartialMerkleTree extends BitcoinSLogger {
   def numTransactions: Int
 
   /** Maximum height of the [[BinaryTree]] */
-  private def maxHeight = NumberUtil.pow2(numTransactions)
+  private def maxHeight = Math.ceil((log(numTransactions) / log(2)))
 
   /** The actual tree used to represent this partial merkle tree*/
   def tree: BinaryTree[DoubleSha256Digest]
@@ -44,9 +44,7 @@ trait PartialMerkleTree extends BitcoinSLogger {
   def extractMatches: Seq[DoubleSha256Digest] = {
     def loop(subTree: BinaryTree[DoubleSha256Digest],
              remainingBits: Seq[Boolean], height: Int, accumMatches: Seq[DoubleSha256Digest]): (Seq[DoubleSha256Digest], Seq[Boolean]) = {
-      logger.info("HEIGHT: " + height)
-      if (NumberUtil.pow2(height) == maxHeight) {
-        logger.info("MATCHED NODE AT MAX HEIGHT: " + subTree)
+      if (height == maxHeight) {
         if (remainingBits.head) {
           //means we have a txid node that matched the filter
           subTree match {
@@ -67,9 +65,10 @@ trait PartialMerkleTree extends BitcoinSLogger {
               val (leftTreeMatches,leftRemainingBits) = loop(n.l,remainingBits.tail,height+1,accumMatches)
               val (rightTreeMatches,rightRemainingBits) = loop(n.r,leftRemainingBits, height+1, leftTreeMatches)
               (rightTreeMatches,rightRemainingBits)
-            case x @ (_: Leaf[DoubleSha256Digest] | Empty) =>
-              logger.info("Says we have a tx underneath this node, but got: " + x)
-              ???
+            case l : Leaf[DoubleSha256Digest] =>
+              (accumMatches, remainingBits.tail)
+            case Empty => ???
+
           }
         } else {
           (accumMatches, remainingBits.tail)
