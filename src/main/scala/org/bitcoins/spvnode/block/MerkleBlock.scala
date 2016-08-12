@@ -66,7 +66,7 @@ object MerkleBlock {
     }
     val (matchedTxs,newFilter,flags) = loop(block.transactions,filter,Nil,Nil)
     val txIds = block.transactions.map(_.txId)
-    val partialMerkleTree = PartialMerkleTree(txIds,flags)
+    val partialMerkleTree = PartialMerkleTree(flags.zip(txIds))
     MerkleBlockImpl(block, matchedTxs, flags, newFilter, partialMerkleTree)
   }
 

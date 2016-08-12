@@ -31,7 +31,7 @@ trait PartialMerkleTree extends BitcoinSLogger {
   /** The total number of transactions in this block */
   def numTransactions: Int
 
-  /** Maximum height of the [[BinaryTree]] */
+  /** Maximum height of the [[tree]] */
   private def maxHeight = Math.ceil((log(numTransactions) / log(2)))
 
   /** The actual tree used to represent this partial merkle tree*/
@@ -42,13 +42,17 @@ trait PartialMerkleTree extends BitcoinSLogger {
 
   /** Extracts the txids that were matched inside of the bloom filter used to create this partial merkle tree */
   def extractMatches: Seq[DoubleSha256Digest] = {
+    logger.info("starting bits: " + bits)
     def loop(subTree: BinaryTree[DoubleSha256Digest],
              remainingBits: Seq[Boolean], height: Int, accumMatches: Seq[DoubleSha256Digest]): (Seq[DoubleSha256Digest], Seq[Boolean]) = {
       if (height == maxHeight) {
         if (remainingBits.head) {
           //means we have a txid node that matched the filter
           subTree match {
-            case l : Leaf[DoubleSha256Digest] => (l.v +: accumMatches, remainingBits.tail)
+            case l : Leaf[DoubleSha256Digest] =>
+              logger.info("Adding " + l.v + " to matches")
+              logger.info("Remaining bits: " + remainingBits.tail)
+              (l.v +: accumMatches, remainingBits.tail)
             case x @ (_ : Node[DoubleSha256Digest] | Empty) => ???
           }
         } else {
@@ -86,9 +90,9 @@ object PartialMerkleTree extends BitcoinSLogger {
 
   private case class PartialMerkleTreeImpl(tree: BinaryTree[DoubleSha256Digest], bits: Seq[Boolean], numTransactions: Int) extends PartialMerkleTree
 
-  def apply(txIds: Seq[DoubleSha256Digest], matches: Seq[Boolean]): PartialMerkleTree = {
+  def apply(txMatches: Seq[(Boolean,DoubleSha256Digest)]): PartialMerkleTree = {
+    val txIds = txMatches.map(_._2)
     val merkleTree: Merkle.MerkleTree = Merkle.build(txIds)
-    val txMatches = matches.zip(txIds)
     val (tree,bits) = build(merkleTree,txMatches)
     PartialMerkleTreeImpl(tree,bits,txIds.size)
   }
@@ -102,12 +106,13 @@ object PartialMerkleTree extends BitcoinSLogger {
     * @return
     */
   def build(fullMerkleTree: Merkle.MerkleTree, txMatches: Seq[(Boolean,DoubleSha256Digest)]): (BinaryTree[DoubleSha256Digest], Seq[Boolean]) = {
-    val maxHeight = txMatches.size
+    val maxHeight = Math.ceil((log(txMatches.size) / log(2))).toInt
     logger.info("Tx matches: " + txMatches)
     logger.info("Tx matches size: " + txMatches.size)
+    logger.info("max height: "+ maxHeight)
+
     /**
       * This loops through our merkle tree building [[bits]] so we can instruct another node how to create the partial merkle tree
-      *
       * @param tree the tree we are determining how to build it's merkle branches
       * @param bits the accumulator for bits indicating how to reconsctruct the partial merkle tree
       * @param hashes the relevant hashes used with bits to reconstruct the merkle tree
@@ -146,13 +151,18 @@ object PartialMerkleTree extends BitcoinSLogger {
 
 
   /** Checks if a node at given the given height and position matches a transaction in the sequence */
-  private def matchesTx(maxHeight: Int, height: Int, pos: Int, matchedTx: Seq[(Boolean,DoubleSha256Digest)]): Boolean = {
-    val startIndex = height + pos
-    val endIndex = (maxHeight - height) + pos
-    logger.info("startIndex to check: " + startIndex)
-    val matches = for (i <- startIndex until endIndex) yield matchedTx(i)._1
-    logger.info("Matches: " + matches)
-    matches.exists(_ == true)
+  def matchesTx(maxHeight: Int, height: Int, pos: Int, matchedTx: Seq[(Boolean,DoubleSha256Digest)]): Boolean = {
+    val startIndex = (maxHeight - height) * pos * 2
+    //we have to use min() to check if we have a merkle node that is a a leaf node, but does NOT
+    //contain a transaction id hash, it is a duplicated merkle node hash to balance
+    //out the merkle tree
+    val endIndex = min(matchedTx.size,startIndex + NumberUtil.pow2(maxHeight - height).toInt)
+    if (endIndex > matchedTx.size) false
+    else {
+      val matches = for (i <- startIndex until min(matchedTx.size,endIndex)) yield matchedTx(i)._1
+      matches.exists(_ == true)
+    }
+
   }
 
 
