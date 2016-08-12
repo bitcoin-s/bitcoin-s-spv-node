@@ -12,7 +12,7 @@ import org.scalatest.{FlatSpec, MustMatchers}
   */
 class PartialMerkleTreeTests extends FlatSpec with MustMatchers {
 
-/*  "PartialMerkleTree" must "from a list of txs and a bit indicating if the tx matched the filter" in {
+  "PartialMerkleTree" must "from a list of txs and a bit indicating if the tx matched the filter" in {
     val block = Block("0100000090f0a9f110702f808219ebea1173056042a714bad51b916cb68000000000000052752895" +
       "58f51c9966699404ae2294730c3c9f9bda53523ce50e9b95e558da2fdb261b4d4c86041b1ab1bf930901000000010000" +
       "000000000000000000000000000000000000000000000000000000000000ffffffff07044c86041b0146ffffffff0100" +
@@ -50,9 +50,11 @@ class PartialMerkleTreeTests extends FlatSpec with MustMatchers {
     val merkleBlock = MerkleBlock(block,filter)
     require(merkleBlock.flags.size == merkleBlock.txIds.size)
     val partialMerkleTree = PartialMerkleTree(merkleBlock.flags.zip(merkleBlock.txIds))
-    partialMerkleTree.bits must be (Seq(true,true,false,true,false,true,false,true,
-      true,true,true,true,true, false, false))
-  }*/
+    //List(true, true, false, true, false, false, true, true)
+    partialMerkleTree.bits.slice(0,8) must be (Seq(true,true,false,true,false,true,false,true))
+    partialMerkleTree.bits.slice(8,partialMerkleTree.bits.size) must be (Seq(true,true,true,true,false, false,false))
+
+  }
 
   it must "detect if a node at a given height and position matches a tx that the bloom filter matched" in {
     //these values are related to this test case for merkle block inside of core
@@ -91,5 +93,18 @@ class PartialMerkleTreeTests extends FlatSpec with MustMatchers {
     PartialMerkleTree.matchesTx(maxHeight,3,4,matchedTxs) must be (true)
 
     PartialMerkleTree.matchesTx(maxHeight,3,5,matchedTxs) must be (false)
+
+    //it must match the the correct leaf nodes (great-great-grand-children), which are indexes 7 and 8
+    PartialMerkleTree.matchesTx(maxHeight,4,0,matchedTxs) must be (false)
+    PartialMerkleTree.matchesTx(maxHeight,4,1,matchedTxs) must be (false)
+    PartialMerkleTree.matchesTx(maxHeight,4,2,matchedTxs) must be (false)
+    PartialMerkleTree.matchesTx(maxHeight,4,3,matchedTxs) must be (false)
+    PartialMerkleTree.matchesTx(maxHeight,4,4,matchedTxs) must be (false)
+    PartialMerkleTree.matchesTx(maxHeight,4,5,matchedTxs) must be (false)
+    PartialMerkleTree.matchesTx(maxHeight,4,6,matchedTxs) must be (false)
+
+    PartialMerkleTree.matchesTx(maxHeight,4,7,matchedTxs) must be (true)
+    PartialMerkleTree.matchesTx(maxHeight,4,8,matchedTxs) must be (true)
+
   }
 }

@@ -124,8 +124,8 @@ object PartialMerkleTree extends BitcoinSLogger {
       case n : Node[DoubleSha256Digest] =>
         if (matchesTx(maxHeight,height,pos,txMatches)) {
           val newBits = bits ++ Seq(true)
-          val (leftTree,leftBits,leftHashes) = loop(n.l,newBits,hashes,height+1,pos)
-          val (rightTree,rightBits,rightHashes) = loop(n.r,leftBits,leftHashes,height+1,pos+1)
+          val (leftTree,leftBits,leftHashes) = loop(n.l,newBits,hashes,height+1,2 * pos)
+          val (rightTree,rightBits,rightHashes) = loop(n.r,leftBits,leftHashes,height+1,2 * pos + 1)
           (Node(n.v,leftTree,rightTree),rightBits,rightHashes)
         } else {
           val newBits = bits ++ Seq(false)
@@ -152,16 +152,15 @@ object PartialMerkleTree extends BitcoinSLogger {
 
   /** Checks if a node at given the given height and position matches a transaction in the sequence */
   def matchesTx(maxHeight: Int, height: Int, pos: Int, matchedTx: Seq[(Boolean,DoubleSha256Digest)]): Boolean = {
-    val startIndex = (maxHeight - height) * pos * 2
+    val startIndex = if (maxHeight == height) pos else (maxHeight - height) * pos * 2
     //we have to use min() to check if we have a merkle node that is a a leaf node, but does NOT
     //contain a transaction id hash, it is a duplicated merkle node hash to balance
     //out the merkle tree
     val endIndex = min(matchedTx.size,startIndex + NumberUtil.pow2(maxHeight - height).toInt)
-    if (endIndex > matchedTx.size) false
-    else {
-      val matches = for (i <- startIndex until min(matchedTx.size,endIndex)) yield matchedTx(i)._1
-      matches.exists(_ == true)
-    }
+    logger.info("Height: " + height + " Max height: " + maxHeight + " pos: " + pos)
+    logger.info("Range of indexes being searched, exclusive: " + startIndex + "," + endIndex)
+    val matches = for (i <- startIndex until endIndex) yield matchedTx(i)._1
+    matches.exists(_ == true)
 
   }
 
