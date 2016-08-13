@@ -3,10 +3,9 @@ package org.bitcoins.spvnode.block
 import org.bitcoins.core.consensus.Merkle
 import org.bitcoins.core.crypto.DoubleSha256Digest
 import org.bitcoins.core.protocol.blockchain.Block
-import org.bitcoins.core.number.UInt32
 import org.bitcoins.core.util._
+
 import scala.math._
-import scala.annotation.tailrec
 
 /**
   * Created by chris on 8/7/16.
@@ -42,7 +41,8 @@ trait PartialMerkleTree extends BitcoinSLogger {
 
   /** Extracts the txids that were matched inside of the bloom filter used to create this partial merkle tree */
   def extractMatches: Seq[DoubleSha256Digest] = {
-    logger.info("starting bits: " + bits)
+    //TODO: This is some really ugly that isn't tail recursive, try to clean this up eventually
+    logger.debug("Starting bits for extraction: " + bits)
     def loop(subTree: BinaryTree[DoubleSha256Digest],
              remainingBits: Seq[Boolean], height: Int, accumMatches: Seq[DoubleSha256Digest]): (Seq[DoubleSha256Digest], Seq[Boolean]) = {
       if (height == maxHeight) {
@@ -50,10 +50,11 @@ trait PartialMerkleTree extends BitcoinSLogger {
           //means we have a txid node that matched the filter
           subTree match {
             case l : Leaf[DoubleSha256Digest] =>
-              logger.info("Adding " + l.v + " to matches")
-              logger.info("Remaining bits: " + remainingBits.tail)
+              logger.debug("Adding " + l.v + " to matches")
+              logger.debug("Remaining bits: " + remainingBits.tail)
               (l.v +: accumMatches, remainingBits.tail)
-            case x @ (_ : Node[DoubleSha256Digest] | Empty) => ???
+            case x @ (_ : Node[DoubleSha256Digest] | Empty) => throw new IllegalArgumentException("We cannot have a " +
+              "Node or Empty node when we supposedly have a txid node -- txid nodes should always be leaves, got: " + x)
           }
         } else {
           //means we have a txid node, but it did not match the filter
@@ -71,8 +72,7 @@ trait PartialMerkleTree extends BitcoinSLogger {
               (rightTreeMatches,rightRemainingBits)
             case l : Leaf[DoubleSha256Digest] =>
               (accumMatches, remainingBits.tail)
-            case Empty => ???
-
+            case Empty => throw new IllegalArgumentException("We cannot have an empty node when we supposedly have a match underneath this node since it has no children")
           }
         } else {
           (accumMatches, remainingBits.tail)
@@ -81,7 +81,7 @@ trait PartialMerkleTree extends BitcoinSLogger {
     }
     val (matches,remainingBits) = loop(tree,bits,0,Nil)
     require(remainingBits.isEmpty,"We cannot have any left over bits after traversing the tree, got: " + remainingBits)
-    matches
+    matches.reverse
   }
 }
 
@@ -167,6 +167,20 @@ object PartialMerkleTree extends BitcoinSLogger {
 
   def apply(numTransaction: Int, hashes: Seq[DoubleSha256Digest], matches: Seq[Boolean]): BinaryTree[DoubleSha256Digest] = {
     reconstruct(numTransaction,hashes,matches)
+  }
+
+
+  /**
+    * This constructor creates a partial from this given [[BinaryTree]]
+    * You probably don't want to use this constructor, unless you manually construcuted [[bits]] and the [[tree]]
+    * by hand
+    * @param tree the partial merkle tree -- note this is NOT the full merkle tree
+    * @param bits the path to the matches in the partial merkle tree
+    * @param numTransactions the number of transactions there initially was in the full merkle tree
+    * @return
+    */
+  def apply(tree: BinaryTree[DoubleSha256Digest], bits: Seq[Boolean], numTransactions: Int): PartialMerkleTree = {
+    PartialMerkleTreeImpl(tree,bits,numTransactions)
   }
 
   /** Builds a partial merkle tree the information inside of a [[org.bitcoins.spvnode.messages.MerkleBlockMessage]]

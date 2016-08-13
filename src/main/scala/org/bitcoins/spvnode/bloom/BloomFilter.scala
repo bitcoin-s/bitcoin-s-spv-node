@@ -202,7 +202,7 @@ sealed trait BloomFilter extends NetworkElement with BitcoinSLogger {
   private def murmurConstant = UInt32("fba4c795")
 
   /** Adds a sequence of byte vectors to our bloom filter then returns that new filter*/
-  private def insertByteVectors(bytes: Seq[Seq[Byte]]): BloomFilter = {
+   def insertByteVectors(bytes: Seq[Seq[Byte]]): BloomFilter = {
     @tailrec
     def loop(remainingByteVectors: Seq[Seq[Byte]], accumBloomFilter: BloomFilter): BloomFilter = {
       if (remainingByteVectors.isEmpty) accumBloomFilter

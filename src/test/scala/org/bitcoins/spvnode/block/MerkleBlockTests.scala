@@ -27,7 +27,6 @@ class MerkleBlockTests extends FlatSpec with MustMatchers {
     merkleBlock.partialMerkleTree.extractMatches must be (merkleBlock.matchedTransactions.map(_._2))
   }
 
-/*
   it must "match and extract to txids inserted into the bloom filter" in {
 
     val block = Block("0100000090f0a9f110702f808219ebea1173056042a714bad51b916cb68000000000000052752895" +
@@ -74,7 +73,6 @@ class MerkleBlockTests extends FlatSpec with MustMatchers {
 
     merkleBlock.partialMerkleTree.extractMatches must be (merkleBlock.matchedTransactions.map(_._2))
   }
-*/
 
 
 
