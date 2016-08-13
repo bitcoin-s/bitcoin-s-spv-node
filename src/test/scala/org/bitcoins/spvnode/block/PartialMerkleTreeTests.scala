@@ -138,4 +138,27 @@ class PartialMerkleTreeTests extends FlatSpec with MustMatchers {
       Leaf(DoubleSha256Digest("076d0317ee70ee36cf396a9871ab3bf6f8e6d538d7f8a9062437dcb71c75fcf9"))))
     partialMerkleTree.extractMatches must be (Seq(DoubleSha256Digest("076d0317ee70ee36cf396a9871ab3bf6f8e6d538d7f8a9062437dcb71c75fcf9")))
   }
+
+  it must "calculate bits correctly for a tree of height 1" in {
+    val matches = List((true,DoubleSha256Digest("caa02f1194fb44dea407a7cf713ddcf30e69f49c297f9275f9236fec42d945b2")))
+    val partialMerkleTree = PartialMerkleTree(matches)
+    partialMerkleTree.tree must be (Node(DoubleSha256Digest("564e8aec092adcad788321ae78d0f949c5f517909e75f1498f7efabfbc836669"),
+      Leaf(DoubleSha256Digest("caa02f1194fb44dea407a7cf713ddcf30e69f49c297f9275f9236fec42d945b2")),
+      Leaf(DoubleSha256Digest("caa02f1194fb44dea407a7cf713ddcf30e69f49c297f9275f9236fec42d945b2"))))
+    partialMerkleTree.bits must be (Seq(true,true,false))
+  }
+
+  it must "extract the matched txs from a tree with a height of 1" in {
+    val (tree,txMatches) = (PartialMerkleTree(Node(DoubleSha256Digest(
+      "03ab27659f8cf717943b5758e01f9119a13c95a05d8a213dcb33f4e600f022d5"),
+      Leaf(DoubleSha256Digest("6a23c5077ce162a0fe576a6754f81366f5108fc4dc6e44f407d3146254ee2a61")),
+      Leaf(DoubleSha256Digest("6a23c5077ce162a0fe576a6754f81366f5108fc4dc6e44f407d3146254ee2a61"))),
+      List(true, true, false),1),
+      List((true,DoubleSha256Digest("6a23c5077ce162a0fe576a6754f81366f5108fc4dc6e44f407d3146254ee2a61"))))
+
+    val partialMerkleTree = PartialMerkleTree(txMatches)
+    partialMerkleTree.tree must be (tree.tree)
+
+    tree.extractMatches must be (Seq(DoubleSha256Digest("6a23c5077ce162a0fe576a6754f81366f5108fc4dc6e44f407d3146254ee2a61")))
+  }
 }

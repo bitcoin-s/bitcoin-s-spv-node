@@ -21,7 +21,7 @@ trait MerkleGenerator {
 
   /** Generates a partial merkle tree with a sequence of txids and a flag indicating if the txid was matched */
   def partialMerkleTree: Gen[(PartialMerkleTree, Seq[(Boolean,DoubleSha256Digest)])] = for {
-    randomNum <- Gen.choose(1,15)
+    randomNum <- Gen.choose(1,25)
     txMatches <- txIdsWithMatchIndication(randomNum)
   } yield (PartialMerkleTree(txMatches),txMatches)
 

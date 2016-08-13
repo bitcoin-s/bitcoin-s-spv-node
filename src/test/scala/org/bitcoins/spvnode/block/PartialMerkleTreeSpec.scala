@@ -14,6 +14,7 @@ class PartialMerkleTreeSpec extends Properties("PartialMerkleTreeSpec") {
       case (partialMerkleTree: PartialMerkleTree, txMatches: Seq[(Boolean,DoubleSha256Digest)]) =>
         val matchedTxs = txMatches.filter(_._1).map(_._2)
         partialMerkleTree.extractMatches == matchedTxs
-
     }
+
+
 }

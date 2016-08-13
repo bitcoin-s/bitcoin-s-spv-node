@@ -31,7 +31,7 @@ trait PartialMerkleTree extends BitcoinSLogger {
   def numTransactions: Int
 
   /** Maximum height of the [[tree]] */
-  private def maxHeight = Math.ceil((log(numTransactions) / log(2)))
+  private def maxHeight = if (numTransactions == 1) 1 else Math.ceil((log(numTransactions) / log(2)))
 
   /** The actual tree used to represent this partial merkle tree*/
   def tree: BinaryTree[DoubleSha256Digest]
@@ -43,6 +43,7 @@ trait PartialMerkleTree extends BitcoinSLogger {
   def extractMatches: Seq[DoubleSha256Digest] = {
     //TODO: This is some really ugly that isn't tail recursive, try to clean this up eventually
     logger.debug("Starting bits for extraction: " + bits)
+    logger.debug("Starting tree: " + tree)
     def loop(subTree: BinaryTree[DoubleSha256Digest],
              remainingBits: Seq[Boolean], height: Int, accumMatches: Seq[DoubleSha256Digest]): (Seq[DoubleSha256Digest], Seq[Boolean]) = {
       if (height == maxHeight) {
@@ -106,10 +107,10 @@ object PartialMerkleTree extends BitcoinSLogger {
     * @return
     */
   def build(fullMerkleTree: Merkle.MerkleTree, txMatches: Seq[(Boolean,DoubleSha256Digest)]): (BinaryTree[DoubleSha256Digest], Seq[Boolean]) = {
-    val maxHeight = Math.ceil((log(txMatches.size) / log(2))).toInt
-    logger.info("Tx matches: " + txMatches)
-    logger.info("Tx matches size: " + txMatches.size)
-    logger.info("max height: "+ maxHeight)
+    val maxHeight = if (txMatches.size == 1) 1 else Math.ceil((log(txMatches.size) / log(2))).toInt
+    logger.debug("Tx matches: " + txMatches)
+    logger.debug("Tx matches size: " + txMatches.size)
+    logger.debug("max height: "+ maxHeight)
 
     /**
       * This loops through our merkle tree building [[bits]] so we can instruct another node how to create the partial merkle tree
@@ -172,7 +173,7 @@ object PartialMerkleTree extends BitcoinSLogger {
 
   /**
     * This constructor creates a partial from this given [[BinaryTree]]
-    * You probably don't want to use this constructor, unless you manually construcuted [[bits]] and the [[tree]]
+    * You probably don't want to use this constructor, unless you manually constructed [[bits]] and the [[tree]]
     * by hand
     * @param tree the partial merkle tree -- note this is NOT the full merkle tree
     * @param bits the path to the matches in the partial merkle tree
