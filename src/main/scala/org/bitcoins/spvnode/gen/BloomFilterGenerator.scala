@@ -1,12 +1,8 @@
 package org.bitcoins.spvnode.gen
 
-import org.bitcoins.core.crypto.DoubleSha256Digest
 import org.bitcoins.core.gen.{CryptoGenerators, NumberGenerator}
-import org.bitcoins.core.number.UInt32
 import org.bitcoins.spvnode.bloom._
 import org.scalacheck.Gen
-
-import scala.annotation.tailrec
 
 /**
   * Created by chris on 8/7/16.
@@ -40,7 +36,7 @@ trait BloomFilterGenerator {
   } yield {
     if (randomNum == 0) BloomUpdateNone
     else if (randomNum == 1) BloomUpdateAll
-    else BloomUpdateP2PubKeyOnly
+    else BloomUpdateP2PKOnly
   }
 
 }

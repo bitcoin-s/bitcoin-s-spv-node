@@ -28,13 +28,13 @@ case object BloomUpdateAll extends BloomFlag {
   * script is either a P2PKH or non-P2SH pay-to-multisig script,
   * the corresponding outpoint is added to the filter.
   */
-case object BloomUpdateP2PubKeyOnly extends BloomFlag {
+case object BloomUpdateP2PKOnly extends BloomFlag {
   def byte = 2.toByte
 }
 
 
 object BloomFlag extends Factory[BloomFlag] {
-  private def flags = Seq(BloomUpdateNone, BloomUpdateAll, BloomUpdateP2PubKeyOnly)
+  private def flags = Seq(BloomUpdateNone, BloomUpdateAll, BloomUpdateP2PKOnly)
   def apply(byte: Byte): BloomFlag = {
     val flagOpt = flags.find(_.byte == byte)
     if (flagOpt.isDefined) flagOpt.get

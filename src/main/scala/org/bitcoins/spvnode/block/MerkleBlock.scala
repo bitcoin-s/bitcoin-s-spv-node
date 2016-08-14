@@ -2,8 +2,9 @@ package org.bitcoins.spvnode.block
 
 import org.bitcoins.core.crypto.DoubleSha256Digest
 import org.bitcoins.core.protocol.blockchain.{Block, BlockHeader}
+import org.bitcoins.core.protocol.script.MultiSignatureScriptPubKey
 import org.bitcoins.core.protocol.transaction.Transaction
-import org.bitcoins.spvnode.bloom.BloomFilter
+import org.bitcoins.spvnode.bloom.{BloomFilter, BloomUpdateAll, BloomUpdateNone, BloomUpdateP2PKOnly}
 
 import scala.annotation.tailrec
 
@@ -41,6 +42,7 @@ object MerkleBlock {
     * Creates a [[MerkleBlock]] from the given [[Block]] and [[BloomFilter]]
     * This function iterates through each transaction inside our block checking if it is relevant to the given bloom filter
     * If it is relevant, it will set a flag to indicate we should include it inside of our [[PartialMerkleTree]]
+    *
     * @param block
     * @param filter
     * @return
@@ -60,7 +62,7 @@ object MerkleBlock {
           case false =>
             (txMatches, false +: matches)
         }
-        val newFilter = accumFilter.update(tx)
+        val newFilter =  accumFilter.update(tx)
         loop(remainingTxs.tail,newFilter,newTxMatches,newFlags)
       }
     }

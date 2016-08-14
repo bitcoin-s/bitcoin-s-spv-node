@@ -2,9 +2,10 @@ package org.bitcoins.spvnode.bloom
 
 import org.bitcoins.core.crypto.{DoubleSha256Digest, HashDigest, Sha256Hash160Digest}
 import org.bitcoins.core.number.{UInt32, UInt64}
+import org.bitcoins.core.protocol.script.{MultiSignatureScriptPubKey, P2PKHScriptPubKey, ScriptPubKey}
 import org.bitcoins.core.protocol.transaction.{Transaction, TransactionOutPoint}
 import org.bitcoins.core.protocol.{CompactSizeUInt, NetworkElement}
-import org.bitcoins.core.script.constant.ScriptConstant
+import org.bitcoins.core.script.constant.{ScriptConstant, ScriptToken}
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil, Factory, NumberUtil}
 import org.bitcoins.spvnode.serializers.control.RawBloomFilterSerializer
 
@@ -87,7 +88,7 @@ sealed trait BloomFilter extends NetworkElement with BitcoinSLogger {
         loop(remainingBitIndexes.tail, isBitSet +: accum)
       }
     }
-    loop(bitIndexes,Seq())
+    loop(bitIndexes,Nil)
   }
 
   /** Checks if [[data]] contains a [[DoubleSha256Digest]] */
@@ -161,24 +162,58 @@ sealed trait BloomFilter extends NetworkElement with BitcoinSLogger {
   }
 
   /** Updates this bloom filter to contain the relevant information for the given Transaction */
-  def update(transaction: Transaction): BloomFilter = {
-    val scriptPubKeys = transaction.outputs.map(_.scriptPubKey)
-    //a sequence of outPoints that need to be inserted into the filter
-    val outPoints: Seq[TransactionOutPoint] = scriptPubKeys.zipWithIndex.flatMap {
-      case (scriptPubKey,index) =>
-        //constants that matched inside of our current filter
-        val constants = scriptPubKey.asm.filter(c => c.isInstanceOf[ScriptConstant] && contains(c.bytes))
-        //we need to create a new outpoint in the filter if a constant in the scriptPubKey matched
-        constants.map(c => TransactionOutPoint(transaction.txId,UInt32(index)))
-    }
+  def update(transaction: Transaction): BloomFilter = flags match {
+    case BloomUpdateAll =>
+      val scriptPubKeys = transaction.outputs.map(_.scriptPubKey)
+      //a sequence of outPoints that need to be inserted into the filter
+      val outPoints: Seq[TransactionOutPoint] = scriptPubKeys.zipWithIndex.flatMap {
+        case (scriptPubKey,index) =>
+          //constants that matched inside of our current filter
+          val constants = scriptPubKey.asm.filter(c => c.isInstanceOf[ScriptConstant] && contains(c.bytes))
+          //we need to create a new outpoint in the filter if a constant in the scriptPubKey matched
+          constants.map(c => TransactionOutPoint(transaction.txId,UInt32(index)))
+      }
 
-    logger.debug("Inserting outPoints: " + outPoints)
-    val outPointsBytes = outPoints.map(_.bytes)
-    val filterWithOutPoints = insertByteVectors(outPointsBytes)
-    //add txid
-    val filterWithTxIdAndOutPoints = filterWithOutPoints.insert(transaction.txId)
-    filterWithTxIdAndOutPoints
+      logger.debug("Inserting outPoints: " + outPoints)
+      val outPointsBytes = outPoints.map(_.bytes)
+      val filterWithOutPoints = insertByteVectors(outPointsBytes)
+      //add txid
+      val filterWithTxIdAndOutPoints = filterWithOutPoints.insert(transaction.txId)
+      filterWithTxIdAndOutPoints
+    case BloomUpdateNone =>
+      logger.warn("You are attempting to update a bloom filter when the flag is set to BloomUpdateNone, " +
+        "no information will be added to the bloom filter, specifically this: " + transaction)
+      this
+    case BloomUpdateP2PKOnly =>
+      //update the filter with the outpoint if the filter matches any of the constants in a p2pkh or multisig script pubkey
+      val scriptPubKeysWithIndex = transaction.outputs.map(_.scriptPubKey).zipWithIndex
+      updateP2PKOnly(scriptPubKeysWithIndex,transaction.txId)
+
   }
+
+  /** Updates a bloom filter according to the rules specified by teh [[BloomUpdateP2PKOnly]] flag */
+  def updateP2PKOnly(scriptPubKeysWithIndex: Seq[(ScriptPubKey,Int)],txId: DoubleSha256Digest): BloomFilter = {
+    @tailrec
+    def loop(constantsWithIndex: Seq[(ScriptToken,Int)], accumFilter: BloomFilter): BloomFilter = constantsWithIndex match {
+      case h :: t if (contains(h._1.bytes)) =>
+        //don't keep iterating because we only need to insert the outpoint once
+        val filter = insert(TransactionOutPoint(txId,UInt32(h._2)))
+        loop(constantsWithIndex.tail, filter)
+      case h :: t => loop(t,accumFilter)
+      case Nil => accumFilter
+    }
+    val p2pkhOrMultiSigScriptPubKeys: Seq[(ScriptPubKey,Int)] = scriptPubKeysWithIndex.filter {
+      case (s,index) => s.isInstanceOf[P2PKHScriptPubKey] || s.isInstanceOf[MultiSignatureScriptPubKey]
+    }
+    //gets rid of all asm operations in the scriptPubKey except for the constants
+    val scriptConstantsWithOutputIndex: Seq[(ScriptToken,Int)] = p2pkhOrMultiSigScriptPubKeys.flatMap { case (scriptPubKey,index) =>
+      (scriptPubKey.asm.map(token => (token,index))).filter {
+        case (token,index) => token.isInstanceOf[ScriptConstant]
+      }
+    }
+    loop(scriptConstantsWithOutputIndex,this)
+  }
+
 
   /**
     * Performs the [[MurmurHash3]] on the given hash
@@ -251,5 +286,4 @@ object BloomFilter extends Factory[BloomFilter] {
 
   override def fromBytes(bytes: Seq[Byte]): BloomFilter = RawBloomFilterSerializer.read(bytes)
 
-// = UInt32("fba4c795")
 }
