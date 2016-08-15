@@ -13,20 +13,18 @@ import scala.annotation.tailrec
   */
 trait MerkleBlock {
 
-
-
-
-  def block: Block
+  def blockHeader: BlockHeader
 
   /** Transactions inside of the block that matched our bloom filter and the index they are inside of the block */
   def matchedTransactions: Seq[(Int,DoubleSha256Digest)]
 
-  def filter: BloomFilter
+  /** One or more hashes of both transactions and merkle nodes used to build the partial merkle tree */
+  def hashes: Seq[DoubleSha256Digest] = partialMerkleTree.hashes
 
   def flags: Seq[Boolean]
 
   /** Transaction ids inside of the block */
-  def txIds: Seq[DoubleSha256Digest] = block.transactions.map(_.txId)
+  //def txIds: Seq[DoubleSha256Digest] = matchedTransactions.map(_._2)
 
   /** The [[PartialMerkleTree]] for this merkle block */
   def partialMerkleTree: PartialMerkleTree
@@ -36,8 +34,9 @@ trait MerkleBlock {
 
 object MerkleBlock {
 
-  private case class MerkleBlockImpl(block: Block, matchedTransactions : Seq[(Int,DoubleSha256Digest)], flags: Seq[Boolean],
-                                     filter: BloomFilter,partialMerkleTree: PartialMerkleTree) extends MerkleBlock
+  private case class MerkleBlockImpl(blockHeader: BlockHeader, matchedTransactions: Seq[(Int,DoubleSha256Digest)],
+                                     flags: Seq[Boolean], filter: BloomFilter,
+                                     partialMerkleTree: PartialMerkleTree) extends MerkleBlock
   /**
     * Creates a [[MerkleBlock]] from the given [[Block]] and [[BloomFilter]]
     * This function iterates through each transaction inside our block checking if it is relevant to the given bloom filter
@@ -69,7 +68,7 @@ object MerkleBlock {
     val (matchedTxs,newFilter,flags) = loop(block.transactions,filter,Nil,Nil)
     val txIds = block.transactions.map(_.txId)
     val partialMerkleTree = PartialMerkleTree(flags.zip(txIds))
-    MerkleBlockImpl(block, matchedTxs, flags, newFilter, partialMerkleTree)
+    MerkleBlockImpl(block.blockHeader, matchedTxs, flags, newFilter, partialMerkleTree)
   }
 
 }

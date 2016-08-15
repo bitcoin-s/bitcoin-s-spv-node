@@ -182,7 +182,7 @@ sealed trait BloomFilter extends NetworkElement with BitcoinSLogger {
       filterWithTxIdAndOutPoints
     case BloomUpdateNone =>
       logger.warn("You are attempting to update a bloom filter when the flag is set to BloomUpdateNone, " +
-        "no information will be added to the bloom filter, specifically this: " + transaction)
+        "no information will be added to the bloom filter, specifically this trasnaction: " + transaction)
       this
     case BloomUpdateP2PKOnly =>
       //update the filter with the outpoint if the filter matches any of the constants in a p2pkh or multisig script pubkey
@@ -196,7 +196,6 @@ sealed trait BloomFilter extends NetworkElement with BitcoinSLogger {
     @tailrec
     def loop(constantsWithIndex: Seq[(ScriptToken,Int)], accumFilter: BloomFilter): BloomFilter = constantsWithIndex match {
       case h :: t if (contains(h._1.bytes)) =>
-        //don't keep iterating because we only need to insert the outpoint once
         val filter = insert(TransactionOutPoint(txId,UInt32(h._2)))
         loop(constantsWithIndex.tail, filter)
       case h :: t => loop(t,accumFilter)

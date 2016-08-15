@@ -84,18 +84,22 @@ trait PartialMerkleTree extends BitcoinSLogger {
     require(remainingBits.isEmpty,"We cannot have any left over bits after traversing the tree, got: " + remainingBits)
     matches.reverse
   }
+
+  /** The hashes used to create the binary tree */
+  def hashes: Seq[DoubleSha256Digest]
 }
 
 
 object PartialMerkleTree extends BitcoinSLogger {
 
-  private case class PartialMerkleTreeImpl(tree: BinaryTree[DoubleSha256Digest], bits: Seq[Boolean], numTransactions: Int) extends PartialMerkleTree
+  private case class PartialMerkleTreeImpl(tree: BinaryTree[DoubleSha256Digest], bits: Seq[Boolean],
+                                           numTransactions: Int, hashes: Seq[DoubleSha256Digest]) extends PartialMerkleTree
 
   def apply(txMatches: Seq[(Boolean,DoubleSha256Digest)]): PartialMerkleTree = {
     val txIds = txMatches.map(_._2)
     val merkleTree: Merkle.MerkleTree = Merkle.build(txIds)
-    val (tree,bits) = build(merkleTree,txMatches)
-    PartialMerkleTreeImpl(tree,bits,txIds.size)
+    val (tree,bits,hashes) = build(merkleTree,txMatches)
+    PartialMerkleTreeImpl(tree,bits,txIds.size,hashes)
   }
 
 
@@ -104,9 +108,10 @@ object PartialMerkleTree extends BitcoinSLogger {
     * @param fullMerkleTree the full merkle tree which we are going to trim to get a partial merkle tree
     * @param txMatches indicates whether the given txid matches the bloom filter, the full merkle branch needs
     *                  to be included inside of the [[PartialMerkleTree]]
-    * @return
+    * @return the binary tree that represents the partial merkle tree, the bits needed to reconstruct this partial merkle tree, and the hashes needed to be inserted
+    *         according to the flags inside of bits
     */
-  def build(fullMerkleTree: Merkle.MerkleTree, txMatches: Seq[(Boolean,DoubleSha256Digest)]): (BinaryTree[DoubleSha256Digest], Seq[Boolean]) = {
+  def build(fullMerkleTree: Merkle.MerkleTree, txMatches: Seq[(Boolean,DoubleSha256Digest)]): (BinaryTree[DoubleSha256Digest], Seq[Boolean], Seq[DoubleSha256Digest]) = {
     val maxHeight = if (txMatches.size == 1) 1 else Math.ceil((log(txMatches.size) / log(2))).toInt
     logger.debug("Tx matches: " + txMatches)
     logger.debug("Tx matches size: " + txMatches.size)
@@ -118,7 +123,8 @@ object PartialMerkleTree extends BitcoinSLogger {
       * @param bits the accumulator for bits indicating how to reconsctruct the partial merkle tree
       * @param hashes the relevant hashes used with bits to reconstruct the merkle tree
       * @param height the transaction index we are currently looking at -- if it was matched in our bloom filter we need the entire merkle branch
-      * @return
+      * @return the binary tree that represents the partial merkle tree, the bits needed to reconstruct this partial merkle tree, and the hashes needed to be inserted
+      *         according to the flags inside of bits
       */
     def loop(tree: BinaryTree[DoubleSha256Digest], bits: Seq[Boolean], hashes: Seq[DoubleSha256Digest], height: Int, pos: Int): (BinaryTree[DoubleSha256Digest],
       Seq[Boolean], Seq[DoubleSha256Digest]) = tree match {
@@ -145,9 +151,9 @@ object PartialMerkleTree extends BitcoinSLogger {
         }
       case Empty => ???
     }
-    val hashes = txMatches.map(_._2)
-    val (tree,bits,_) = loop(fullMerkleTree, Nil, hashes, 0,0)
-    (tree, bits)
+    val txIds = txMatches.map(_._2)
+    val (tree,bits,hashes) = loop(fullMerkleTree, Nil, txIds, 0,0)
+    (tree, bits,hashes)
   }
 
 
@@ -178,10 +184,11 @@ object PartialMerkleTree extends BitcoinSLogger {
     * @param tree the partial merkle tree -- note this is NOT the full merkle tree
     * @param bits the path to the matches in the partial merkle tree
     * @param numTransactions the number of transactions there initially was in the full merkle tree
+    * @param hashes the hashes used to reconstruct the binary tree according to [[bits]]
     * @return
     */
-  def apply(tree: BinaryTree[DoubleSha256Digest], bits: Seq[Boolean], numTransactions: Int): PartialMerkleTree = {
-    PartialMerkleTreeImpl(tree,bits,numTransactions)
+  def apply(tree: BinaryTree[DoubleSha256Digest], bits: Seq[Boolean], numTransactions: Int, hashes: Seq[DoubleSha256Digest]): PartialMerkleTree = {
+    PartialMerkleTreeImpl(tree,bits,numTransactions, hashes)
   }
 
   /** Builds a partial merkle tree the information inside of a [[org.bitcoins.spvnode.messages.MerkleBlockMessage]]
