@@ -1,7 +1,8 @@
 package org.bitcoins.spvnode.block
 
 import org.bitcoins.core.crypto.DoubleSha256Digest
-import org.bitcoins.core.number.UInt32
+import org.bitcoins.core.number.{UInt32, UInt64}
+import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.protocol.blockchain.Block
 import org.bitcoins.core.util.{BitcoinSUtil, Leaf, Node}
 import org.bitcoins.spvnode.bloom.{BloomFilter, BloomUpdateAll}
@@ -124,7 +125,7 @@ class PartialMerkleTreeTests extends FlatSpec with MustMatchers {
     val partialMerkleTree = PartialMerkleTree(txMatches)
     partialMerkleTree.bits must be (Seq(false))
     partialMerkleTree.tree must be (Leaf(DoubleSha256Digest("471f394f0f33a68927195ba0f2fa12023d41c54c4796012612baeaeb67351c57")))
-    partialMerkleTree.numTransactions must be (1)
+    partialMerkleTree.transactionCount must be (UInt32(1))
     partialMerkleTree.extractMatches.isEmpty must be (true)
   }
 
@@ -147,5 +148,5 @@ class PartialMerkleTreeTests extends FlatSpec with MustMatchers {
       Leaf(DoubleSha256Digest("caa02f1194fb44dea407a7cf713ddcf30e69f49c297f9275f9236fec42d945b2"))))
     partialMerkleTree.bits must be (Seq(true,true,false))
   }
-  
+
 }

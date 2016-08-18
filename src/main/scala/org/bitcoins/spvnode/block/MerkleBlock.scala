@@ -1,41 +1,56 @@
 package org.bitcoins.spvnode.block
 
 import org.bitcoins.core.crypto.DoubleSha256Digest
+import org.bitcoins.core.number.{UInt32, UInt64}
+import org.bitcoins.core.protocol.{CompactSizeUInt, NetworkElement}
 import org.bitcoins.core.protocol.blockchain.{Block, BlockHeader}
-import org.bitcoins.core.protocol.script.MultiSignatureScriptPubKey
 import org.bitcoins.core.protocol.transaction.Transaction
-import org.bitcoins.spvnode.bloom.{BloomFilter, BloomUpdateAll, BloomUpdateNone, BloomUpdateP2PKOnly}
+import org.bitcoins.core.util.Factory
+import org.bitcoins.spvnode.bloom.BloomFilter
+import org.bitcoins.spvnode.serializers.block.RawMerkleBlockSerializer
 
 import scala.annotation.tailrec
 
 /**
   * Created by chris on 8/7/16.
   */
-trait MerkleBlock {
+trait MerkleBlock extends NetworkElement {
 
   def blockHeader: BlockHeader
 
+  def transactionCount: UInt32
+
   /** Transactions inside of the block that matched our bloom filter and the index they are inside of the block */
-  def matchedTransactions: Seq[(Int,DoubleSha256Digest)]
+  //def matchedTransactions: Seq[(Int,DoubleSha256Digest)]
+
+  /** The amount of hashes inside of the merkle block */
+  def hashCount: CompactSizeUInt = CompactSizeUInt(UInt64(hashes.size))
 
   /** One or more hashes of both transactions and merkle nodes used to build the partial merkle tree */
   def hashes: Seq[DoubleSha256Digest] = partialMerkleTree.hashes
 
-  def flags: Seq[Boolean]
+  /** The size of the flags field in bytes */
+  def flagCount: CompactSizeUInt = CompactSizeUInt(UInt64(Math.ceil(flags.size / 8).toInt))
 
-  /** Transaction ids inside of the block */
-  //def txIds: Seq[DoubleSha256Digest] = matchedTransactions.map(_._2)
+  /** A sequence of bits packed eight in a byte with the least significant bit first.
+    * May be padded to the nearest byte boundary but must not contain any more bits than that.
+    * Used to assign the hashes to particular nodes in the merkle tree.
+    */
+  def flags: Seq[Boolean]
 
   /** The [[PartialMerkleTree]] for this merkle block */
   def partialMerkleTree: PartialMerkleTree
+
+  def hex = RawMerkleBlockSerializer.write(this)
 }
 
 
 
-object MerkleBlock {
+object MerkleBlock extends Factory[MerkleBlock] {
 
-  private case class MerkleBlockImpl(blockHeader: BlockHeader, matchedTransactions: Seq[(Int,DoubleSha256Digest)],
-                                     flags: Seq[Boolean], filter: BloomFilter,
+  private case class MerkleBlockImpl(blockHeader: BlockHeader, transactionCount: UInt32,
+                                     //matchedTransactions: Seq[(Int,DoubleSha256Digest)],
+                                     flags: Seq[Boolean],
                                      partialMerkleTree: PartialMerkleTree) extends MerkleBlock
   /**
     * Creates a [[MerkleBlock]] from the given [[Block]] and [[BloomFilter]]
@@ -68,7 +83,51 @@ object MerkleBlock {
     val (matchedTxs,newFilter,flags) = loop(block.transactions,filter,Nil,Nil)
     val txIds = block.transactions.map(_.txId)
     val partialMerkleTree = PartialMerkleTree(flags.zip(txIds))
-    MerkleBlockImpl(block.blockHeader, matchedTxs, flags, newFilter, partialMerkleTree)
+    val txCount = UInt32(block.transactions.size)
+    MerkleBlock(block.blockHeader, txCount, /*matchedTxs,*/ flags, partialMerkleTree)
   }
 
+
+  /** Creates a merkle block that matches the given txids if they appear inside the given block */
+  def apply(block: Block, txIds: Seq[DoubleSha256Digest]): MerkleBlock = {
+    //follows this function inside of bitcoin core
+    //https://github.com/bitcoin/bitcoin/blob/master/src/merkleblock.cpp#L40
+    @tailrec
+    def loop(remainingTxs: Seq[Transaction], txMatches: Seq[(Int,DoubleSha256Digest)], matches: Seq[Boolean]): (Seq[(Int,DoubleSha256Digest)], Seq[Boolean]) = {
+      if (remainingTxs.isEmpty) (txMatches.reverse, matches.reverse)
+      else {
+        val tx = remainingTxs.head
+        val (newTxMatches, newFlags) = txIds.contains(tx.txId) match {
+          case true =>
+            val index = block.transactions.size - remainingTxs.size
+            val newTxMatches = (index,tx.txId) +: txMatches
+            (newTxMatches, true +: matches)
+          case false =>
+            (txMatches, false +: matches)
+        }
+        loop(remainingTxs.tail,newTxMatches,newFlags)
+      }
+    }
+
+    val (matchedTxs, flags) = loop(block.transactions,Nil,Nil)
+    //val txIds = block.transactions.map(_.txId)
+    val partialMerkleTree = PartialMerkleTree(flags.zip(txIds))
+    val txCount = UInt32(block.transactions.size)
+    MerkleBlock(block.blockHeader,txCount,/*matchedTxs,*/flags,partialMerkleTree)
+  }
+
+
+  def apply(blockHeader: BlockHeader, txCount: UInt32, /*matchedTransactions: Seq[(Int,DoubleSha256Digest)],*/
+            flags: Seq[Boolean], partialMerkleTree: PartialMerkleTree): MerkleBlock = {
+
+    MerkleBlockImpl(blockHeader,txCount,/*matchedTransactions,*/flags,partialMerkleTree)
+  }
+
+
+  def apply(blockHeader: BlockHeader, txCount: UInt32, hashes: Seq[DoubleSha256Digest], flags: Seq[Boolean]): MerkleBlock = {
+    val partialMerkleTree = PartialMerkleTree(txCount,hashes,flags)
+    MerkleBlockImpl(blockHeader,txCount,flags,partialMerkleTree)
+  }
+
+  def fromBytes(bytes: Seq[Byte]): MerkleBlock = RawMerkleBlockSerializer.read(bytes)
 }

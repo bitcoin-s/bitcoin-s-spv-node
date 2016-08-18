@@ -2,6 +2,8 @@ package org.bitcoins.spvnode.block
 
 import org.bitcoins.core.consensus.Merkle
 import org.bitcoins.core.crypto.DoubleSha256Digest
+import org.bitcoins.core.number.{UInt32, UInt64}
+import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.protocol.blockchain.Block
 import org.bitcoins.core.util._
 
@@ -27,8 +29,12 @@ import scala.math._
   *
   */
 trait PartialMerkleTree extends BitcoinSLogger {
+
   /** The total number of transactions in this block */
-  def numTransactions: Int
+  def transactionCount: UInt32
+
+  /** The actual scala integer representation for [[transactionCount]] */
+  private def numTransactions: Int = transactionCount.toInt
 
   /** Maximum height of the [[tree]] */
   private def maxHeight = if (numTransactions == 1) 1 else Math.ceil((log(numTransactions) / log(2)))
@@ -93,13 +99,13 @@ trait PartialMerkleTree extends BitcoinSLogger {
 object PartialMerkleTree extends BitcoinSLogger {
 
   private case class PartialMerkleTreeImpl(tree: BinaryTree[DoubleSha256Digest], bits: Seq[Boolean],
-                                           numTransactions: Int, hashes: Seq[DoubleSha256Digest]) extends PartialMerkleTree
+                                           transactionCount: UInt32, hashes: Seq[DoubleSha256Digest]) extends PartialMerkleTree
 
   def apply(txMatches: Seq[(Boolean,DoubleSha256Digest)]): PartialMerkleTree = {
     val txIds = txMatches.map(_._2)
     val merkleTree: Merkle.MerkleTree = Merkle.build(txIds)
     val (tree,bits,hashes) = build(merkleTree,txMatches)
-    PartialMerkleTreeImpl(tree,bits,txIds.size,hashes)
+    PartialMerkleTreeImpl(tree,bits,UInt32(txIds.size),hashes)
   }
 
 
@@ -112,7 +118,7 @@ object PartialMerkleTree extends BitcoinSLogger {
     *         according to the flags inside of bits
     */
   def build(fullMerkleTree: Merkle.MerkleTree, txMatches: Seq[(Boolean,DoubleSha256Digest)]): (BinaryTree[DoubleSha256Digest], Seq[Boolean], Seq[DoubleSha256Digest]) = {
-    val maxHeight = if (txMatches.size == 1) 1 else Math.ceil((log(txMatches.size) / log(2))).toInt
+    val maxHeight = calcMaxHeight(txMatches.size)
     logger.debug("Tx matches: " + txMatches)
     logger.debug("Tx matches size: " + txMatches.size)
     logger.debug("max height: "+ maxHeight)
@@ -172,8 +178,16 @@ object PartialMerkleTree extends BitcoinSLogger {
   }
 
 
-  def apply(numTransaction: Int, hashes: Seq[DoubleSha256Digest], matches: Seq[Boolean]): BinaryTree[DoubleSha256Digest] = {
-    reconstruct(numTransaction,hashes,matches)
+  /**
+    * Function to reconstruct a partial merkle tree
+    * @param transactionCount the number of transactions inside of the partial merkle tree
+    * @param hashes the hashes used to reconstruct the partial merkle tree
+    * @param bits the bits used indicate the structure of the partial merkle tree
+    * @return
+    */
+  def apply(transactionCount: UInt32, hashes: Seq[DoubleSha256Digest], bits: Seq[Boolean]): PartialMerkleTree = {
+    val tree = reconstruct(transactionCount.toInt,hashes,bits)
+    PartialMerkleTreeImpl(tree,bits,transactionCount,hashes)
   }
 
 
@@ -188,7 +202,7 @@ object PartialMerkleTree extends BitcoinSLogger {
     * @return
     */
   def apply(tree: BinaryTree[DoubleSha256Digest], bits: Seq[Boolean], numTransactions: Int, hashes: Seq[DoubleSha256Digest]): PartialMerkleTree = {
-    PartialMerkleTreeImpl(tree,bits,numTransactions, hashes)
+    PartialMerkleTreeImpl(tree,bits, UInt32(numTransactions), hashes)
   }
 
   /** Builds a partial merkle tree the information inside of a [[org.bitcoins.spvnode.messages.MerkleBlockMessage]]
@@ -200,27 +214,39 @@ object PartialMerkleTree extends BitcoinSLogger {
     * @return
     */
   def reconstruct(numTransaction: Int, hashes: Seq[DoubleSha256Digest], matches: Seq[Boolean]): BinaryTree[DoubleSha256Digest] = {
-    //when we are traversing the tree, if the node is at this height in the tree, we have txid node, otherwise a nontxid node
-    val maxHeight = NumberUtil.pow2(numTransaction)
-
+    val maxHeight = calcMaxHeight(numTransaction)
+    //TODO: Optimize to tailrec function
     def loop(remainingHashes: Seq[DoubleSha256Digest], remainingMatches: Seq[Boolean], height: Int) : (BinaryTree[DoubleSha256Digest],Seq[DoubleSha256Digest], Seq[Boolean]) = {
       if (height == maxHeight) {
         //means we have a txid node
-        (Leaf(remainingHashes.head),remainingHashes.tail,matches.tail)
+        (Leaf(remainingHashes.head),
+          remainingHashes.tail,
+          remainingMatches.tail)
       } else {
         //means we have a non txid node
-        if (matches.head) {
+        if (remainingMatches.head) {
           val (leftNode,leftRemainingHashes,leftRemainingBits) = loop(remainingHashes,remainingMatches.tail,height+1)
           val (rightNode,rightRemainingHashes, rightRemainingBits) = loop(leftRemainingHashes,leftRemainingBits,height+1)
-          val node = Node(remainingHashes.head,leftNode,rightNode)
+          val nodeHash = CryptoUtil.doubleSHA256(leftNode.value.get.bytes ++ rightNode.value.get.bytes)
+          val node = Node(nodeHash,leftNode,rightNode)
           (node,rightRemainingHashes,rightRemainingBits)
-        } else (Leaf(remainingHashes.head),remainingHashes.tail,matches.tail)
+        } else (Leaf(remainingHashes.head),remainingHashes.tail,remainingMatches.tail)
       }
     }
+    logger.info("Original hashes: " + hashes)
+    logger.info("Original matches: " + matches)
     val (tree,remainingHashes,remainingMatches) = loop(hashes,matches,0)
-    require(remainingHashes.size == 0,"We should not have any left over hashes after building our partial merkle tree")
-    require(remainingMatches.size == 0, "We should not have any remaining matches after building our partial merkle tree")
+    require(remainingHashes.size == 0,"We should not have any left over hashes after building our partial merkle tree, got: " + remainingHashes )
+    //we must not have any matches remaining, unless the remaining bits were use to pad our byte vector to 8 bits
+    //for instance, we could have had 5 bits to indicate how to build the merkle tree, but we need to pad it with 3 bits
+    //to give us a full byte to serialize and send over the network
+    logger.info("hashes.size + remainingMatches.size: " + (hashes.size + remainingMatches.size))
+    require(((hashes.size + remainingMatches.size) / 8) == 0, "We should not have any remaining matches except for those that pad our byte after building our partial merkle tree, got: " + remainingMatches)
     tree
   }
 
+  /** Calculates the maximum height for a binary tree with the number of transactions specified */
+  private def calcMaxHeight(numTransactions: Int): Int = {
+    if (numTransactions == 1) 1 else Math.ceil((log(numTransactions) / log(2))).toInt
+  }
 }

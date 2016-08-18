@@ -9,6 +9,7 @@ import org.bitcoins.core.protocol.transaction.Transaction
 import org.bitcoins.core.protocol.{CompactSizeUInt, NetworkElement}
 import org.bitcoins.core.serializers.RawBitcoinSerializer
 import org.bitcoins.core.util.BitcoinSUtil
+import org.bitcoins.spvnode.block.MerkleBlock
 import org.bitcoins.spvnode.bloom.BloomFlag
 import org.bitcoins.spvnode.headers.NetworkHeader
 import org.bitcoins.spvnode.messages.control.{Alert, ServiceIdentifier}
@@ -215,7 +216,7 @@ case object MemPoolMessage extends DataPayload {
   */
 trait MerkleBlockMessage extends DataPayload {
 
-  /**
+/*  /**
     * The block header associated with our merkle block message
     * @return
     */
@@ -250,7 +251,10 @@ trait MerkleBlockMessage extends DataPayload {
     * Used to assign the hashes to particular nodes in the merkle tree as described below.
     * @return
     */
-  def flags : Seq[Byte]
+  def flags : Seq[Byte]*/
+
+  /** The actual [[org.bitcoins.spvnode.block.MerkleBlock]] that this message represents */
+  def merkleBlock : MerkleBlock
 
   override def commandName = NetworkPayload.merkleBlockCommandName
 
