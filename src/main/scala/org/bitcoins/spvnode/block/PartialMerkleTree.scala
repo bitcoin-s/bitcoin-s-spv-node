@@ -52,22 +52,19 @@ trait PartialMerkleTree extends BitcoinSLogger {
     logger.debug("Starting bits for extraction: " + bits)
     logger.debug("Starting tree: " + tree)
     def loop(subTree: BinaryTree[DoubleSha256Digest],
-             remainingBits: Seq[Boolean], height: Int, accumMatches: Seq[DoubleSha256Digest]): (Seq[DoubleSha256Digest], Seq[Boolean]) = {
+             remainingBits: Seq[Boolean], height: Int, pos: Int, accumMatches: Seq[DoubleSha256Digest]): (Seq[DoubleSha256Digest], Seq[Boolean]) = {
       if (height == maxHeight) {
         if (remainingBits.head) {
           //means we have a txid node that matched the filter
           subTree match {
             case l : Leaf[DoubleSha256Digest] =>
+              val newAccumMatches = l.v +: accumMatches
               logger.debug("Adding " + l.v + " to matches")
               logger.debug("Remaining bits: " + remainingBits.tail)
-              (l.v +: accumMatches, remainingBits.tail)
-            case n : Node[DoubleSha256Digest] =>
-              //means we have a txid node as the root of the merkle tree
-              val (leftTreeMatches,leftRemainingBits) = loop(n.l,remainingBits.tail,height+1,accumMatches)
-              val (rightTreeMatches,rightRemainingBits) = loop(n.r,leftRemainingBits, height+1, leftTreeMatches)
-              (n.v +: rightTreeMatches,rightRemainingBits)
-            case Empty => throw new IllegalArgumentException("We cannot have a " +
-              "Node or Empty node when we supposedly have a txid node -- txid nodes should always be leaves, got: " + Empty)
+              logger.debug("Accum matches: " + newAccumMatches)
+              (newAccumMatches, remainingBits.tail)
+            case  x @ ( _ : Node[DoubleSha256Digest] | Empty) => throw new IllegalArgumentException("We cannot have a " +
+              "Node or Empty node when we supposedly have a txid node -- txid nodes should always be leaves, got: " + x)
           }
         } else {
           //means we have a txid node, but it did not match the filter
@@ -80,9 +77,17 @@ trait PartialMerkleTree extends BitcoinSLogger {
           subTree match {
             case n: Node[DoubleSha256Digest] =>
               //since we are just trying to extract bloom filter matches, recurse into the two subtrees
-              val (leftTreeMatches,leftRemainingBits) = loop(n.l,remainingBits.tail,height+1,accumMatches)
-              val (rightTreeMatches,rightRemainingBits) = loop(n.r,leftRemainingBits, height+1, leftTreeMatches)
-              (rightTreeMatches,rightRemainingBits)
+              val (leftTreeMatches,leftRemainingBits) = loop(n.l,remainingBits.tail,height+1,(2 * pos), accumMatches)
+/*              val (rightTreeMatches,rightRemainingBits) = loop(n.r,leftRemainingBits, height+1, leftTreeMatches)
+              (rightTreeMatches,rightRemainingBits)*/
+              //
+              val (rightTreeMatches, rightRemainingBits) =
+                if ((pos * 2) + 1 < PartialMerkleTree.calcTreeWidth(numTransactions, maxHeight - height - 1)) {
+                  val (rightTreematches, rightRemainingBits) =
+                    loop(n.r,leftRemainingBits,height+1, (2 * pos) + 1,leftTreeMatches)
+                  (rightTreematches, rightRemainingBits)
+                } else (leftTreeMatches, leftRemainingBits)
+              (rightTreeMatches, rightRemainingBits)
             case l : Leaf[DoubleSha256Digest] =>
               (accumMatches, remainingBits.tail)
             case Empty => throw new IllegalArgumentException("We cannot have an empty node when we supposedly have a match underneath this node since it has no children")
@@ -92,7 +97,7 @@ trait PartialMerkleTree extends BitcoinSLogger {
         }
       }
     }
-    val (matches,remainingBits) = loop(tree,bits,0,Nil)
+    val (matches,remainingBits) = loop(tree,bits,0,0,Nil)
     require(remainingBits.isEmpty,"We cannot have any left over bits after traversing the tree, got: " + remainingBits)
     matches.reverse
   }
@@ -234,7 +239,7 @@ object PartialMerkleTree extends BitcoinSLogger {
   def reconstruct(numTransaction: Int, hashes: Seq[DoubleSha256Digest], matches: Seq[Boolean]): BinaryTree[DoubleSha256Digest] = {
     val maxHeight = calcMaxHeight(numTransaction)
     //TODO: Optimize to tailrec function
-    def loop(remainingHashes: Seq[DoubleSha256Digest], remainingMatches: Seq[Boolean], height: Int) : (BinaryTree[DoubleSha256Digest],Seq[DoubleSha256Digest], Seq[Boolean]) = {
+    def loop(remainingHashes: Seq[DoubleSha256Digest], remainingMatches: Seq[Boolean],  height: Int, pos: Int) : (BinaryTree[DoubleSha256Digest],Seq[DoubleSha256Digest], Seq[Boolean]) = {
       logger.debug("Remaining hashes: " + remainingHashes)
       logger.debug("Remaining matches: " + remainingMatches)
       logger.debug("Height: " + height)
@@ -246,9 +251,15 @@ object PartialMerkleTree extends BitcoinSLogger {
       } else {
         //means we have a non txid node
         if (remainingMatches.head) {
-          val (leftNode,leftRemainingHashes,leftRemainingBits) = loop(remainingHashes,remainingMatches.tail,height+1)
-          val (rightNode,rightRemainingHashes, rightRemainingBits) = loop(leftRemainingHashes,leftRemainingBits,height+1)
-          require(leftNode.value.get != rightNode.value.get, "Cannot have the same hashes in two child nodes, got: " + leftNode + " and " + rightNode)
+          val (leftNode,leftRemainingHashes,leftRemainingBits) = loop(remainingHashes,remainingMatches.tail,height+1, 2 * pos)
+          logger.debug("Right node pos: " + ((pos * 2) + 1) + " Tree width: " + calcTreeWidth(numTransaction, height+1) + " height: " + height)
+          val (rightNode,rightRemainingHashes, rightRemainingBits) =
+            if ((pos * 2) + 1 < calcTreeWidth(numTransaction, maxHeight - height - 1)) {
+              val (rightNode,rightRemainingHashes, rightRemainingBits) =
+                loop(leftRemainingHashes,leftRemainingBits,height+1, (2 * pos) + 1)
+              require(leftNode.value.get != rightNode.value.get, "Cannot have the same hashes in two child nodes, got: " + leftNode + " and " + rightNode)
+              (rightNode,rightRemainingHashes, rightRemainingBits)
+          } else (leftNode, leftRemainingHashes, leftRemainingBits)
           val nodeHash = CryptoUtil.doubleSHA256(leftNode.value.get.bytes ++ rightNode.value.get.bytes)
           val node = Node(nodeHash,leftNode,rightNode)
           (node,rightRemainingHashes,rightRemainingBits)
@@ -258,7 +269,7 @@ object PartialMerkleTree extends BitcoinSLogger {
     logger.info("Max height: " + maxHeight)
     logger.info("Original hashes: " + hashes)
     logger.info("Original matches: " + matches)
-    val (tree,remainingHashes,remainingMatches) = loop(hashes,matches,0)
+    val (tree,remainingHashes,remainingMatches) = loop(hashes,matches,0,0)
     require(remainingHashes.size == 0,"We should not have any left over hashes after building our partial merkle tree, got: " + remainingHashes )
     //we must not have any matches remaining, unless the remaining bits were use to pad our byte vector to 8 bits
     //for instance, we could have had 5 bits to indicate how to build the merkle tree, but we need to pad it with 3 bits

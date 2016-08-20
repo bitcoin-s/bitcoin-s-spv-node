@@ -48,13 +48,24 @@ class PartialMerkleTreeTests extends FlatSpec with MustMatchers {
      val hash1 = DoubleSha256Digest(BitcoinSUtil.flipEndianess("74d681e0e03bafa802c8aa084379aa98d9fcd632ddc2ed9782b586ec87451f20"))
      val hash2 = DoubleSha256Digest(BitcoinSUtil.flipEndianess("dd1fd2a6fc16404faf339881a90adbde7f4f728691ac62e8f168809cdfae1053"))
 
-     val filter = BloomFilter(10,0.000001, UInt32.zero, BloomUpdateAll).insert(hash1).insert(hash2)
+    //5ef2374cf1cd1c0b8c1b795950c077fc571cca44866c375a1ed17ace665cfaaa
+    //d403489f6b1a2f7de72c6e4573e1cc7ac15745518e42a0bf884f58dc48f45533
+    //8719e60a59869e70a7a7a5d4ff6ceb979cd5abe60721d4402aaf365719ebd221
+    //5310aedf9c8068f1e862ac9186724f7fdedb0aa9819833af4f4016fca6d21fdd
+    //201f4587ec86b58297edc2dd32d6fcd998aa794308aac802a8af3be0e081d674
+
+    val filter = BloomFilter(10,0.000001, UInt32.zero, BloomUpdateAll).insert(hash1).insert(hash2)
      val merkleBlock = MerkleBlock(block,filter)
      val partialMerkleTree = merkleBlock.partialMerkleTree
-                                            //List(true,true,false, true,false,true,false,true)
      partialMerkleTree.bits.slice(0,8) must be (Seq(true,true,false,true,false,true,false,true))
-                                                                      //     true, true, true, true
     partialMerkleTree.bits.slice(8,partialMerkleTree.bits.size) must be (Seq(true,true,true,true))
+    partialMerkleTree.hashes must be (Seq(
+      DoubleSha256Digest("5ef2374cf1cd1c0b8c1b795950c077fc571cca44866c375a1ed17ace665cfaaa"),
+      DoubleSha256Digest("d403489f6b1a2f7de72c6e4573e1cc7ac15745518e42a0bf884f58dc48f45533"),
+      DoubleSha256Digest("8719e60a59869e70a7a7a5d4ff6ceb979cd5abe60721d4402aaf365719ebd221"),
+      DoubleSha256Digest("5310aedf9c8068f1e862ac9186724f7fdedb0aa9819833af4f4016fca6d21fdd"),
+      DoubleSha256Digest("201f4587ec86b58297edc2dd32d6fcd998aa794308aac802a8af3be0e081d674")
+    ))
 
 
     partialMerkleTree.extractMatches must be (Seq(hash2,hash1))
