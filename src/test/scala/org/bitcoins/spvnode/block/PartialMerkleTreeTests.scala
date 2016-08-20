@@ -135,11 +135,11 @@ class PartialMerkleTreeTests extends FlatSpec with MustMatchers {
     PartialMerkleTree.matchesTx(maxHeight,1,1,matchedTxs) must be (false)
   }
 
-  /*it must "build a partial merkle tree with no matches and 1 transaction in the original block" in {
+  it must "build a partial merkle tree with no matches and 1 transaction in the original block" in {
     val txMatches = Seq((false, DoubleSha256Digest("01272b2b1c8c33a1b4e9ab111db41c9ac275e686fbd9c5d482e586d03e9e0552")))
     val partialMerkleTree = PartialMerkleTree(txMatches)
     partialMerkleTree.bits must be (Seq(false))
-    partialMerkleTree.tree must be (Leaf(DoubleSha256Digest("471f394f0f33a68927195ba0f2fa12023d41c54c4796012612baeaeb67351c57")))
+    partialMerkleTree.tree must be (Leaf(DoubleSha256Digest("01272b2b1c8c33a1b4e9ab111db41c9ac275e686fbd9c5d482e586d03e9e0552")))
     partialMerkleTree.transactionCount must be (UInt32(1))
     partialMerkleTree.extractMatches.isEmpty must be (true)
   }
@@ -158,10 +158,8 @@ class PartialMerkleTreeTests extends FlatSpec with MustMatchers {
   it must "calculate bits correctly for a tree of height 1" in {
     val matches = List((true,DoubleSha256Digest("caa02f1194fb44dea407a7cf713ddcf30e69f49c297f9275f9236fec42d945b2")))
     val partialMerkleTree = PartialMerkleTree(matches)
-    partialMerkleTree.tree must be (Node(DoubleSha256Digest("564e8aec092adcad788321ae78d0f949c5f517909e75f1498f7efabfbc836669"),
-      Leaf(DoubleSha256Digest("caa02f1194fb44dea407a7cf713ddcf30e69f49c297f9275f9236fec42d945b2")),
-      Leaf(DoubleSha256Digest("caa02f1194fb44dea407a7cf713ddcf30e69f49c297f9275f9236fec42d945b2"))))
-    partialMerkleTree.bits must be (Seq(true,false,false))
-  }*/
+    partialMerkleTree.tree must be (Leaf(DoubleSha256Digest("caa02f1194fb44dea407a7cf713ddcf30e69f49c297f9275f9236fec42d945b2")))
+    partialMerkleTree.bits must be (Seq(true))
+  }
 
 }
