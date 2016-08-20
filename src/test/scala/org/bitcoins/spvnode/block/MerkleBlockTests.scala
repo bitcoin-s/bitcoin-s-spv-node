@@ -126,8 +126,7 @@ class MerkleBlockTests extends FlatSpec with MustMatchers {
 
   it must "serialize a merkle block that has a matched transaction inside of it" in {
     //mimics this test case from bitcoin core
-    //https://github.com/bitcoin/bitcoin/blob/f17032f703288d43a76cffe8fa89b87ade9e3074/src/test/bloom_tests.cpp#L185
-
+    //https://github.com/bitcoin/bitcoin/blob/f17032f703288d43a76cffe8fa89b87ade9e3074/src/test/bloom_tests.cpp#L338
     val block = Block("0100000079cda856b143d9db2c1caff01d1aecc8630d30625d10e8b4b8b0000000000000b50cc069d6a3e33e3ff84a5c41d9d3febe7c770fdcc96b2c3ff60abe184f196367291b4d4c86041b8fa45d630101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff08044c86041b020a02ffffffff0100f2052a01000000434104ecd3229b0571c3be876feaac0442a9f13c5a572742927af1dc623353ecf8c202225f64868137a18cdd85cbbb4c74fbccfd4f49639cf1bdc94a5672bb15ad5d4cac00000000")
     //only tx in the block
     val hash = DoubleSha256Digest(BitcoinSUtil.flipEndianess("63194f18be0af63f2c6bc9dc0f777cbefed3d9415c4af83f3ee3a3d669c00cb5"))
@@ -135,9 +134,15 @@ class MerkleBlockTests extends FlatSpec with MustMatchers {
     val merkleBlock = MerkleBlock(block,filter)
     merkleBlock.partialMerkleTree.extractMatches must be (Seq(hash))
 
-    val expectedMerkleBlock = "0100000079cda856b143d9db2c1caff01d1aecc8630d30625d10e8b4b8b0000000000000b50cc069d6a3e33e3ff84a5c41d9d3febe7c770fdcc96b2c3ff60abe184f196367291b4d4c86041b8fa45d630100000001b50cc069d6a3e33e3ff84a5c41d9d3febe7c770fdcc96b2c3ff60abe184f19630101"
-
-    merkleBlock.hex must be (expectedMerkleBlock)
+    val expectedMerkleBlockHex = "0100000079cda856b143d9db2c1caff01d1aecc8630d30625d10e8b4b8b0000000000000b50cc069d6a3e33e3ff84a5c41d9d3febe7c770fdcc96b2c3ff60abe184f196367291b4d4c86041b8fa45d630100000001b50cc069d6a3e33e3ff84a5c41d9d3febe7c770fdcc96b2c3ff60abe184f19630101"
+    val expectedMerkleBlock = MerkleBlock(expectedMerkleBlockHex)
+    merkleBlock.blockHeader must be (expectedMerkleBlock.blockHeader)
+    merkleBlock.transactionCount must be (expectedMerkleBlock.transactionCount)
+    merkleBlock.hashCount must be (expectedMerkleBlock.hashCount)
+    merkleBlock.hashes must be (expectedMerkleBlock.hashes)
+    merkleBlock.flagCount must be (expectedMerkleBlock.flagCount)
+    merkleBlock.flags must be (expectedMerkleBlock.flags)
+    merkleBlock.hex must be (expectedMerkleBlockHex)
 
   }
 

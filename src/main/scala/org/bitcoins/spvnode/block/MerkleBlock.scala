@@ -84,7 +84,7 @@ object MerkleBlock extends Factory[MerkleBlock] {
     val txIds = block.transactions.map(_.txId)
     val partialMerkleTree = PartialMerkleTree(flags.zip(txIds))
     val txCount = UInt32(block.transactions.size)
-    MerkleBlock(block.blockHeader, txCount, /*matchedTxs,*/ flags, partialMerkleTree)
+    MerkleBlock(block.blockHeader, txCount, flags, partialMerkleTree)
   }
 
 
@@ -110,17 +110,16 @@ object MerkleBlock extends Factory[MerkleBlock] {
     }
 
     val (matchedTxs, flags) = loop(block.transactions,Nil,Nil)
-    //val txIds = block.transactions.map(_.txId)
     val partialMerkleTree = PartialMerkleTree(flags.zip(txIds))
     val txCount = UInt32(block.transactions.size)
     MerkleBlock(block.blockHeader,txCount,/*matchedTxs,*/flags,partialMerkleTree)
   }
 
 
-  def apply(blockHeader: BlockHeader, txCount: UInt32, /*matchedTransactions: Seq[(Int,DoubleSha256Digest)],*/
+  def apply(blockHeader: BlockHeader, txCount: UInt32,
             flags: Seq[Boolean], partialMerkleTree: PartialMerkleTree): MerkleBlock = {
 
-    MerkleBlockImpl(blockHeader,txCount,/*matchedTransactions,*/flags,partialMerkleTree)
+    MerkleBlockImpl(blockHeader,txCount,flags,partialMerkleTree)
   }
 
 

@@ -59,7 +59,6 @@ trait RawMerkleBlockSerializer extends RawBitcoinSerializer[MerkleBlock] {
       if (remainingHashes <= 0) (accum.reverse,remainingBytes)
       else loop(remainingHashes-1, remainingBytes.slice(32,remainingBytes.size), DoubleSha256Digest(remainingBytes.take(32)) :: accum)
     }
-
     loop(hashCount.num.toInt, bytes, List())
   }
 
@@ -71,7 +70,9 @@ trait RawMerkleBlockSerializer extends RawBitcoinSerializer[MerkleBlock] {
       case Nil => accum.reverse
       case h :: t => accum.headOption match {
         case None => loop(remainingBits, Nil +: accum)
-        case Some(bits) if bits.size == 8 => loop(remainingBits, Nil +: bits.reverse +: accum.tail)
+        case Some(bits) if bits.size == 8 =>
+          //if we have 8 bits in this sequence we need to create a new byte and prepend it to the accum
+          loop(remainingBits, Nil +: bits.reverse +: accum.tail)
         case Some(bits) =>
           val newBits = h +: bits
           loop(t, newBits +: accum.tail)
