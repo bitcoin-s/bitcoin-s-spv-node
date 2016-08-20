@@ -72,7 +72,7 @@ class PartialMerkleTreeTests extends FlatSpec with MustMatchers {
 
   }
 
-/*  it must "detect if a node at a given height and position matches a tx that the bloom filter matched" in {
+  it must "detect if a node at a given height and position matches a tx that the bloom filter matched" in {
    //these values are related to this test case for merkle block inside of core
    //https://github.com/bitcoin/bitcoin/blob/f17032f703288d43a76cffe8fa89b87ade9e3074/src/test/bloom_tests.cpp#L185
    val maxHeight = 4
@@ -135,7 +135,7 @@ class PartialMerkleTreeTests extends FlatSpec with MustMatchers {
     PartialMerkleTree.matchesTx(maxHeight,1,1,matchedTxs) must be (false)
   }
 
-  it must "build a partial merkle tree with no matches and 1 transaction in the original block" in {
+  /*it must "build a partial merkle tree with no matches and 1 transaction in the original block" in {
     val txMatches = Seq((false, DoubleSha256Digest("01272b2b1c8c33a1b4e9ab111db41c9ac275e686fbd9c5d482e586d03e9e0552")))
     val partialMerkleTree = PartialMerkleTree(txMatches)
     partialMerkleTree.bits must be (Seq(false))

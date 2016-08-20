@@ -144,7 +144,7 @@ object PartialMerkleTree extends BitcoinSLogger {
       *         according to the flags inside of bits
       */
     def loop(bits: Seq[Boolean], hashes: Seq[DoubleSha256Digest], height: Int, pos: Int): (Seq[Boolean], Seq[DoubleSha256Digest]) = {
-      val parentOfMatch = matchesTx(maxHeight,height, pos, txMatches)
+      val parentOfMatch = matchesTx(maxHeight,maxHeight - height, pos, txMatches)
       logger.debug("parent of match: " + parentOfMatch)
       val newBits = parentOfMatch +: bits
       if (height == 0 || !parentOfMatch) {
@@ -172,15 +172,17 @@ object PartialMerkleTree extends BitcoinSLogger {
   def matchesTx(maxHeight: Int, height: Int, pos: Int, matchedTx: Seq[(Boolean,DoubleSha256Digest)]): Boolean = {
     //mimics this functionality inside of bitcoin core
     //https://github.com/bitcoin/bitcoin/blob/master/src/merkleblock.cpp#L83-L84
+    //the
+    val inverseHeight = maxHeight - height
     @tailrec
     def loop(p: Int): Boolean = {
-      if ((p < ((pos + 1) << height)) && p < matchedTx.size) {
+      if ((p < ((pos + 1) << inverseHeight)) && p < matchedTx.size) {
         if (matchedTx(p)._1) return true
         else loop(p + 1)
       } else false
     }
-    val startingP = pos << height
-    logger.debug("Height: " + height + " pos: " + pos + " startingP: " + startingP)
+    val startingP = pos << inverseHeight
+    logger.debug("Height: " + inverseHeight + " pos: " + pos + " startingP: " + startingP)
     loop(startingP)
   }
 
