@@ -6,6 +6,7 @@ import org.bitcoins.core.number.UInt32
 import org.bitcoins.core.protocol.blockchain.Block
 import org.bitcoins.core.protocol.transaction.{Transaction, TransactionOutPoint}
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil, CryptoUtil}
+import org.bitcoins.spvnode.block.MerkleBlock
 import org.scalatest.{FlatSpec, MustMatchers}
 
 /**
