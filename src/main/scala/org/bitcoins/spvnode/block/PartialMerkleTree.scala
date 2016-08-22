@@ -172,7 +172,6 @@ object PartialMerkleTree extends BitcoinSLogger {
   def matchesTx(maxHeight: Int, height: Int, pos: Int, matchedTx: Seq[(Boolean,DoubleSha256Digest)]): Boolean = {
     //mimics this functionality inside of bitcoin core
     //https://github.com/bitcoin/bitcoin/blob/master/src/merkleblock.cpp#L83-L84
-    //the
     val inverseHeight = maxHeight - height
     @tailrec
     def loop(p: Int): Boolean = {
