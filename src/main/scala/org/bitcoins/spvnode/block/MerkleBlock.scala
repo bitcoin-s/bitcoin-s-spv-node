@@ -20,9 +20,6 @@ trait MerkleBlock extends NetworkElement with BitcoinSLogger {
 
   def transactionCount: UInt32
 
-  /** Transactions inside of the block that matched our bloom filter and the index they are inside of the block */
-  //def matchedTransactions: Seq[(Int,DoubleSha256Digest)]
-
   /** The amount of hashes inside of the merkle block */
   def hashCount: CompactSizeUInt = CompactSizeUInt(UInt64(hashes.size))
 

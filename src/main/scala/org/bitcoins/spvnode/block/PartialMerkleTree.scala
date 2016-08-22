@@ -46,6 +46,9 @@ trait PartialMerkleTree extends BitcoinSLogger {
   /** A sequence representing if this node is the parent of another node that matched a txid */
   def bits: Seq[Boolean]
 
+  /** The hashes used to create the binary tree */
+  def hashes: Seq[DoubleSha256Digest]
+
   /** Extracts the txids that were matched inside of the bloom filter used to create this partial merkle tree */
   def extractMatches: Seq[DoubleSha256Digest] = {
     //TODO: This is some really ugly that isn't tail recursive, try to clean this up eventually
@@ -97,9 +100,6 @@ trait PartialMerkleTree extends BitcoinSLogger {
       (accumMatches,remainingBits.tail)
     }
   }
-
-  /** The hashes used to create the binary tree */
-  def hashes: Seq[DoubleSha256Digest]
 }
 
 
@@ -233,7 +233,7 @@ object PartialMerkleTree extends BitcoinSLogger {
     * @param matches
     * @return
     */
-  def reconstruct(numTransaction: Int, hashes: Seq[DoubleSha256Digest], matches: Seq[Boolean]): BinaryTree[DoubleSha256Digest] = {
+  def reconstruct(numTransaction: Int, hashes: Seq[DoubleSha256Digest], bits: Seq[Boolean]): BinaryTree[DoubleSha256Digest] = {
     val maxHeight = calcMaxHeight(numTransaction)
     //TODO: Optimize to tailrec function
     def loop(remainingHashes: Seq[DoubleSha256Digest], remainingMatches: Seq[Boolean],  height: Int, pos: Int) : (BinaryTree[DoubleSha256Digest],Seq[DoubleSha256Digest], Seq[Boolean]) = {
@@ -265,14 +265,15 @@ object PartialMerkleTree extends BitcoinSLogger {
     }
     logger.info("Max height: " + maxHeight)
     logger.info("Original hashes: " + hashes)
-    logger.info("Original matches: " + matches)
-    val (tree,remainingHashes,remainingMatches) = loop(hashes,matches,0,0)
+    logger.info("Original bits: " + bits)
+    val (tree,remainingHashes,remainingBits) = loop(hashes,bits,0,0)
     require(remainingHashes.size == 0,"We should not have any left over hashes after building our partial merkle tree, got: " + remainingHashes )
     //we must not have any matches remaining, unless the remaining bits were use to pad our byte vector to 8 bits
     //for instance, we could have had 5 bits to indicate how to build the merkle tree, but we need to pad it with 3 bits
     //to give us a full byte to serialize and send over the network
-    logger.info("hashes.size + remainingMatches.size: " + (hashes.size + remainingMatches.size))
-    //require(((hashes.size + remainingMatches.size) / 8) == 0, "We should not have any remaining matches except for those that pad our byte after building our partial merkle tree, got: " + remainingMatches)
+    //https://github.com/bitcoin/bitcoin/blob/master/src/merkleblock.cpp#L177
+    val bitsUsed = bits.size - remainingBits.size
+    require(((bitsUsed+7) / 8) ==((bits.size + 7) / 8), "We should not have any remaining matches except for those that pad our byte after building our partial merkle tree, got: " + remainingBits)
     tree
   }
 
