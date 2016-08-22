@@ -34,7 +34,7 @@ class RawMerkleBlockMessageSerializerTest extends FlatSpec with MustMatchers {
       DoubleSha256Digest(BitcoinSUtil.decodeHex("41ed70551dd7e841883ab8f0b16bf04176b7d1480e4f0af9f3d4c3595768d068")),
       DoubleSha256Digest(BitcoinSUtil.decodeHex("20d2a7bc994987302e5b1ac80fc425fe25f8b63169ea78e68fbaaefa59379bbf"))
     ))
-    
+
     merkleBlockMessage.merkleBlock.partialMerkleTree.bits must be (Seq(true, false, true, true, true, false, false, false))
   }
 

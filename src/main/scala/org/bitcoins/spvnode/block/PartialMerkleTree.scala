@@ -79,7 +79,9 @@ trait PartialMerkleTree extends BitcoinSLogger {
       }
     }
     val (matches,remainingBits) = loop(tree,bits,0,0,Nil)
-    require(remainingBits.isEmpty,"We cannot have any left over bits after traversing the tree, got: " + remainingBits)
+    require(PartialMerkleTree.usedAllBits(bits,remainingBits), "We should not have any remaining matches " +
+      "except for those that pad our byte after building our partial merkle tree, got: " + remainingBits)
+
     matches.reverse
   }
 
@@ -159,7 +161,10 @@ object PartialMerkleTree extends BitcoinSLogger {
       }
     }
     val (bits,hashes) = loop(Nil, Nil, maxHeight,0)
-    (bits.reverse,hashes.reverse)
+    //pad the bit array to the nearest byte
+    val bitsNeeded = if ((bits.size % 8) == 0) 0 else 8 - (bits.size % 8)
+    val paddingBits = for { _ <- 0 until bitsNeeded} yield false
+    (bits.reverse ++ paddingBits,hashes.reverse)
   }
 
 
@@ -272,8 +277,7 @@ object PartialMerkleTree extends BitcoinSLogger {
     //for instance, we could have had 5 bits to indicate how to build the merkle tree, but we need to pad it with 3 bits
     //to give us a full byte to serialize and send over the network
     //https://github.com/bitcoin/bitcoin/blob/master/src/merkleblock.cpp#L177
-    val bitsUsed = bits.size - remainingBits.size
-    require(((bitsUsed+7) / 8) ==((bits.size + 7) / 8), "We should not have any remaining matches except for those that pad our byte after building our partial merkle tree, got: " + remainingBits)
+    require(usedAllBits(bits,remainingBits), "We should not have any remaining matches except for those that pad our byte after building our partial merkle tree, got: " + remainingBits)
     tree
   }
 
@@ -292,5 +296,13 @@ object PartialMerkleTree extends BitcoinSLogger {
   /** Determines if the right sub tree can exist inside of the partial merkle tree */
   private def existsRightSubTree(pos: Int, numTransaction: Int, height: Int): Boolean = {
     (pos * 2) + 1 < calcTreeWidth(numTransaction, height - 1)
+  }
+
+
+  /** Enforces the invariant inside of bitcoin core saying we must use all bits in a byte array when reconstructin a partial merkle tree */
+  def usedAllBits(bits: Seq[Boolean], remainingBits: Seq[Boolean]): Boolean = {
+    //https://github.com/bitcoin/bitcoin/blob/master/src/merkleblock.cpp#L177
+    val bitsUsed = bits.size - remainingBits.size
+    ((bitsUsed+7) / 8) ==((bits.size + 7) / 8)
   }
 }

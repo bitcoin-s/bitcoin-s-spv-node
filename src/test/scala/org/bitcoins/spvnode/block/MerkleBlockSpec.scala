@@ -18,7 +18,7 @@ class MerkleBlockSpec extends Properties("MerkleBlockSpec") with BitcoinSLogger 
   property("Serialization symmetry") =
     Prop.forAll(MerkleGenerator.merkleBlockWithInsertedTxIds) {
       case (merkleBlock: MerkleBlock, _) =>
-        logger.debug(" Merkle block hex: " + merkleBlock.hex)
+        logger.debug("Merkle block hex: " + merkleBlock.hex)
         MerkleBlock(merkleBlock.hex) == merkleBlock
     }
 }
