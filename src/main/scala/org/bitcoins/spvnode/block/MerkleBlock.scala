@@ -5,7 +5,7 @@ import org.bitcoins.core.number.{UInt32, UInt64}
 import org.bitcoins.core.protocol.{CompactSizeUInt, NetworkElement}
 import org.bitcoins.core.protocol.blockchain.{Block, BlockHeader}
 import org.bitcoins.core.protocol.transaction.Transaction
-import org.bitcoins.core.util.Factory
+import org.bitcoins.core.util.{BitcoinSLogger, Factory}
 import org.bitcoins.spvnode.bloom.BloomFilter
 import org.bitcoins.spvnode.serializers.block.RawMerkleBlockSerializer
 
@@ -14,7 +14,7 @@ import scala.annotation.tailrec
 /**
   * Created by chris on 8/7/16.
   */
-trait MerkleBlock extends NetworkElement {
+trait MerkleBlock extends NetworkElement with BitcoinSLogger {
 
   def blockHeader: BlockHeader
 
@@ -30,7 +30,8 @@ trait MerkleBlock extends NetworkElement {
   def hashes: Seq[DoubleSha256Digest] = partialMerkleTree.hashes
 
   /** The size of the flags field in bytes */
-  def flagCount: CompactSizeUInt = CompactSizeUInt(UInt64(Math.ceil(flags.size / 8).toInt))
+  def flagCount: CompactSizeUInt = CompactSizeUInt(UInt64(Math.ceil(flags.size.toDouble / 8).toInt))
+
 
   /** A sequence of bits packed eight in a byte with the least significant bit first.
     * May be padded to the nearest byte boundary but must not contain any more bits than that.
@@ -84,7 +85,7 @@ object MerkleBlock extends Factory[MerkleBlock] {
     val txIds = block.transactions.map(_.txId)
     val partialMerkleTree = PartialMerkleTree(flags.zip(txIds))
     val txCount = UInt32(block.transactions.size)
-    MerkleBlock(block.blockHeader, txCount, flags, partialMerkleTree)
+    MerkleBlock(block.blockHeader, txCount, partialMerkleTree.bits, partialMerkleTree)
   }
 
 
