@@ -34,15 +34,17 @@ trait RawMerkleBlockSerializer extends RawBitcoinSerializer[MerkleBlock] {
   }
 
   def write(merkleBlock: MerkleBlock): String = {
-    val bitVectors = parseToBytes(merkleBlock.flags)
+    val partialMerkleTree = merkleBlock.partialMerkleTree
+    val bitVectors = parseToBytes(partialMerkleTree.bits)
     val byteVectors = BitcoinSUtil.bitVectorsToBytes(bitVectors)
-    logger.debug("Original flags: " + merkleBlock.flags)
+    val flagCount = CompactSizeUInt(UInt64(Math.ceil(partialMerkleTree.bits.size.toDouble / 8).toInt))
+    logger.debug("Original bits: " + partialMerkleTree.bits)
     logger.debug("Bit vectors: " + bitVectors)
     logger.debug("bitVectorsToBytes: " + BitcoinSUtil.encodeHex(byteVectors))
     merkleBlock.blockHeader.hex +
       BitcoinSUtil.flipEndianess(merkleBlock.transactionCount.hex) +
       CompactSizeUInt(UInt64(merkleBlock.hashes.size)).hex + merkleBlock.hashes.map(_.hex).mkString +
-      merkleBlock.flagCount.hex + BitcoinSUtil.encodeHex(byteVectors)
+      flagCount.hex + BitcoinSUtil.encodeHex(byteVectors)
   }
 
 

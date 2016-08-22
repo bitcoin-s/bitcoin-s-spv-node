@@ -26,14 +26,14 @@ trait MerkleBlock extends NetworkElement with BitcoinSLogger {
   /** One or more hashes of both transactions and merkle nodes used to build the partial merkle tree */
   def hashes: Seq[DoubleSha256Digest] = partialMerkleTree.hashes
 
-  /** The size of the flags field in bytes */
+/*  /** The size of the flags field in bytes */
   def flagCount: CompactSizeUInt = CompactSizeUInt(UInt64(Math.ceil(flags.size.toDouble / 8).toInt))
 
   /** A sequence of bits packed eight in a byte with the least significant bit first.
     * May be padded to the nearest byte boundary but must not contain any more bits than that.
     * Used to assign the hashes to particular nodes in the merkle tree.
     */
-  def flags: Seq[Boolean]
+  def flags: Seq[Boolean]*/
 
   /** The [[PartialMerkleTree]] for this merkle block */
   def partialMerkleTree: PartialMerkleTree
@@ -48,7 +48,6 @@ trait MerkleBlock extends NetworkElement with BitcoinSLogger {
 object MerkleBlock extends Factory[MerkleBlock] {
 
   private case class MerkleBlockImpl(blockHeader: BlockHeader, transactionCount: UInt32,
-                                     //matchedTransactions: Seq[(Int,DoubleSha256Digest)],
                                      flags: Seq[Boolean],
                                      partialMerkleTree: PartialMerkleTree, filter: Option[BloomFilter]) extends MerkleBlock
   /**

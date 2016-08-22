@@ -141,7 +141,6 @@ class MerkleBlockTests extends FlatSpec with MustMatchers {
     merkleBlock.transactionCount must be (expectedMerkleBlock.transactionCount)
     merkleBlock.hashCount must be (expectedMerkleBlock.hashCount)
     merkleBlock.hashes must be (expectedMerkleBlock.hashes)
-    merkleBlock.flagCount must be (expectedMerkleBlock.flagCount)
     merkleBlock.hex must be (expectedMerkleBlockHex)
   }
 

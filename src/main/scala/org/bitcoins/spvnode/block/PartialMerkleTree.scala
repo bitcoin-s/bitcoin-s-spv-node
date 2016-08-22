@@ -105,15 +105,15 @@ trait PartialMerkleTree extends BitcoinSLogger {
 
 object PartialMerkleTree extends BitcoinSLogger {
 
-  private case class PartialMerkleTreeImpl(tree: BinaryTree[DoubleSha256Digest], bits: Seq[Boolean],
-                                           transactionCount: UInt32, hashes: Seq[DoubleSha256Digest]) extends PartialMerkleTree
+  private case class PartialMerkleTreeImpl(tree: BinaryTree[DoubleSha256Digest], transactionCount: UInt32,
+                                           bits: Seq[Boolean], hashes: Seq[DoubleSha256Digest]) extends PartialMerkleTree
 
   def apply(txMatches: Seq[(Boolean,DoubleSha256Digest)]): PartialMerkleTree = {
     val txIds = txMatches.map(_._2)
     val merkleTree: Merkle.MerkleTree = Merkle.build(txIds)
     val (bits,hashes) = build(merkleTree,txMatches)
     val tree = reconstruct(txIds.size,hashes,bits)
-    PartialMerkleTreeImpl(tree,bits,UInt32(txIds.size),hashes)
+    PartialMerkleTreeImpl(tree,UInt32(txIds.size),bits,hashes)
   }
 
 
@@ -207,7 +207,7 @@ object PartialMerkleTree extends BitcoinSLogger {
     */
   def apply(transactionCount: UInt32, hashes: Seq[DoubleSha256Digest], bits: Seq[Boolean]): PartialMerkleTree = {
     val tree = reconstruct(transactionCount.toInt,hashes,bits)
-    PartialMerkleTreeImpl(tree,bits,transactionCount,hashes)
+    PartialMerkleTreeImpl(tree,transactionCount, bits,hashes)
   }
 
 
@@ -221,8 +221,8 @@ object PartialMerkleTree extends BitcoinSLogger {
     * @param hashes the hashes used to reconstruct the binary tree according to [[bits]]
     * @return
     */
-  def apply(tree: BinaryTree[DoubleSha256Digest], bits: Seq[Boolean], numTransactions: Int, hashes: Seq[DoubleSha256Digest]): PartialMerkleTree = {
-    PartialMerkleTreeImpl(tree,bits, UInt32(numTransactions), hashes)
+  def apply(tree: BinaryTree[DoubleSha256Digest], numTransactions: Int, bits: Seq[Boolean],  hashes: Seq[DoubleSha256Digest]): PartialMerkleTree = {
+    PartialMerkleTreeImpl(tree,UInt32(numTransactions), bits, hashes)
   }
 
   /** Builds a partial merkle tree the information inside of a [[org.bitcoins.spvnode.messages.MerkleBlockMessage]]
