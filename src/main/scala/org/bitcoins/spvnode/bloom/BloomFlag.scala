@@ -25,8 +25,8 @@ case object BloomUpdateAll extends BloomFlag {
 
 /**
   * If the filter matches any data element in a pubkey script and that
-  * script is either a P2PKH or non-P2SH pay-to-multisig script,
-  * the corresponding outpoint is added to the filter.
+  * scriptPubKey is either a P2PKH or non-P2SH pay-to-multisig script,
+  * the outpoint for this transaction is added to the filter.
   */
 case object BloomUpdateP2PKOnly extends BloomFlag {
   def byte = 2.toByte

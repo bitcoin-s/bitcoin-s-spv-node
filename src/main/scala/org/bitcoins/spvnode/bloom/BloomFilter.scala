@@ -2,7 +2,7 @@ package org.bitcoins.spvnode.bloom
 
 import org.bitcoins.core.crypto.{DoubleSha256Digest, HashDigest, Sha256Hash160Digest}
 import org.bitcoins.core.number.{UInt32, UInt64}
-import org.bitcoins.core.protocol.script.{MultiSignatureScriptPubKey, P2PKHScriptPubKey, ScriptPubKey}
+import org.bitcoins.core.protocol.script.{MultiSignatureScriptPubKey, P2PKHScriptPubKey, P2PKScriptPubKey, ScriptPubKey}
 import org.bitcoins.core.protocol.transaction.{Transaction, TransactionOutPoint}
 import org.bitcoins.core.protocol.{CompactSizeUInt, NetworkElement}
 import org.bitcoins.core.script.constant.{ScriptConstant, ScriptToken}
@@ -185,24 +185,29 @@ sealed trait BloomFilter extends NetworkElement with BitcoinSLogger {
         "no information will be added to the bloom filter, specifically this trasnaction: " + transaction)
       this
     case BloomUpdateP2PKOnly =>
+
       //update the filter with the outpoint if the filter matches any of the constants in a p2pkh or multisig script pubkey
       val scriptPubKeysWithIndex = transaction.outputs.map(_.scriptPubKey).zipWithIndex
       updateP2PKOnly(scriptPubKeysWithIndex,transaction.txId)
 
   }
 
-  /** Updates a bloom filter according to the rules specified by teh [[BloomUpdateP2PKOnly]] flag */
+  /** Updates a bloom filter according to the rules specified by the [[BloomUpdateP2PKOnly]] flag */
   def updateP2PKOnly(scriptPubKeysWithIndex: Seq[(ScriptPubKey,Int)],txId: DoubleSha256Digest): BloomFilter = {
+    logger.debug("Updating bloom filter with " + BloomUpdateP2PKOnly)
+    logger.debug("ScriptPubKeys: " + scriptPubKeysWithIndex)
     @tailrec
     def loop(constantsWithIndex: Seq[(ScriptToken,Int)], accumFilter: BloomFilter): BloomFilter = constantsWithIndex match {
-      case h :: t if (contains(h._1.bytes)) =>
-        val filter = insert(TransactionOutPoint(txId,UInt32(h._2)))
+      case h :: t if (accumFilter.contains(h._1.bytes)) =>
+        logger.debug("Found constant in bloom filter: " + h._1.hex)
+        val filter = accumFilter.insert(TransactionOutPoint(txId,UInt32(h._2)))
         loop(constantsWithIndex.tail, filter)
       case h :: t => loop(t,accumFilter)
       case Nil => accumFilter
     }
     val p2pkhOrMultiSigScriptPubKeys: Seq[(ScriptPubKey,Int)] = scriptPubKeysWithIndex.filter {
-      case (s,index) => s.isInstanceOf[P2PKHScriptPubKey] || s.isInstanceOf[MultiSignatureScriptPubKey]
+      case (s,index) => s.isInstanceOf[P2PKScriptPubKey] ||
+        s.isInstanceOf[MultiSignatureScriptPubKey]
     }
     //gets rid of all asm operations in the scriptPubKey except for the constants
     val scriptConstantsWithOutputIndex: Seq[(ScriptToken,Int)] = p2pkhOrMultiSigScriptPubKeys.flatMap { case (scriptPubKey,index) =>
