@@ -20,4 +20,5 @@ class BloomFilterSpec extends Properties("BloomFilterSpec") {
         !containsAllHashes.exists(_ == false)
     }
 
+
 }

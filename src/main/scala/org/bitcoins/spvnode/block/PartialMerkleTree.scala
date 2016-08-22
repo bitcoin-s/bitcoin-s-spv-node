@@ -53,24 +53,8 @@ trait PartialMerkleTree extends BitcoinSLogger {
     logger.debug("Starting tree: " + tree)
     def loop(subTree: BinaryTree[DoubleSha256Digest],
              remainingBits: Seq[Boolean], height: Int, pos: Int, accumMatches: Seq[DoubleSha256Digest]): (Seq[DoubleSha256Digest], Seq[Boolean]) = {
-      if (height == maxHeight) {
-        if (remainingBits.head) {
-          //means we have a txid node that matched the filter
-          subTree match {
-            case l : Leaf[DoubleSha256Digest] =>
-              val newAccumMatches = l.v +: accumMatches
-              logger.debug("Adding " + l.v + " to matches")
-              logger.debug("Remaining bits: " + remainingBits.tail)
-              logger.debug("Accum matches: " + newAccumMatches)
-              (newAccumMatches, remainingBits.tail)
-            case  x @ ( _ : Node[DoubleSha256Digest] | Empty) => throw new IllegalArgumentException("We cannot have a " +
-              "Node or Empty node when we supposedly have a txid node -- txid nodes should always be leaves, got: " + x)
-          }
-        } else {
-          //means we have a txid node, but it did not match the filter
-          (accumMatches,remainingBits.tail)
-        }
-      } else {
+      if (height == maxHeight) extractLeafMatch(accumMatches,remainingBits,subTree)
+      else {
         //means we have a nontxid node
         if (remainingBits.head) {
           //means we have a match underneath this node
@@ -78,28 +62,40 @@ trait PartialMerkleTree extends BitcoinSLogger {
             case n: Node[DoubleSha256Digest] =>
               //since we are just trying to extract bloom filter matches, recurse into the two subtrees
               val (leftTreeMatches,leftRemainingBits) = loop(n.l,remainingBits.tail,height+1,(2 * pos), accumMatches)
-/*              val (rightTreeMatches,rightRemainingBits) = loop(n.r,leftRemainingBits, height+1, leftTreeMatches)
-              (rightTreeMatches,rightRemainingBits)*/
-              //
-              val (rightTreeMatches, rightRemainingBits) =
-                if ((pos * 2) + 1 < PartialMerkleTree.calcTreeWidth(numTransactions, maxHeight - height - 1)) {
-                  val (rightTreematches, rightRemainingBits) =
-                    loop(n.r,leftRemainingBits,height+1, (2 * pos) + 1,leftTreeMatches)
-                  (rightTreematches, rightRemainingBits)
-                } else (leftTreeMatches, leftRemainingBits)
-              (rightTreeMatches, rightRemainingBits)
+              //check to see if we have a right subtree
+              if (PartialMerkleTree.existsRightSubTree(pos,numTransactions,maxHeight,height)) {
+                val (rightTreeMatches, rightRemainingBits) =
+                  loop(n.r,leftRemainingBits,height+1, (2 * pos) + 1,leftTreeMatches)
+                (rightTreeMatches, rightRemainingBits)
+              } else (leftTreeMatches, leftRemainingBits)
             case l : Leaf[DoubleSha256Digest] =>
               (accumMatches, remainingBits.tail)
             case Empty => throw new IllegalArgumentException("We cannot have an empty node when we supposedly have a match underneath this node since it has no children")
           }
-        } else {
-          (accumMatches, remainingBits.tail)
-        }
+        } else (accumMatches, remainingBits.tail)
       }
     }
     val (matches,remainingBits) = loop(tree,bits,0,0,Nil)
     require(remainingBits.isEmpty,"We cannot have any left over bits after traversing the tree, got: " + remainingBits)
     matches.reverse
+  }
+
+  /** Handles a leaf node when we are extracting matches */
+  private def extractLeafMatch(accumMatches : Seq[DoubleSha256Digest], remainingBits: Seq[Boolean],
+                               subTree: BinaryTree[DoubleSha256Digest]): (Seq[DoubleSha256Digest], Seq[Boolean]) = {
+    if (remainingBits.head) {
+      //means we have a txid node that matched the filter
+      subTree match {
+        case l : Leaf[DoubleSha256Digest] =>
+          val newAccumMatches = l.v +: accumMatches
+          (newAccumMatches, remainingBits.tail)
+        case  x @ ( _ : Node[DoubleSha256Digest] | Empty) => throw new IllegalArgumentException("We cannot have a " +
+          "Node or Empty node when we supposedly have a txid node -- txid nodes should always be leaves, got: " + x)
+      }
+    } else {
+      //means we have a txid node, but it did not match the filter
+      (accumMatches,remainingBits.tail)
+    }
   }
 
   /** The hashes used to create the binary tree */
@@ -156,13 +152,12 @@ object PartialMerkleTree extends BitcoinSLogger {
       } else {
         //process the left node
         val (leftBits,leftHashes) = loop(newBits, hashes, height-1, pos*2)
-        if ((pos*2) + 1 < calcTreeWidth(txMatches.size, height-1)) {
+        if (existsRightSubTree(pos,txMatches.size,height)) {
           //process the right node if the tree's width is larger than the position we are looking at
           loop(leftBits,leftHashes, height-1, (pos*2) + 1)
         } else (leftBits,leftHashes)
       }
     }
-    val txIds = txMatches.map(_._2)
     val (bits,hashes) = loop(Nil, Nil, maxHeight,0)
     (bits.reverse,hashes.reverse)
   }
@@ -180,9 +175,9 @@ object PartialMerkleTree extends BitcoinSLogger {
         else loop(p + 1)
       } else false
     }
-    val startingP = pos << inverseHeight
-    logger.debug("Height: " + inverseHeight + " pos: " + pos + " startingP: " + startingP)
-    loop(startingP)
+    val startingPos = pos << inverseHeight
+    logger.debug("Height: " + inverseHeight + " pos: " + pos + " startingP: " + startingPos)
+    loop(startingPos)
   }
 
   /** Simple way to calculate the maximum width of a binary tree */
@@ -190,12 +185,13 @@ object PartialMerkleTree extends BitcoinSLogger {
 
   /** Calculates the hash of a node in the merkle tree */
   private def calcHash(height : Int, pos : Int, txIds: Seq[DoubleSha256Digest]): DoubleSha256Digest = {
+    //TODO: Optimize this to tailrec function
     //follows this function inside of bitcoin core
     //https://github.com/bitcoin/bitcoin/blob/master/src/merkleblock.cpp#L63
     if (height == 0) txIds(pos)
     else {
       val leftHash =  calcHash(height-1,pos * 2, txIds)
-      val rightHash = if ((pos * 2) + 1 < calcTreeWidth(txIds.size, height-1)) {
+      val rightHash = if (existsRightSubTree(pos,txIds.size,height)) {
         calcHash(height-1, (pos * 2) + 1, txIds)
       } else leftHash
       CryptoUtil.doubleSHA256(leftHash.bytes ++ rightHash.bytes)
@@ -255,7 +251,7 @@ object PartialMerkleTree extends BitcoinSLogger {
           val (leftNode,leftRemainingHashes,leftRemainingBits) = loop(remainingHashes,remainingMatches.tail,height+1, 2 * pos)
           logger.debug("Right node pos: " + ((pos * 2) + 1) + " Tree width: " + calcTreeWidth(numTransaction, height+1) + " height: " + height)
           val (rightNode,rightRemainingHashes, rightRemainingBits) =
-            if ((pos * 2) + 1 < calcTreeWidth(numTransaction, maxHeight - height - 1)) {
+            if (existsRightSubTree(pos,numTransaction,maxHeight,height)) {
               val (rightNode,rightRemainingHashes, rightRemainingBits) =
                 loop(leftRemainingHashes,leftRemainingBits,height+1, (2 * pos) + 1)
               require(leftNode.value.get != rightNode.value.get, "Cannot have the same hashes in two child nodes, got: " + leftNode + " and " + rightNode)
@@ -283,4 +279,17 @@ object PartialMerkleTree extends BitcoinSLogger {
   /** Calculates the maximum height for a binary tree with the number of transactions specified */
   def calcMaxHeight(numTransactions: Int): Int = Math.ceil((log(numTransactions) / log(2))).toInt
 
+
+  /** Determines if the right sub tree can exists inside of the partial merkle tree
+    * This function should only be used to determine if a right sub tree exists when we
+    * are building a partial merkle tree from bottom up, NOT TOP DOWN. If we are building a
+    * tree from top down use it's counterpart that does NOT take a maxHeight parameter*/
+  private def existsRightSubTree(pos: Int, numTransaction: Int, maxHeight: Int, height: Int): Boolean = {
+    (pos * 2) + 1 < calcTreeWidth(numTransaction, maxHeight - height - 1)
+  }
+
+  /** Determines if the right sub tree can exist inside of the partial merkle tree */
+  private def existsRightSubTree(pos: Int, numTransaction: Int, height: Int): Boolean = {
+    (pos * 2) + 1 < calcTreeWidth(numTransaction, height - 1)
+  }
 }
