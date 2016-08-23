@@ -10,13 +10,12 @@ import org.scalacheck.Gen
   */
 trait MerkleGenerator {
 
-  /** Returns a [[MerkleBlock]] including the sequence of hashes inserted in to the block */
+  /** Returns a [[MerkleBlock]] including the sequence of hashes inserted in to the bloom filter */
   def merkleBlockWithInsertedTxIds: Gen[(MerkleBlock,Seq[DoubleSha256Digest])] = for {
     block <- BlockchainElementsGenerator.block
     //choose some random txs in the block to put in the bloom filter
     txIds <- Gen.someOf(block.transactions.map(_.txId))
     filter <- BloomFilterGenerator.bloomFilter(txIds.map(_.bytes))
-
   } yield (MerkleBlock(block,filter),txIds)
 
   /** Generates a partial merkle tree with a sequence of txids and a flag indicating if the txid was matched */

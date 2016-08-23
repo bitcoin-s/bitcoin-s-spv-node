@@ -29,6 +29,7 @@ trait RawMerkleBlockSerializer extends RawBitcoinSerializer[MerkleBlock] {
     logger.debug("Bytes after tx hash parsing: " + BitcoinSUtil.encodeHex(bytesAfterTxHashParsing))
     val flagCount = CompactSizeUInt.parseCompactSizeUInt(bytesAfterTxHashParsing)
     val flags = bytesAfterTxHashParsing.slice(flagCount.size.toInt, bytesAfterTxHashParsing.size)
+    logger.debug("Flags after parsing: " + BitcoinSUtil.encodeHex(flags))
     val matches = BitcoinSUtil.bytesToBitVectors(flags).flatten.reverse
     MerkleBlock(blockHeader,transactionCount,hashes,matches)
   }
@@ -36,7 +37,9 @@ trait RawMerkleBlockSerializer extends RawBitcoinSerializer[MerkleBlock] {
   def write(merkleBlock: MerkleBlock): String = {
     val partialMerkleTree = merkleBlock.partialMerkleTree
     val bitVectors = parseToBytes(partialMerkleTree.bits)
-    val byteVectors = BitcoinSUtil.bitVectorsToBytes(bitVectors)
+    //bitVectorsToBytes assumes that we have our bitVectors in big endian format
+    //when in reality they are little endian, this is why we can .reverse here
+    val byteVectors = BitcoinSUtil.bitVectorsToBytes(bitVectors).reverse
     val flagCount = CompactSizeUInt(UInt64(Math.ceil(partialMerkleTree.bits.size.toDouble / 8).toInt))
     logger.debug("Original bits: " + partialMerkleTree.bits)
     logger.debug("Bit vectors: " + bitVectors)
