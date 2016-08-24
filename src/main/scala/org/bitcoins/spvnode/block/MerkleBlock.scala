@@ -29,8 +29,6 @@ trait MerkleBlock extends NetworkElement with BitcoinSLogger {
   /** The [[PartialMerkleTree]] for this merkle block */
   def partialMerkleTree: PartialMerkleTree
 
-  def filter: Option[BloomFilter]
-
   def hex = RawMerkleBlockSerializer.write(this)
 }
 
@@ -39,16 +37,16 @@ trait MerkleBlock extends NetworkElement with BitcoinSLogger {
 object MerkleBlock extends Factory[MerkleBlock] {
 
   private case class MerkleBlockImpl(blockHeader: BlockHeader, transactionCount: UInt32,
-                                     partialMerkleTree: PartialMerkleTree, filter: Option[BloomFilter]) extends MerkleBlock
+                                     partialMerkleTree: PartialMerkleTree) extends MerkleBlock
   /**
     * Creates a [[MerkleBlock]] from the given [[Block]] and [[BloomFilter]]
     * This function iterates through each transaction inside our block checking if it is relevant to the given bloom filter
     * If it is relevant, it will set a flag to indicate we should include it inside of our [[PartialMerkleTree]]
     * @param block
     * @param filter
-    * @return
+    * @return the merkle block and the bloom filter loaded with information from the relevant txs in the block
     */
-  def apply(block: Block, filter: BloomFilter): MerkleBlock = {
+  def apply(block: Block, filter: BloomFilter): (MerkleBlock,BloomFilter) = {
     @tailrec
     def loop(remainingTxs: Seq[Transaction], accumFilter: BloomFilter,
              txMatches: Seq[(Int,DoubleSha256Digest)], matches: Seq[Boolean]): (Seq[(Int,DoubleSha256Digest)], BloomFilter, Seq[Boolean]) = {
@@ -71,7 +69,7 @@ object MerkleBlock extends Factory[MerkleBlock] {
     val txIds = block.transactions.map(_.txId)
     val partialMerkleTree = PartialMerkleTree(flags.zip(txIds))
     val txCount = UInt32(block.transactions.size)
-    MerkleBlock(block.blockHeader, txCount, partialMerkleTree,Some(newFilter))
+    (MerkleBlock(block.blockHeader, txCount, partialMerkleTree),newFilter)
   }
 
 
@@ -99,19 +97,19 @@ object MerkleBlock extends Factory[MerkleBlock] {
     val (matchedTxs, flags) = loop(block.transactions,Nil,Nil)
     val partialMerkleTree = PartialMerkleTree(flags.zip(txIds))
     val txCount = UInt32(block.transactions.size)
-    MerkleBlock(block.blockHeader,txCount,partialMerkleTree,None)
+    MerkleBlock(block.blockHeader,txCount,partialMerkleTree)
   }
 
 
   def apply(blockHeader: BlockHeader, txCount: UInt32,
-            partialMerkleTree: PartialMerkleTree, filter: Option[BloomFilter]): MerkleBlock = {
-    MerkleBlockImpl(blockHeader,txCount,partialMerkleTree,filter)
+            partialMerkleTree: PartialMerkleTree): MerkleBlock = {
+    MerkleBlockImpl(blockHeader,txCount,partialMerkleTree)
   }
 
 
   def apply(blockHeader: BlockHeader, txCount: UInt32, hashes: Seq[DoubleSha256Digest], bits: Seq[Boolean]): MerkleBlock = {
     val partialMerkleTree = PartialMerkleTree(txCount,hashes,bits)
-    MerkleBlock(blockHeader,txCount,partialMerkleTree,None)
+    MerkleBlock(blockHeader,txCount,partialMerkleTree)
   }
 
   def fromBytes(bytes: Seq[Byte]): MerkleBlock = RawMerkleBlockSerializer.read(bytes)

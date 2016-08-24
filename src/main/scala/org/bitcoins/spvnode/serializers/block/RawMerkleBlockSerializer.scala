@@ -30,16 +30,16 @@ trait RawMerkleBlockSerializer extends RawBitcoinSerializer[MerkleBlock] {
     val flagCount = CompactSizeUInt.parseCompactSizeUInt(bytesAfterTxHashParsing)
     val flags = bytesAfterTxHashParsing.slice(flagCount.size.toInt, bytesAfterTxHashParsing.size)
     logger.debug("Flags after parsing: " + BitcoinSUtil.encodeHex(flags))
-    val matches = BitcoinSUtil.bytesToBitVectors(flags).flatten.reverse
+    val matches = BitcoinSUtil.bytesToBitVectors(flags).flatMap(_.reverse)
     MerkleBlock(blockHeader,transactionCount,hashes,matches)
   }
 
   def write(merkleBlock: MerkleBlock): String = {
     val partialMerkleTree = merkleBlock.partialMerkleTree
     val bitVectors = parseToBytes(partialMerkleTree.bits)
-    //bitVectorsToBytes assumes that we have our bitVectors in big endian format
-    //when in reality they are little endian, this is why we can .reverse here
-    val byteVectors = BitcoinSUtil.bitVectorsToBytes(bitVectors).reverse
+    //bitVectorsToBytes returns bytes in big endian format
+    //we want bytes in little endian format,
+    val byteVectors = BitcoinSUtil.bitVectorsToBytes(bitVectors)
     val flagCount = CompactSizeUInt(UInt64(Math.ceil(partialMerkleTree.bits.size.toDouble / 8).toInt))
     logger.debug("Original bits: " + partialMerkleTree.bits)
     logger.debug("Bit vectors: " + bitVectors)
@@ -77,7 +77,7 @@ trait RawMerkleBlockSerializer extends RawBitcoinSerializer[MerkleBlock] {
         case None => loop(remainingBits, Nil +: accum)
         case Some(bits) if bits.size == 8 =>
           //if we have 8 bits in this sequence we need to create a new byte and prepend it to the accum
-          loop(remainingBits, Nil +: bits.reverse +: accum.tail)
+          loop(remainingBits, Nil +: accum)
         case Some(bits) =>
           val newBits = h +: bits
           loop(t, newBits +: accum.tail)

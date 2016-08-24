@@ -19,7 +19,7 @@ class MerkleBlockTests extends FlatSpec with MustMatchers {
       "74d681e0e03bafa802c8aa084379aa98d9fcd632ddc2ed9782b586ec87451f20"))
     val filter = BloomFilter(10,0.000001, UInt32.zero, BloomUpdateAll).insert(hash)
 
-    val merkleBlock = MerkleBlock(block,filter)
+    val (merkleBlock,_) = MerkleBlock(block,filter)
     merkleBlock.blockHeader must be (block.blockHeader)
 
     merkleBlock.partialMerkleTree.extractMatches must be (Seq(hash))
@@ -65,7 +65,7 @@ class MerkleBlockTests extends FlatSpec with MustMatchers {
     val hash2 = DoubleSha256Digest(BitcoinSUtil.flipEndianess("dd1fd2a6fc16404faf339881a90adbde7f4f728691ac62e8f168809cdfae1053"))
 
     val filter = BloomFilter(10,0.000001, UInt32.zero, BloomUpdateAll).insert(hash1).insert(hash2)
-    val merkleBlock = MerkleBlock(block,filter)
+    val (merkleBlock,_) = MerkleBlock(block,filter)
 
     merkleBlock.partialMerkleTree.extractMatches must be (Seq(hash2,hash1))
   }
@@ -79,7 +79,7 @@ class MerkleBlockTests extends FlatSpec with MustMatchers {
       "e980fe9f792d014e73b95203dc1335c5f9ce19ac537a419e6df5b47aecb93b70"))
     val filter = BloomFilter(10, 0.000001, UInt32.zero, BloomUpdateAll).insert(firstTxId)
 
-    val merkleBlock = MerkleBlock(block,filter)
+    val (merkleBlock,_) = MerkleBlock(block,filter)
 
     merkleBlock.partialMerkleTree.extractMatches must be (Seq(firstTxId))
 
@@ -90,7 +90,7 @@ class MerkleBlockTests extends FlatSpec with MustMatchers {
       "044a656f065871a353f216ca26cef8dde2f03e8c16202d2e8ad769f02032cb86a5eb5e56842e92e19141" +
         "d60a01928f8dd2c875a390f67c1f6c94cfc617c0ea45af"))
 
-    val merkleBlockWithPubKey = MerkleBlock(block,filterWithPubKey)
+    val (merkleBlockWithPubKey,_) = MerkleBlock(block,filterWithPubKey)
 
     val hash1 = DoubleSha256Digest(BitcoinSUtil.flipEndianess("28204cad1d7fc1d199e8ef4fa22f182de6258a3eaafe1bbe56ebdcacd3069a5f"))
     val hash2 = DoubleSha256Digest(BitcoinSUtil.flipEndianess("6b0f8a73a56c04b519f1883e8aafda643ba61a30bd1439969df21bea5f4e27e2"))
@@ -107,7 +107,7 @@ class MerkleBlockTests extends FlatSpec with MustMatchers {
     val hash = DoubleSha256Digest(BitcoinSUtil.flipEndianess("e980fe9f792d014e73b95203dc1335c5f9ce19ac537a419e6df5b47aecb93b70"))
     val filter = BloomFilter(10, 0.000001, UInt32.zero, BloomUpdateNone).insert(hash)
 
-    val merkleBlock = MerkleBlock(block,filter)
+    val (merkleBlock,_) = MerkleBlock(block,filter)
 
     merkleBlock.partialMerkleTree.extractMatches must be (Seq(hash))
 
@@ -117,7 +117,7 @@ class MerkleBlockTests extends FlatSpec with MustMatchers {
     val pubKey = ECPublicKey("044a656f065871a353f216ca26cef8dde2f03e8c16202d2e8ad769f02032cb86a5eb5e56842e92e19141d60a01928f8dd2c875a390f67c1f6c94cfc617c0ea45af")
     val filterWithPubKey = filter.insert(pubKey.bytes)
 
-    val merkleBlockWithPubKey = MerkleBlock(block,filterWithPubKey)
+    val (merkleBlockWithPubKey,_) = MerkleBlock(block,filterWithPubKey)
 
     val hash1 = DoubleSha256Digest(BitcoinSUtil.flipEndianess("28204cad1d7fc1d199e8ef4fa22f182de6258a3eaafe1bbe56ebdcacd3069a5f"))
     val hash2 = DoubleSha256Digest(BitcoinSUtil.flipEndianess("3c1d7e82342158e4109df2e0b6348b6e84e403d8b4046d7007663ace63cddb23"))
@@ -132,7 +132,7 @@ class MerkleBlockTests extends FlatSpec with MustMatchers {
     //only tx in the block
     val hash = DoubleSha256Digest(BitcoinSUtil.flipEndianess("63194f18be0af63f2c6bc9dc0f777cbefed3d9415c4af83f3ee3a3d669c00cb5"))
     val filter = BloomFilter(10,0.000001, UInt32.zero, BloomUpdateAll).insert(hash)
-    val merkleBlock = MerkleBlock(block,filter)
+    val (merkleBlock,_) = MerkleBlock(block,filter)
     merkleBlock.partialMerkleTree.extractMatches must be (Seq(hash))
 
     val expectedMerkleBlockHex = "0100000079cda856b143d9db2c1caff01d1aecc8630d30625d10e8b4b8b0000000000000b50cc069d6a3e33e3ff84a5c41d9d3febe7c770fdcc96b2c3ff60abe184f196367291b4d4c86041b8fa45d630100000001b50cc069d6a3e33e3ff84a5c41d9d3febe7c770fdcc96b2c3ff60abe184f19630101"
@@ -151,12 +151,12 @@ class MerkleBlockTests extends FlatSpec with MustMatchers {
     val hash = DoubleSha256Digest(BitcoinSUtil.flipEndianess("0a2a92f0bda4727d0a13eaddf4dd9ac6b5c61a1429e6b2b818f19b15df0ac154"))
     val filter = BloomFilter(10,0.000001, UInt32.zero, BloomUpdateAll).insert(hash)
 
-    val merkleBlock = MerkleBlock(block,filter)
+    val (merkleBlock,_) = MerkleBlock(block,filter)
     merkleBlock.partialMerkleTree.extractMatches must be (Seq(hash))
 
     val hash2 = DoubleSha256Digest(BitcoinSUtil.flipEndianess("02981fa052f0481dbc5868f4fc2166035a10f27a03cfd2de67326471df5bc041"))
     val filter2 = filter.insert(hash2)
-    val merkleBlock2 = MerkleBlock(block,filter2)
+    val (merkleBlock2,_) = MerkleBlock(block,filter2)
 
     merkleBlock2.partialMerkleTree.extractMatches must be (Seq(hash2,hash))
   }
@@ -171,16 +171,16 @@ class MerkleBlockTests extends FlatSpec with MustMatchers {
     val output = BitcoinSUtil.decodeHex("b6efd80d99179f4f4ff6f4dd0a007d018c385d21")
     val filter = BloomFilter(10,0.000001, UInt32.zero, BloomUpdateP2PKOnly).insert(pubKey).insert(output)
 
-    val merkleBlock = MerkleBlock(block,filter)
+    val (merkleBlock,loadedFilter) = MerkleBlock(block,filter)
 
     //this outpoint is matched because the scriptPubKey contstants match the filter
     val outPoint = TransactionOutPoint(DoubleSha256Digest(BitcoinSUtil.flipEndianess(
       "147caa76786596590baa4e98f5d9f48b86c7765e489f7a6ff3360fe5c674360b")), UInt32.zero)
-    merkleBlock.filter.get.contains(outPoint) must be (true)
+    loadedFilter.contains(outPoint) must be (true)
     //this one does not match since the 4th transaction's output is not pay-to-pubkey
     val outPoint2 = TransactionOutPoint(DoubleSha256Digest(BitcoinSUtil.flipEndianess(
       "02981fa052f0481dbc5868f4fc2166035a10f27a03cfd2de67326471df5bc041")), UInt32.zero)
-    merkleBlock.filter.get.contains(outPoint2) must be (false)
+    loadedFilter.contains(outPoint2) must be (false)
   }
 
   it must "update none of the constants in the bloom filter when the BloomUpdateNone flag is set" in {
@@ -194,15 +194,15 @@ class MerkleBlockTests extends FlatSpec with MustMatchers {
 
     val filter = BloomFilter(10,0.000001, UInt32.zero, BloomUpdateNone).insert(pubKey).insert(output)
 
-    val merkleBlock = MerkleBlock(block,filter)
+    val (merkleBlock,loadedFilter) = MerkleBlock(block,filter)
 
     //neither of these outpoints match because the BloomUpdateNone flag is set
     val outPoint = TransactionOutPoint(DoubleSha256Digest(BitcoinSUtil.flipEndianess(
       "147caa76786596590baa4e98f5d9f48b86c7765e489f7a6ff3360fe5c674360b")), UInt32.zero)
-    merkleBlock.filter.get.contains(outPoint) must be (false)
+    loadedFilter.contains(outPoint) must be (false)
     val outPoint2 = TransactionOutPoint(DoubleSha256Digest(BitcoinSUtil.flipEndianess(
       "02981fa052f0481dbc5868f4fc2166035a10f27a03cfd2de67326471df5bc041")), UInt32.zero)
-    merkleBlock.filter.get.contains(outPoint2) must be (false)
+    loadedFilter.contains(outPoint2) must be (false)
 
   }
 

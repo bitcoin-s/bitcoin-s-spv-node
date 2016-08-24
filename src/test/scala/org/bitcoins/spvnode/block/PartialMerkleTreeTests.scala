@@ -55,9 +55,9 @@ class PartialMerkleTreeTests extends FlatSpec with MustMatchers {
     //201f4587ec86b58297edc2dd32d6fcd998aa794308aac802a8af3be0e081d674
 
     val filter = BloomFilter(10,0.000001, UInt32.zero, BloomUpdateAll).insert(hash1).insert(hash2)
-     val merkleBlock = MerkleBlock(block,filter)
-     val partialMerkleTree = merkleBlock.partialMerkleTree
-     partialMerkleTree.bits.slice(0,8) must be (Seq(true,true,false,true,false,true,false,true))
+    val (merkleBlock,_) = MerkleBlock(block,filter)
+    val partialMerkleTree = merkleBlock.partialMerkleTree
+    partialMerkleTree.bits.slice(0,8) must be (Seq(true,true,false,true,false,true,false,true))
     partialMerkleTree.bits.slice(8,partialMerkleTree.bits.size) must be (Seq(true,true,true,true,false,false,false,false))
     partialMerkleTree.hashes must be (Seq(
       DoubleSha256Digest("5ef2374cf1cd1c0b8c1b795950c077fc571cca44866c375a1ed17ace665cfaaa"),

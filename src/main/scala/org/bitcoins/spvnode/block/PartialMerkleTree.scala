@@ -235,7 +235,7 @@ object PartialMerkleTree extends BitcoinSLogger {
     *
     * @param numTransaction
     * @param hashes
-    * @param matches
+    * @param bits
     * @return
     */
   def reconstruct(numTransaction: Int, hashes: Seq[DoubleSha256Digest], bits: Seq[Boolean]): BinaryTree[DoubleSha256Digest] = {
@@ -246,6 +246,7 @@ object PartialMerkleTree extends BitcoinSLogger {
       logger.debug("Remaining matches: " + remainingMatches)
       logger.debug("Height: " + height)
       if (height == maxHeight) {
+        logger.info("reached max height: " + remainingHashes.head)
         //means we have a txid node
         (Leaf(remainingHashes.head),
           remainingHashes.tail,
@@ -260,10 +261,13 @@ object PartialMerkleTree extends BitcoinSLogger {
               val (rightNode,rightRemainingHashes, rightRemainingBits) =
                 loop(leftRemainingHashes,leftRemainingBits,height+1, (2 * pos) + 1)
               require(leftNode.value.get != rightNode.value.get, "Cannot have the same hashes in two child nodes, got: " + leftNode + " and " + rightNode)
+              logger.debug("Right remaining hashes: " + rightRemainingHashes)
+              logger.debug("Right remaining bits: " + rightRemainingBits)
               (rightNode,rightRemainingHashes, rightRemainingBits)
           } else (leftNode, leftRemainingHashes, leftRemainingBits)
           val nodeHash = CryptoUtil.doubleSHA256(leftNode.value.get.bytes ++ rightNode.value.get.bytes)
           val node = Node(nodeHash,leftNode,rightNode)
+          logger.debug("Tree: " + node)
           (node,rightRemainingHashes,rightRemainingBits)
         } else (Leaf(remainingHashes.head),remainingHashes.tail,remainingMatches.tail)
       }

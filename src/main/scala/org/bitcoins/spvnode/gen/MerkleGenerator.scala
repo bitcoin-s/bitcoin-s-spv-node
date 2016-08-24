@@ -16,7 +16,8 @@ trait MerkleGenerator {
     //choose some random txs in the block to put in the bloom filter
     txIds <- Gen.someOf(block.transactions.map(_.txId))
     filter <- BloomFilterGenerator.bloomFilter(txIds.map(_.bytes))
-  } yield (MerkleBlock(block,filter),txIds)
+    (merkleBlock, _) = MerkleBlock(block,filter)
+  } yield (merkleBlock,txIds)
 
   /** Generates a partial merkle tree with a sequence of txids and a flag indicating if the txid was matched */
   def partialMerkleTree: Gen[(PartialMerkleTree, Seq[(Boolean,DoubleSha256Digest)])] = for {
