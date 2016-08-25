@@ -85,7 +85,7 @@ trait PartialMerkleTree extends BitcoinSLogger {
     matches.reverse
   }
 
-  /** Handles a leaf node when we are extracting matches */
+  /** Handles a leaf match when we are extracting matches from the partial merkle tree */
   private def extractLeafMatch(accumMatches : Seq[DoubleSha256Digest], remainingBits: Seq[Boolean],
                                subTree: BinaryTree[DoubleSha256Digest]): (Seq[DoubleSha256Digest], Seq[Boolean]) = {
     if (remainingBits.head) {
@@ -127,7 +127,7 @@ object PartialMerkleTree extends BitcoinSLogger {
     * @return the binary tree that represents the partial merkle tree, the bits needed to reconstruct this partial merkle tree, and the hashes needed to be inserted
     *         according to the flags inside of bits
     */
-  def build(fullMerkleTree: Merkle.MerkleTree, txMatches: Seq[(Boolean,DoubleSha256Digest)]): (Seq[Boolean], Seq[DoubleSha256Digest]) = {
+  private def build(fullMerkleTree: Merkle.MerkleTree, txMatches: Seq[(Boolean,DoubleSha256Digest)]): (Seq[Boolean], Seq[DoubleSha256Digest]) = {
     val maxHeight = calcMaxHeight(txMatches.size)
     logger.debug("Tx matches: " + txMatches)
     logger.debug("Tx matches size: " + txMatches.size)
@@ -221,13 +221,13 @@ object PartialMerkleTree extends BitcoinSLogger {
     * You probably don't want to use this constructor, unless you manually constructed [[bits]] and the [[tree]]
     * by hand
     * @param tree the partial merkle tree -- note this is NOT the full merkle tree
+    * @param transactionCount the number of transactions there initially was in the full merkle tree
     * @param bits the path to the matches in the partial merkle tree
-    * @param numTransactions the number of transactions there initially was in the full merkle tree
     * @param hashes the hashes used to reconstruct the binary tree according to [[bits]]
     * @return
     */
-  def apply(tree: BinaryTree[DoubleSha256Digest], numTransactions: Int, bits: Seq[Boolean],  hashes: Seq[DoubleSha256Digest]): PartialMerkleTree = {
-    PartialMerkleTreeImpl(tree,UInt32(numTransactions), bits, hashes)
+  def apply(tree: BinaryTree[DoubleSha256Digest], transactionCount: UInt32, bits: Seq[Boolean],  hashes: Seq[DoubleSha256Digest]): PartialMerkleTree = {
+    PartialMerkleTreeImpl(tree,transactionCount, bits, hashes)
   }
 
   /** Builds a partial merkle tree the information inside of a [[org.bitcoins.spvnode.messages.MerkleBlockMessage]]
@@ -238,7 +238,7 @@ object PartialMerkleTree extends BitcoinSLogger {
     * @param bits
     * @return
     */
-  def reconstruct(numTransaction: Int, hashes: Seq[DoubleSha256Digest], bits: Seq[Boolean]): BinaryTree[DoubleSha256Digest] = {
+  private def reconstruct(numTransaction: Int, hashes: Seq[DoubleSha256Digest], bits: Seq[Boolean]): BinaryTree[DoubleSha256Digest] = {
     val maxHeight = calcMaxHeight(numTransaction)
     //TODO: Optimize to tailrec function
     def loop(remainingHashes: Seq[DoubleSha256Digest], remainingMatches: Seq[Boolean],  height: Int, pos: Int) : (BinaryTree[DoubleSha256Digest],Seq[DoubleSha256Digest], Seq[Boolean]) = {
@@ -303,8 +303,8 @@ object PartialMerkleTree extends BitcoinSLogger {
   }
 
 
-  /** Enforces the invariant inside of bitcoin core saying we must use all bits in a byte array when reconstructin a partial merkle tree */
-  def usedAllBits(bits: Seq[Boolean], remainingBits: Seq[Boolean]): Boolean = {
+  /** Enforces the invariant inside of bitcoin core saying we must use all bits in a byte array when reconstruction a partial merkle tree */
+  private def usedAllBits(bits: Seq[Boolean], remainingBits: Seq[Boolean]): Boolean = {
     //https://github.com/bitcoin/bitcoin/blob/master/src/merkleblock.cpp#L177
     val bitsUsed = bits.size - remainingBits.size
     ((bitsUsed+7) / 8) ==((bits.size + 7) / 8)

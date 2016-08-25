@@ -2,13 +2,14 @@ package org.bitcoins.spvnode.gen
 
 import org.bitcoins.core.crypto.DoubleSha256Digest
 import org.bitcoins.core.gen.{BlockchainElementsGenerator, CryptoGenerators}
+import org.bitcoins.core.util.BitcoinSLogger
 import org.bitcoins.spvnode.block.{MerkleBlock, PartialMerkleTree}
 import org.scalacheck.Gen
 
 /**
   * Created by chris on 8/12/16.
   */
-trait MerkleGenerator {
+trait MerkleGenerator extends BitcoinSLogger {
 
   /** Returns a [[MerkleBlock]] including the sequence of hashes inserted in to the bloom filter */
   def merkleBlockWithInsertedTxIds: Gen[(MerkleBlock,Seq[DoubleSha256Digest])] = for {

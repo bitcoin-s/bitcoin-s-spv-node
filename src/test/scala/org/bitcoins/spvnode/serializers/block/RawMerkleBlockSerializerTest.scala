@@ -20,7 +20,7 @@ class RawMerkleBlockSerializerTest extends FlatSpec with MustMatchers {
       UInt32(2941790316L),UInt32(1626267458),UInt32(1688549344)),UInt32(1),
       PartialMerkleTree(Leaf(DoubleSha256Digest(
         "442abdc8e74ad35ebd9571f88fda91ff511dcda8d241a5aed52cea1e00d69e03")),
-        1,
+        UInt32(1),
         List(false, false, false, false, false, false, false, false),
         List(DoubleSha256Digest("442abdc8e74ad35ebd9571f88fda91ff511dcda8d241a5aed52cea1e00d69e03")))),List())
 
@@ -44,7 +44,7 @@ class RawMerkleBlockSerializerTest extends FlatSpec with MustMatchers {
             Leaf(DoubleSha256Digest("77352045b2995c9e0dfff9089e5563cd13914eb4b0723cdd54675c5c3f1c4f6a")),
             Leaf(DoubleSha256Digest("7ae10c30932c07e4ed25abab233565f9ab279eabbcd60e1bc028c6cdc400361b")))),
         Leaf(DoubleSha256Digest("8ca2e6b66c55fbb63cb7c9b5ccd19be508034eedcd8511d216b9fe93aafc2ceb"))),
-        6,List(true, true, true, false, true, true, false, true, false, false, false, false, false, false, false, false),
+        UInt32(6),List(true, true, true, false, true, true, false, true, false, false, false, false, false, false, false, false),
         List(DoubleSha256Digest("e4aeaf729035a7fb939e12c4f6a2072a9b2e7da784207ce7852d398593210a45"),
           DoubleSha256Digest("010506d2103d0feb477224926eedaf3d7478fe3d93b54bd24e5eb2c0adc309b3"),
           DoubleSha256Digest("77352045b2995c9e0dfff9089e5563cd13914eb4b0723cdd54675c5c3f1c4f6a"),
@@ -54,10 +54,9 @@ class RawMerkleBlockSerializerTest extends FlatSpec with MustMatchers {
         DoubleSha256Digest("7ae10c30932c07e4ed25abab233565f9ab279eabbcd60e1bc028c6cdc400361b")))
 
     val hex = merkleBlock.hex
-    println("Hex: " + hex)
     val actualMerkleBlock = MerkleBlock(hex)
-/*    actualMerkleBlock.partialMerkleTree.bits must be (merkleBlock.partialMerkleTree.bits)
-    actualMerkleBlock must be (merkleBlock)*/
+    actualMerkleBlock.partialMerkleTree.bits must be (merkleBlock.partialMerkleTree.bits)
+    actualMerkleBlock must be (merkleBlock)
   }
 
   it must "serialize and deserialize a merkle block from bitcoinj" in {

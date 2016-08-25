@@ -16,5 +16,13 @@ class PartialMerkleTreeSpec extends Properties("PartialMerkleTreeSpec") {
         partialMerkleTree.extractMatches == matchedTxs
     }
 
+  property("must generate the same partial merkle tree from the same parameters") =
+    Prop.forAll(MerkleGenerator.partialMerkleTree) {
+      case (partialMerkleTree: PartialMerkleTree, _) =>
+      val partialMerkleTree2 = PartialMerkleTree(partialMerkleTree.transactionCount,
+        partialMerkleTree.hashes, partialMerkleTree.bits)
+        partialMerkleTree2 == partialMerkleTree
+    }
+
 
 }

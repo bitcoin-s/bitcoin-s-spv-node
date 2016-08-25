@@ -100,34 +100,6 @@ sealed trait BloomFilter extends NetworkElement with BitcoinSLogger {
   /** Checks if [[data]] contains a [[Sha256Hash160Digest]] */
   def contains(hash: Sha256Hash160Digest): Boolean = contains(hash.bytes)
 
-  /**
-    * Checks if the given [[Transaction]] matches inside of our bloom filter
-    * Also adds the transaction's scriptPubKey's to the BloomFilter as outPoints
-    * so that if another transaction attempts to spend the given transaction it will match the filter
-    * https://github.com/bitcoin/bitcoin/blob/master/src/test/bloom_tests.cpp#L114
-    */
-  def isRelevantAndUpdate(transaction: Transaction): Boolean = {
-    val containsTxId = contains(transaction.txId)
-    val scriptPubKeys = transaction.outputs.map(_.scriptPubKey)
-    //pull out all of the constants in the scriptPubKey's
-    val constantsWithOuputIndex = scriptPubKeys.zipWithIndex.map { case (scriptPubKey, index) =>
-      val constants = scriptPubKey.asm.filterNot(_.isInstanceOf[ScriptConstant])
-      constants.map(c => (c,index))
-    }.flatten
-
-    //if the constant is contained in our BloomFilter, we need to add this txs outPoint to the bloom filter
-    val constants = constantsWithOuputIndex.filterNot {
-      case (c,index) => contains(c.bytes)
-    }
-
-    val outPointsThatNeedToBeInserted = constants.map {
-      case (_,index) => TransactionOutPoint(transaction.txId,UInt32(index)).bytes
-    }
-    val newFilter = insertByteVectors(outPointsThatNeedToBeInserted)
-    containsTxId || outPointsThatNeedToBeInserted.nonEmpty
-  }
-
-
   /** Checks if the transaction's txid, or any of the constant's in it's scriptPubKeys/scriptSigs match our BloomFilter */
   def isRelevant(transaction: Transaction): Boolean = {
     val scriptPubKeys = transaction.outputs.map(_.scriptPubKey)
