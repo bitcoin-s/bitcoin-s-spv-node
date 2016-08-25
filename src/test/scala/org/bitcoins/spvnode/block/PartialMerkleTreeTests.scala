@@ -13,7 +13,7 @@ import org.scalatest.{FlatSpec, MustMatchers}
   */
 class PartialMerkleTreeTests extends FlatSpec with MustMatchers {
 
-  "PartialMerkleTree" must "from a list of txs and a bit indicating if the tx matched the filter" in {
+/*  "PartialMerkleTree" must "from a list of txs and a bit indicating if the tx matched the filter" in {
     //https://github.com/bitcoin/bitcoin/blob/master/src/test/bloom_tests.cpp#L185
     val block = Block("0100000090f0a9f110702f808219ebea1173056042a714bad51b916cb68000000000000052752895" +
        "58f51c9966699404ae2294730c3c9f9bda53523ce50e9b95e558da2fdb261b4d4c86041b1ab1bf930901000000010000" +
@@ -160,6 +160,23 @@ class PartialMerkleTreeTests extends FlatSpec with MustMatchers {
     val partialMerkleTree = PartialMerkleTree(matches)
     partialMerkleTree.tree must be (Leaf(DoubleSha256Digest("caa02f1194fb44dea407a7cf713ddcf30e69f49c297f9275f9236fec42d945b2")))
     partialMerkleTree.bits must be (Seq(true,false,false,false,false,false,false,false))
+  }*/
+
+  it must "extract these matches correctly" in {
+    val hashes = List(DoubleSha256Digest("458095968898b670c11068928131cb1cf55ae595dbc119560295fc3e1234cea6"),
+      DoubleSha256Digest("e051e7928541401db89fc915ba4a9e6b97a6a5740d129486e6ae89b59651a9a6"),
+      DoubleSha256Digest("c46407aa34a7271f36d42e07402cf880b11c65ee5024b4adc5ed6d8c0c0e677e"),
+      DoubleSha256Digest("963d0d210419f32c1553e414310d2a2ed2019e321d0377b1a9738b3096f44e61"))
+
+    val bits = List(true, true, true, true, true, true, true, false)
+
+    val txMatches = List((true,DoubleSha256Digest("e051e7928541401db89fc915ba4a9e6b97a6a5740d129486e6ae89b59651a9a6")),
+      (true,DoubleSha256Digest("c46407aa34a7271f36d42e07402cf880b11c65ee5024b4adc5ed6d8c0c0e677e")),
+      (true,DoubleSha256Digest("963d0d210419f32c1553e414310d2a2ed2019e321d0377b1a9738b3096f44e61")))
+    val expectedMatches = txMatches.map(_._2)
+
+    val partialMerkleTree = PartialMerkleTree(UInt32(3),hashes,bits)
+    partialMerkleTree.extractMatches must be (expectedMatches)
   }
 
 }

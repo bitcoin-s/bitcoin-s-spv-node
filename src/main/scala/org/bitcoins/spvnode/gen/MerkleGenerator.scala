@@ -2,6 +2,7 @@ package org.bitcoins.spvnode.gen
 
 import org.bitcoins.core.crypto.DoubleSha256Digest
 import org.bitcoins.core.gen.{BlockchainElementsGenerator, CryptoGenerators}
+import org.bitcoins.core.protocol.blockchain.Block
 import org.bitcoins.core.util.BitcoinSLogger
 import org.bitcoins.spvnode.block.{MerkleBlock, PartialMerkleTree}
 import org.scalacheck.Gen
@@ -12,13 +13,13 @@ import org.scalacheck.Gen
 trait MerkleGenerator extends BitcoinSLogger {
 
   /** Returns a [[MerkleBlock]] including the sequence of hashes inserted in to the bloom filter */
-  def merkleBlockWithInsertedTxIds: Gen[(MerkleBlock,Seq[DoubleSha256Digest])] = for {
+  def merkleBlockWithInsertedTxIds: Gen[(MerkleBlock,Block,Seq[DoubleSha256Digest])] = for {
     block <- BlockchainElementsGenerator.block
     //choose some random txs in the block to put in the bloom filter
     txIds <- Gen.someOf(block.transactions.map(_.txId))
     filter <- BloomFilterGenerator.bloomFilter(txIds.map(_.bytes))
     (merkleBlock, _) = MerkleBlock(block,filter)
-  } yield (merkleBlock,txIds)
+  } yield (merkleBlock, block, txIds)
 
   /** Generates a partial merkle tree with a sequence of txids and a flag indicating if the txid was matched */
   def partialMerkleTree: Gen[(PartialMerkleTree, Seq[(Boolean,DoubleSha256Digest)])] = for {

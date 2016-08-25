@@ -112,22 +112,19 @@ object PartialMerkleTree extends BitcoinSLogger {
 
   def apply(txMatches: Seq[(Boolean,DoubleSha256Digest)]): PartialMerkleTree = {
     val txIds = txMatches.map(_._2)
-    val merkleTree: Merkle.MerkleTree = Merkle.build(txIds)
-    val (bits,hashes) = build(merkleTree,txMatches)
+    val (bits,hashes) = build(txMatches)
     val tree = reconstruct(txIds.size,hashes,bits)
-    PartialMerkleTreeImpl(tree,UInt32(txIds.size),bits,hashes)
+    PartialMerkleTree(tree,UInt32(txIds.size),bits,hashes)
   }
 
 
   /**
-    *
-    * @param fullMerkleTree the full merkle tree which we are going to trim to get a partial merkle tree
     * @param txMatches indicates whether the given txid matches the bloom filter, the full merkle branch needs
     *                  to be included inside of the [[PartialMerkleTree]]
     * @return the binary tree that represents the partial merkle tree, the bits needed to reconstruct this partial merkle tree, and the hashes needed to be inserted
     *         according to the flags inside of bits
     */
-  private def build(fullMerkleTree: Merkle.MerkleTree, txMatches: Seq[(Boolean,DoubleSha256Digest)]): (Seq[Boolean], Seq[DoubleSha256Digest]) = {
+  private def build(txMatches: Seq[(Boolean,DoubleSha256Digest)]): (Seq[Boolean], Seq[DoubleSha256Digest]) = {
     val maxHeight = calcMaxHeight(txMatches.size)
     logger.debug("Tx matches: " + txMatches)
     logger.debug("Tx matches size: " + txMatches.size)
@@ -164,7 +161,7 @@ object PartialMerkleTree extends BitcoinSLogger {
     //pad the bit array to the nearest byte
     val bitsNeeded = if ((bits.size % 8) == 0) 0 else 8 - (bits.size % 8)
     val paddingBits = for { _ <- 0 until bitsNeeded} yield false
-    (bits.reverse ++ paddingBits,hashes.reverse)
+    (bits.reverse ++ paddingBits, hashes.reverse)
   }
 
 
@@ -195,7 +192,7 @@ object PartialMerkleTree extends BitcoinSLogger {
     //https://github.com/bitcoin/bitcoin/blob/master/src/merkleblock.cpp#L63
     if (height == 0) txIds(pos)
     else {
-      val leftHash =  calcHash(height-1,pos * 2, txIds)
+      val leftHash = calcHash(height-1, pos * 2, txIds)
       val rightHash = if (existsRightSubTree(pos,txIds.size,height)) {
         calcHash(height-1, (pos * 2) + 1, txIds)
       } else leftHash
@@ -212,7 +209,7 @@ object PartialMerkleTree extends BitcoinSLogger {
     */
   def apply(transactionCount: UInt32, hashes: Seq[DoubleSha256Digest], bits: Seq[Boolean]): PartialMerkleTree = {
     val tree = reconstruct(transactionCount.toInt,hashes,bits)
-    PartialMerkleTreeImpl(tree,transactionCount, bits,hashes)
+    PartialMerkleTree(tree,transactionCount, bits,hashes)
   }
 
 
@@ -246,7 +243,7 @@ object PartialMerkleTree extends BitcoinSLogger {
       logger.debug("Remaining matches: " + remainingMatches)
       logger.debug("Height: " + height)
       if (height == maxHeight) {
-        logger.info("reached max height: " + remainingHashes.head)
+        logger.debug("reached max height: " + remainingHashes.head)
         //means we have a txid node
         (Leaf(remainingHashes.head),
           remainingHashes.tail,

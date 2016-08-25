@@ -67,6 +67,8 @@ object MerkleBlock extends Factory[MerkleBlock] {
     }
     val (matchedTxs,newFilter,flags) = loop(block.transactions,filter,Nil,Nil)
     val txIds = block.transactions.map(_.txId)
+    logger.debug("Block.hex: " + block.hex)
+    logger.debug("Flags zip txids: " + flags.zip(txIds))
     val partialMerkleTree = PartialMerkleTree(flags.zip(txIds))
     val txCount = UInt32(block.transactions.size)
     (MerkleBlock(block.blockHeader, txCount, partialMerkleTree),newFilter)
@@ -78,24 +80,18 @@ object MerkleBlock extends Factory[MerkleBlock] {
     //follows this function inside of bitcoin core
     //https://github.com/bitcoin/bitcoin/blob/master/src/merkleblock.cpp#L40
     @tailrec
-    def loop(remainingTxs: Seq[Transaction], txMatches: Seq[(Int,DoubleSha256Digest)], matches: Seq[Boolean]): (Seq[(Int,DoubleSha256Digest)], Seq[Boolean]) = {
-      if (remainingTxs.isEmpty) (txMatches.reverse, matches.reverse)
+    def loop(remainingTxs: Seq[Transaction], txMatches: Seq[(Boolean,DoubleSha256Digest)]): (Seq[(Boolean,DoubleSha256Digest)]) = {
+      if (remainingTxs.isEmpty) txMatches.reverse
       else {
         val tx = remainingTxs.head
-        val (newTxMatches, newFlags) = txIds.contains(tx.txId) match {
-          case true =>
-            val index = block.transactions.size - remainingTxs.size
-            val newTxMatches = (index,tx.txId) +: txMatches
-            (newTxMatches, true +: matches)
-          case false =>
-            (txMatches, false +: matches)
-        }
-        loop(remainingTxs.tail,newTxMatches,newFlags)
+        val newTxMatches = (txIds.contains(tx.txId),tx.txId) +: txMatches
+        loop(remainingTxs.tail,newTxMatches)
       }
     }
 
-    val (matchedTxs, flags) = loop(block.transactions,Nil,Nil)
-    val partialMerkleTree = PartialMerkleTree(flags.zip(txIds))
+    val txMatches = loop(block.transactions,Nil)
+
+    val partialMerkleTree = PartialMerkleTree(txMatches)
     val txCount = UInt32(block.transactions.size)
     MerkleBlock(block.blockHeader,txCount,partialMerkleTree)
   }
