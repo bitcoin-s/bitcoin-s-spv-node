@@ -49,27 +49,18 @@ object MerkleBlock extends Factory[MerkleBlock] {
   def apply(block: Block, filter: BloomFilter): (MerkleBlock,BloomFilter) = {
     @tailrec
     def loop(remainingTxs: Seq[Transaction], accumFilter: BloomFilter,
-             txMatches: Seq[(Int,DoubleSha256Digest)], matches: Seq[Boolean]): (Seq[(Int,DoubleSha256Digest)], BloomFilter, Seq[Boolean]) = {
-      if (remainingTxs.isEmpty) (txMatches.reverse,accumFilter,matches.reverse)
+             txMatches: Seq[(Boolean,DoubleSha256Digest)]): (Seq[(Boolean,DoubleSha256Digest)], BloomFilter) = {
+      if (remainingTxs.isEmpty) (txMatches.reverse,accumFilter)
       else {
         val tx = remainingTxs.head
-        val (newTxMatches,newFlags) = accumFilter.isRelevant(tx) match {
-          case true =>
-            val index = block.transactions.size - remainingTxs.size
-            val newTxMatches = (index,tx.txId) +: txMatches
-            (newTxMatches, true +: matches)
-          case false =>
-            (txMatches, false +: matches)
-        }
+        if (accumFilter.isRelevant(tx)) logger.warn("Tx is relevant: " + tx.txId)
+        val newTxMatches = (accumFilter.isRelevant(tx),tx.txId) +: txMatches
         val newFilter =  accumFilter.update(tx)
-        loop(remainingTxs.tail,newFilter,newTxMatches,newFlags)
+        loop(remainingTxs.tail,newFilter,newTxMatches)
       }
     }
-    val (matchedTxs,newFilter,flags) = loop(block.transactions,filter,Nil,Nil)
-    val txIds = block.transactions.map(_.txId)
-    logger.debug("Block.hex: " + block.hex)
-    logger.debug("Flags zip txids: " + flags.zip(txIds))
-    val partialMerkleTree = PartialMerkleTree(flags.zip(txIds))
+    val (matchedTxs,newFilter) = loop(block.transactions,filter,Nil)
+    val partialMerkleTree = PartialMerkleTree(matchedTxs)
     val txCount = UInt32(block.transactions.size)
     (MerkleBlock(block.blockHeader, txCount, partialMerkleTree),newFilter)
   }

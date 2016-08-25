@@ -3,6 +3,7 @@ package org.bitcoins.spvnode.block
 import org.bitcoins.core.crypto.DoubleSha256Digest
 import org.bitcoins.core.protocol.blockchain.Block
 import org.bitcoins.core.util.BitcoinSLogger
+import org.bitcoins.spvnode.bloom.BloomFilter
 import org.bitcoins.spvnode.gen.MerkleGenerator
 import org.scalacheck.{Prop, Properties}
 
@@ -11,23 +12,28 @@ import org.scalacheck.{Prop, Properties}
   */
 class MerkleBlockSpec extends Properties("MerkleBlockSpec") with BitcoinSLogger {
 
-/*  property("Serialization symmetry") =
+  property("Serialization symmetry") =
     Prop.forAll(MerkleGenerator.merkleBlockWithInsertedTxIds) {
-      case (merkleBlock: MerkleBlock, txIds : Seq[DoubleSha256Digest]) =>
+      case (merkleBlock: MerkleBlock, block: Block, txIds : Seq[DoubleSha256Digest]) =>
         MerkleBlock(merkleBlock.hex) == merkleBlock
-    }*/
+    }
 
-  property("contains all inserted txids") =
+  property("contains all inserted txids when we directly create a merkle block from the txids") =
     Prop.forAllNoShrink(MerkleGenerator.merkleBlockWithInsertedTxIds) {
       case (merkleBlock: MerkleBlock, block: Block, txIds: Seq[DoubleSha256Digest]) =>
         val extractedMatches = merkleBlock.partialMerkleTree.extractMatches
-
-        logger.warn("Block.hex: " + block.hex)
-        logger.warn("tx count: " + merkleBlock.transactionCount)
-        logger.warn("Merkle block hashes: " + merkleBlock.hashes)
-        logger.warn("Extracted matches: " + extractedMatches)
-        logger.warn("Txids: " + txIds)
-        logger.warn("Partial merkle tree bits: " + merkleBlock.partialMerkleTree.bits)
         extractedMatches == txIds
     }
+
+  property("contains all txids matched by a bloom filter") = {
+    Prop.forAllNoShrink(MerkleGenerator.merkleBlockCreatedWithBloomFilter) {
+      case (merkleBlock: MerkleBlock, block: Block, txIds: Seq[DoubleSha256Digest], loadedFilter: BloomFilter) =>
+        val extractedMatches = merkleBlock.partialMerkleTree.extractMatches
+        //note that intersection is paramount here, our bloom filter can have false positives
+        //so we cannot do a straight up equality comparison
+        //bloom filters cannot have false negatives though, so we should have ATLEAST
+        //the txids specified by our generator in this set
+        extractedMatches.intersect(txIds) == txIds
+    }
+  }
 }
