@@ -4,7 +4,8 @@ import org.bitcoins.core.util.Factory
 
 /**
   * Created by chris on 8/3/16.
-  *
+  * Specifies how to update a bloom filter
+  * [[https://github.com/bitcoin/bips/blob/master/bip-0037.mediawiki#filter-matching-algorithm]]
   */
 sealed trait BloomFlag {
   def byte: Byte
