@@ -7,6 +7,8 @@ import org.bitcoins.spvnode.serializers.control.RawServiceIdentifierSerializer
 
 /**
   * Created by chris on 6/2/16.
+  * Indicates the services that are provided by this spv node
+  * [[https://bitcoin.org/en/developer-reference#version]]
   */
 sealed trait ServiceIdentifier extends NetworkElement {
   def num : UInt64

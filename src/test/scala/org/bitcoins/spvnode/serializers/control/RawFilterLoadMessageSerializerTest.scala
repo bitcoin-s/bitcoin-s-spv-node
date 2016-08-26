@@ -3,6 +3,7 @@ package org.bitcoins.spvnode.serializers.control
 import org.bitcoins.core.number.{UInt32, UInt64}
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.util.BitcoinSUtil
+import org.bitcoins.spvnode.bloom.BloomUpdateNone
 import org.scalatest.{FlatSpec, MustMatchers}
 
 /**
@@ -20,7 +21,7 @@ class RawFilterLoadMessageSerializerTest extends FlatSpec with MustMatchers  {
     BitcoinSUtil.encodeHex(filterLoadMsg.filter) must be ("b50f")
     filterLoadMsg.hashFuncs must be (UInt32(11))
     filterLoadMsg.tweak must be (UInt32.zero)
-    filterLoadMsg.flags must be (0.toByte)
+    filterLoadMsg.flags must be (BloomUpdateNone)
 
     RawFilterLoadMessageSerializer.write(filterLoadMsg) must be (hex)
 

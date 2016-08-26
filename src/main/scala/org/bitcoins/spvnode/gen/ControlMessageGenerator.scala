@@ -2,9 +2,11 @@ package org.bitcoins.spvnode.gen
 
 import java.net.{InetAddress, InetSocketAddress}
 
-import org.bitcoins.core.gen.{NumberGenerator, StringGenerators}
+import org.bitcoins.core.gen.{CryptoGenerators, NumberGenerator, StringGenerators}
+import org.bitcoins.core.number.{UInt32, UInt64}
+import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.spvnode.messages.control._
-import org.bitcoins.spvnode.messages.{FilterLoadMessage, PingMessage, PongMessage, VersionMessage}
+import org.bitcoins.spvnode.messages.{FilterLoadMessage, PingMessage, PongMessage, VersionMessage, _}
 import org.bitcoins.spvnode.versions.ProtocolVersion
 import org.scalacheck.Gen
 
@@ -13,6 +15,11 @@ import org.scalacheck.Gen
   */
 trait ControlMessageGenerator {
 
+  /**
+    * Generates a random [[VersionMessage]]
+    * [[https://bitcoin.org/en/developer-reference#version]]
+    * @return
+    */
   def versionMessage : Gen[VersionMessage] = for {
     version <- protocolVersion
     identifier <- serviceIdentifier
@@ -30,20 +37,38 @@ trait ControlMessageGenerator {
   } yield VersionMessage(version, identifier, timestamp, addressReceiveServices, addressReceiveIpAddress, addressReceivePort,
     addressTransServices, addressTransIpAddress, addressTransPort, nonce, userAgent, startHeight, relay)
 
-
-
+  /**
+    * Generates a [[PingMessage]]
+    * [[https://bitcoin.org/en/developer-reference#ping]]
+    * @return
+    */
   def pingMessage: Gen[PingMessage] = for {
     uInt64 <- NumberGenerator.uInt64s
   } yield PingMessage(uInt64)
 
+  /**
+    * Generates a [[PongMessage]]
+    * [[https://bitcoin.org/en/developer-reference#pong]]
+    * @return
+    */
   def pongMessage: Gen[PongMessage] = for {
     uInt64 <- NumberGenerator.uInt64s
   } yield PongMessage(uInt64)
 
+  /**
+    * Generates a random [[ProtocolVersion]]
+    * [[https://bitcoin.org/en/developer-reference#protocol-versions]]
+    * @return
+    */
   def protocolVersion : Gen[ProtocolVersion] = for {
     randomNum <- Gen.choose(0,ProtocolVersion.versions.length-1)
   } yield ProtocolVersion.versions(randomNum)
 
+  /**
+    * Generates a [[ServiceIdentifier]]
+    * [[https://bitcoin.org/en/developer-reference#version]]
+    * @return
+    */
   def serviceIdentifier: Gen[ServiceIdentifier] = for {
     //service identifiers can only be NodeNetwork or UnnamedService
     randomNum <- Gen.choose(0,1)
@@ -61,12 +86,27 @@ trait ControlMessageGenerator {
 
   def portNumber : Gen[Int] = Gen.choose(0,65535)
 
+  /**
+    * Creates a [[FilterLoadMessage]]
+    * [[https://bitcoin.org/en/developer-reference#filterload]]
+    * @return
+    */
   def filterLoadMessage: Gen[FilterLoadMessage] = for {
     filter <- NumberGenerator.bytes
-    hashFuncs <- NumberGenerator.uInt32s
+    hashFuncs <- Gen.choose(0,50)
     tweak <- NumberGenerator.uInt32s
-    flags <- NumberGenerator.byte
-  } yield FilterLoadMessage(filter,hashFuncs, tweak, flags)
+    flags <- BloomFilterGenerator.bloomFlag
+  } yield FilterLoadMessage(filter,UInt32(hashFuncs), tweak, flags)
+
+  /**
+    * Creates a [[FilterAddMessage]]
+    * [[https://bitcoin.org/en/developer-reference#filteradd]]
+    * @return
+    */
+  def filterAddMessage: Gen[FilterAddMessage] = for {
+    element <- CryptoGenerators.doubleSha256Digest
+    elementSize = CompactSizeUInt(UInt64(element.bytes.size))
+  } yield FilterAddMessage(elementSize,element.bytes)
 
 }
 

@@ -9,7 +9,7 @@ import org.bitcoins.spvnode.serializers.messages.data.RawInventorySerializer
 /**
   * Created by chris on 5/31/16.
   * These are used as unique identifiers inside the peer-to-peer network
-  * https://bitcoin.org/en/developer-reference#data-messages
+  * [[https://bitcoin.org/en/developer-reference#term-inventory]]
   */
 trait Inventory extends NetworkElement with BitcoinSLogger {
 

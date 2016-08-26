@@ -7,7 +7,7 @@ import org.bitcoins.core.util.Factory
   * Created by chris on 6/1/16.
   * The peer to peer network has versions to allow for new operations
   * Here are the currently protocol versions in the network
-  * https://bitcoin.org/en/developer-reference#protocol-versions
+  * [[https://bitcoin.org/en/developer-reference#protocol-versions]]
   */
 sealed trait ProtocolVersion extends NetworkElement
 
