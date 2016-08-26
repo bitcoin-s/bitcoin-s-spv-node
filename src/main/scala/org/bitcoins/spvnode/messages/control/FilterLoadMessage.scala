@@ -9,6 +9,7 @@ import org.bitcoins.spvnode.serializers.control.RawFilterLoadMessageSerializer
 
 /**
   * Created by chris on 7/19/16.
+  * [[https://bitcoin.org/en/developer-reference#filterload]]
   */
 object FilterLoadMessage extends Factory[FilterLoadMessage] {
   private case class FilterLoadMessageImpl(filterSize: CompactSizeUInt, filter: Seq[Byte], hashFuncs: UInt32,

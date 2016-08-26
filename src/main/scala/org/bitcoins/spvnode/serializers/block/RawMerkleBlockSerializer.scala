@@ -13,6 +13,7 @@ import scala.annotation.tailrec
 
 /**
   * Created by chris on 8/15/16.
+  * [[https://bitcoin.org/en/developer-reference#merkleblock]]
   */
 trait RawMerkleBlockSerializer extends RawBitcoinSerializer[MerkleBlock] {
 
@@ -37,13 +38,8 @@ trait RawMerkleBlockSerializer extends RawBitcoinSerializer[MerkleBlock] {
   def write(merkleBlock: MerkleBlock): String = {
     val partialMerkleTree = merkleBlock.partialMerkleTree
     val bitVectors = parseToBytes(partialMerkleTree.bits)
-    //bitVectorsToBytes returns bytes in big endian format
-    //we want bytes in little endian format,
     val byteVectors = BitcoinSUtil.bitVectorsToBytes(bitVectors)
     val flagCount = CompactSizeUInt(UInt64(Math.ceil(partialMerkleTree.bits.size.toDouble / 8).toInt))
-    logger.debug("Original bits: " + partialMerkleTree.bits)
-    logger.debug("Bit vectors: " + bitVectors)
-    logger.debug("bitVectorsToBytes: " + BitcoinSUtil.encodeHex(byteVectors))
     merkleBlock.blockHeader.hex +
       BitcoinSUtil.flipEndianess(merkleBlock.transactionCount.hex) +
       CompactSizeUInt(UInt64(merkleBlock.hashes.size)).hex + merkleBlock.hashes.map(_.hex).mkString +

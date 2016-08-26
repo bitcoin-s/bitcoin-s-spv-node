@@ -15,8 +15,12 @@ import scala.math._
   * Represents a subset of known txids inside of a [[Block]]
   * in a way that allows recovery of the txids & merkle root
   * without having to store them all explicitly.
+  * See BIP37 for more details
+  * [[https://github.com/bitcoin/bips/blob/master/bip-0037.mediawiki#partial-merkle-branch-format]]
   *
   * Encoding procedure:
+  * [[https://bitcoin.org/en/developer-reference#creating-a-merkleblock-message]]
+  * [[https://github.com/bitcoin/bitcoin/blob/master/src/merkleblock.cpp#L80]]
   * Traverse the tree in depth first order, storing a bit for each traversal.
   * This bit signifies if the node is a parent of at least one
   * matched leaf txid (or a matched leaf txid) itself.
@@ -25,8 +29,12 @@ import scala.math._
   * Otherwise no hash is stored, but we recurse all of this node's child branches.
   *
   * Decoding procedure:
+  * [[https://bitcoin.org/en/developer-reference#parsing-a-merkleblock-message]]
+  * [[https://github.com/bitcoin/bitcoin/blob/master/src/merkleblock.cpp#L98]]
   * The same depth first decoding procedure is performed, but we consume the
   * bits and hashes that we used during encoding
+  *
+  *
   *
   */
 trait PartialMerkleTree extends BitcoinSLogger {
@@ -132,6 +140,7 @@ object PartialMerkleTree extends BitcoinSLogger {
 
     /**
       * This loops through our merkle tree building [[bits]] so we can instruct another node how to create the partial merkle tree
+      * [[https://github.com/bitcoin/bitcoin/blob/master/src/merkleblock.cpp#L80]]
       * @param bits the accumulator for bits indicating how to reconsctruct the partial merkle tree
       * @param hashes the relevant hashes used with bits to reconstruct the merkle tree
       * @param height the transaction index we are currently looking at -- if it was matched in our bloom filter we need the entire merkle branch
@@ -158,7 +167,7 @@ object PartialMerkleTree extends BitcoinSLogger {
       }
     }
     val (bits,hashes) = loop(Nil, Nil, maxHeight,0)
-    //pad the bit array to the nearest byte
+    //pad the bit array to the nearest byte as required by BIP37
     val bitsNeeded = if ((bits.size % 8) == 0) 0 else 8 - (bits.size % 8)
     val paddingBits = for { _ <- 0 until bitsNeeded} yield false
     (bits.reverse ++ paddingBits, hashes.reverse)
@@ -229,7 +238,7 @@ object PartialMerkleTree extends BitcoinSLogger {
 
   /** Builds a partial merkle tree the information inside of a [[org.bitcoins.spvnode.messages.MerkleBlockMessage]]
     * [[https://bitcoin.org/en/developer-reference#parsing-a-merkleblock-message]]
-    *
+    * [[https://github.com/bitcoin/bitcoin/blob/master/src/merkleblock.cpp#L98]]
     * @param numTransaction
     * @param hashes
     * @param bits
@@ -258,13 +267,10 @@ object PartialMerkleTree extends BitcoinSLogger {
               val (rightNode,rightRemainingHashes, rightRemainingBits) =
                 loop(leftRemainingHashes,leftRemainingBits,height+1, (2 * pos) + 1)
               require(leftNode.value.get != rightNode.value.get, "Cannot have the same hashes in two child nodes, got: " + leftNode + " and " + rightNode)
-              logger.debug("Right remaining hashes: " + rightRemainingHashes)
-              logger.debug("Right remaining bits: " + rightRemainingBits)
               (rightNode,rightRemainingHashes, rightRemainingBits)
           } else (leftNode, leftRemainingHashes, leftRemainingBits)
           val nodeHash = CryptoUtil.doubleSHA256(leftNode.value.get.bytes ++ rightNode.value.get.bytes)
           val node = Node(nodeHash,leftNode,rightNode)
-          logger.debug("Tree: " + node)
           (node,rightRemainingHashes,rightRemainingBits)
         } else (Leaf(remainingHashes.head),remainingHashes.tail,remainingMatches.tail)
       }
@@ -273,6 +279,7 @@ object PartialMerkleTree extends BitcoinSLogger {
     logger.info("Original hashes: " + hashes)
     logger.info("Original bits: " + bits)
     val (tree,remainingHashes,remainingBits) = loop(hashes,bits,0,0)
+    //we must have used all the hashes provided to us to reconstruct the partial merkle tree as per BIP37
     require(remainingHashes.size == 0,"We should not have any left over hashes after building our partial merkle tree, got: " + remainingHashes )
     //we must not have any matches remaining, unless the remaining bits were use to pad our byte vector to 8 bits
     //for instance, we could have had 5 bits to indicate how to build the merkle tree, but we need to pad it with 3 bits
@@ -300,9 +307,11 @@ object PartialMerkleTree extends BitcoinSLogger {
   }
 
 
-  /** Enforces the invariant inside of bitcoin core saying we must use all bits in a byte array when reconstruction a partial merkle tree */
+  /** Enforces the invariant inside of bitcoin core saying we must use all bits
+    * in a byte array when reconstruction a partial merkle tree
+    * [[https://github.com/bitcoin/bitcoin/blob/master/src/merkleblock.cpp#L177]]
+    * */
   private def usedAllBits(bits: Seq[Boolean], remainingBits: Seq[Boolean]): Boolean = {
-    //https://github.com/bitcoin/bitcoin/blob/master/src/merkleblock.cpp#L177
     val bitsUsed = bits.size - remainingBits.size
     ((bitsUsed+7) / 8) ==((bits.size + 7) / 8)
   }

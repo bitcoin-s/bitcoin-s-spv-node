@@ -31,6 +31,7 @@ trait BloomFilterGenerator {
     loaded = filter.insertHashes(hashes)
   } yield (loaded,hashes.map(_.bytes))
 
+  /** Generates a random bloom flag */
   def bloomFlag: Gen[BloomFlag] = for {
     randomNum <- Gen.choose(0,2)
   } yield {

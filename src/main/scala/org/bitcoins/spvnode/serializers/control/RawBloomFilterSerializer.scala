@@ -8,6 +8,7 @@ import org.bitcoins.spvnode.bloom.{BloomFilter, BloomFlag}
 
 /**
   * Created by chris on 8/4/16.
+  * [[https://github.com/bitcoin/bips/blob/master/bip-0037.mediawiki#new-messages]]
   */
 trait RawBloomFilterSerializer extends RawBitcoinSerializer[BloomFilter] {
 

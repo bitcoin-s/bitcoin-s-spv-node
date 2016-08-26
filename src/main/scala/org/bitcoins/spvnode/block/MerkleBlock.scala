@@ -15,9 +15,10 @@ import scala.annotation.tailrec
   * Created by chris on 8/7/16.
   */
 trait MerkleBlock extends NetworkElement with BitcoinSLogger {
-
+  /** The block header for the this merkle block */
   def blockHeader: BlockHeader
 
+  /** The number of transactions in the original block */
   def transactionCount: UInt32
 
   /** The amount of hashes inside of the merkle block */
@@ -42,8 +43,8 @@ object MerkleBlock extends Factory[MerkleBlock] {
     * Creates a [[MerkleBlock]] from the given [[Block]] and [[BloomFilter]]
     * This function iterates through each transaction inside our block checking if it is relevant to the given bloom filter
     * If it is relevant, it will set a flag to indicate we should include it inside of our [[PartialMerkleTree]]
-    * @param block
-    * @param filter
+    * @param block the block that we searching for transactions that match the bloom filter
+    * @param filter the filter we are comparing transactions in the block against
     * @return the merkle block and the bloom filter loaded with information from the relevant txs in the block
     */
   def apply(block: Block, filter: BloomFilter): (MerkleBlock,BloomFilter) = {
@@ -53,7 +54,6 @@ object MerkleBlock extends Factory[MerkleBlock] {
       if (remainingTxs.isEmpty) (txMatches.reverse,accumFilter)
       else {
         val tx = remainingTxs.head
-        if (accumFilter.isRelevant(tx)) logger.warn("Tx is relevant: " + tx.txId)
         val newTxMatches = (accumFilter.isRelevant(tx),tx.txId) +: txMatches
         val newFilter =  accumFilter.update(tx)
         loop(remainingTxs.tail,newFilter,newTxMatches)
