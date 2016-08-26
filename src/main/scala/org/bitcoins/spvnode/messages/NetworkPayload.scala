@@ -336,7 +336,7 @@ sealed trait AlertMessage extends ControlPayload {
   * set in the filterload message to add the element to the bloom filter.
   * https://bitcoin.org/en/developer-reference#filteradd
   */
-sealed trait FilterAddMessage extends ControlPayload {
+trait FilterAddMessage extends ControlPayload {
 
   /**
     * The number of bytes in the following element field.
@@ -355,6 +355,8 @@ sealed trait FilterAddMessage extends ControlPayload {
   def element : Seq[Byte]
 
   override def commandName = NetworkPayload.filterAddCommandName
+
+  override def hex = RawFilterAddMessageSerializer.write(this)
 }
 
 
@@ -700,7 +702,7 @@ object NetworkPayload {
     notFoundCommandName -> { RawNotFoundMessageSerializer.read(_) },
     transactionCommandName -> { RawTransactionMessageSerializer.read(_) },
     addrCommandName -> { RawAddrMessageSerializer.read(_) },
-    filterAddCommandName -> { x : Seq[Byte] => ???},
+    filterAddCommandName -> { RawFilterAddMessageSerializer.read(_) },
     filterClearCommandName -> { x : Seq[Byte] => ???},
     filterLoadCommandName -> { x : Seq[Byte] => ???},
     getAddrCommandName -> { x : Seq[Byte] => GetAddrMessage},
