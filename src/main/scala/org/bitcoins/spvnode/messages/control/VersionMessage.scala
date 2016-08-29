@@ -9,7 +9,6 @@ import org.bitcoins.core.util.Factory
 import org.bitcoins.spvnode.messages._
 import org.bitcoins.spvnode.serializers.control.RawVersionMessageSerializer
 import org.bitcoins.spvnode.versions.{ProtocolVersion}
-import org.bitcoins.spvnode.BuildInfo
 import org.bitcoins.spvnode.constant.Constants
 import org.joda.time.DateTime
 
@@ -50,7 +49,7 @@ object VersionMessage extends Factory[VersionMessage] {
 
   def apply(network : NetworkParameters, receivingIpAddress : InetAddress, transmittingIpAddress : InetAddress) : VersionMessage = {
     val nonce = UInt64.zero
-    val userAgent = "/" + BuildInfo.name + "/" + BuildInfo.version
+    val userAgent = Constants.userAgent
     val startHeight = Int32.zero
     val relay = false
     VersionMessage(Constants.version, UnnamedService, Int64(DateTime.now.getMillis), UnnamedService, receivingIpAddress,

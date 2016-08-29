@@ -16,7 +16,7 @@ import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 /**
   * Created by chris on 6/7/16.
   * This actor is the middle man between our [[Client]] and higher level actors such as
-  * [[BlockActor]]. When it receives a message, it tells [[Client]] to create connectino to a peer,
+  * [[BlockActor]]. When it receives a message, it tells [[Client]] to create connection to a peer,
   * then it exchanges [[VersionMessage]], [[VerAckMessage]] and [[PingMessage]]/[[PongMessage]] message
   * with our peer on the network. When the Client finally responds to the [[NetworkMessage]] we originally
   * sent it sends that [[NetworkMessage]] back to the actor that requested it.
@@ -146,7 +146,7 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
     * This function is responsible for handling a [[Tcp.Event]] algebraic data type
     * @param event the event that needs to be handled
     * @param unalignedBytes the unaligned bytes from previous tcp frames
-    *                       These can be used to constructuct a full message, since the last frame could
+    *                       These can be used to construct a full message, since the last frame could
     *                       have transmitted the first half of the message, and this frame transmits the
     *                       rest of the message
     * @return the new unaligned bytes, if there are any
@@ -193,7 +193,7 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
     case event: Tcp.Event => handleEvent(event, unalignedBytes)
     case command: Tcp.Command =>
       handleCommand(command)
-      Seq()
+      Nil
   }
 
   /**

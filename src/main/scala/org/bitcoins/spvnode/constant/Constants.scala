@@ -16,6 +16,8 @@ trait Constants {
   def version = ProtocolVersion70012
   def versionMessage = VersionMessage(networkParameters)
   def timeout = 5.seconds
+
+  def userAgent = "/bitcoins-spv-node/0.0.1"
 }
 
 object Constants extends Constants

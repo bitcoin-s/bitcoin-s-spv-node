@@ -50,7 +50,7 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike
 
   it must "bind connect to two nodes on one port" in {
     val remote1 = new InetSocketAddress(TestNet3.dnsSeeds(0), TestNet3.port)
-    val remote2 = new InetSocketAddress(TestNet3.dnsSeeds(2), TestNet3.port)
+    val remote2 = new InetSocketAddress(TestNet3.dnsSeeds(1), TestNet3.port)
 
     val probe1 = TestProbe()
     val probe2 = TestProbe()
@@ -60,7 +60,6 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike
     val client2 = TestActorRef(Client.props, probe2.ref)
 
     val local1 = new InetSocketAddress(TestNet3.port)
-    //val local2 = new InetSocketAddress(TestNet3.port)
     val options = List(Inet.SO.ReuseAddress(true))
     client1 ! Tcp.Connect(remote1,Some(local1),options)
 
@@ -70,7 +69,7 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike
 
     val local2 = new InetSocketAddress(TestNet3.port)
     client2 ! Tcp.Connect(remote2,Some(local2),options)
-    probe2.expectMsgType[Tcp.Connected]
+    probe2.expectMsgType[Tcp.Connected](5.seconds)
     client2 ! Tcp.Abort
   }
 

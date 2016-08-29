@@ -1,6 +1,6 @@
 import sbt._
-import sbtbuildinfo._
-import BuildInfoKeys._
+//import sbtbuildinfo._
+//import BuildInfoKeys._
 import Keys._ 
 object BitcoinSSpvNodeBuild extends Build {
 
@@ -22,11 +22,11 @@ object BitcoinSSpvNodeBuild extends Build {
     "com.typesafe.akka" %% "akka-slf4j" % akkaV withSources() withJavadoc()
   )
   
-  lazy val root = Project(appName, file(".")).enablePlugins(BuildInfoPlugin).settings(
+  lazy val root = Project(appName, file("."))/*.enablePlugins(BuildInfoPlugin)*/.settings(
     version := appV,
     scalaVersion := scalaV,
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "org.bitcoins.spvnode",
+    //buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    //buildInfoPackage := "org.bitcoins.spvnode",
     resolvers += Resolver.sonatypeRepo("releases"),  
     libraryDependencies ++= appDependencies,
     scalacOptions ++= Seq("-unchecked", "-deprecation")  
