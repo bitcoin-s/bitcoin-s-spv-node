@@ -17,13 +17,11 @@ trait RawFilterLoadMessageSerializer extends RawBitcoinSerializer[FilterLoadMess
 
   override def read(bytes: List[Byte]): FilterLoadMessage = {
     val filter = RawBloomFilterSerializer.read(bytes)
-    FilterLoadMessage(filter.filterSize,filter.data,filter.hashFuncs,filter.tweak,filter.flags)
+    FilterLoadMessage(filter)
   }
 
   override def write(filterLoadMessage: FilterLoadMessage): String = {
-    val bloomFilter = BloomFilter(filterLoadMessage.filterSize, filterLoadMessage.filter,
-      filterLoadMessage.hashFuncs, filterLoadMessage.tweak, filterLoadMessage.flags)
-    RawBloomFilterSerializer.write(bloomFilter)
+    RawBloomFilterSerializer.write(filterLoadMessage.bloomFilter)
   }
 }
 

@@ -17,11 +17,11 @@ class RawFilterLoadMessageSerializerTest extends FlatSpec with MustMatchers  {
     val hex = "02b50f0b0000000000000000"
 
     val filterLoadMsg = RawFilterLoadMessageSerializer.read(hex)
-    filterLoadMsg.filterSize must be (CompactSizeUInt(UInt64(2)))
-    BitcoinSUtil.encodeHex(filterLoadMsg.filter) must be ("b50f")
-    filterLoadMsg.hashFuncs must be (UInt32(11))
-    filterLoadMsg.tweak must be (UInt32.zero)
-    filterLoadMsg.flags must be (BloomUpdateNone)
+    filterLoadMsg.bloomFilter.filterSize must be (CompactSizeUInt(UInt64(2)))
+    BitcoinSUtil.encodeHex(filterLoadMsg.bloomFilter.data) must be ("b50f")
+    filterLoadMsg.bloomFilter.hashFuncs must be (UInt32(11))
+    filterLoadMsg.bloomFilter.tweak must be (UInt32.zero)
+    filterLoadMsg.bloomFilter.flags must be (BloomUpdateNone)
 
     RawFilterLoadMessageSerializer.write(filterLoadMsg) must be (hex)
 

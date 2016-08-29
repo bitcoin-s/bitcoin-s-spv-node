@@ -264,6 +264,10 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
         //remove the GetAddrMessage request
         requests.filterNot{ case (sender,msg) => msg == GetAddrMessage }
       } else requests
+    case filterMsg @ (_: FilterAddMessage | _: FilterLoadMessage | FilterClearMessage) =>
+      logger.debug("Sending filter message: " + filterMsg + " to " + "destination")
+      destination ! filterMsg
+      requests
     case controlMsg @ (GetAddrMessage | VerAckMessage | _ : VersionMessage | _ : PongMessage) =>
       destination ! controlMsg
       requests

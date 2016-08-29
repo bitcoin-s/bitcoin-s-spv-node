@@ -10,7 +10,7 @@ import org.bitcoins.core.protocol.{CompactSizeUInt, NetworkElement}
 import org.bitcoins.core.serializers.RawBitcoinSerializer
 import org.bitcoins.core.util.BitcoinSUtil
 import org.bitcoins.spvnode.block.MerkleBlock
-import org.bitcoins.spvnode.bloom.BloomFlag
+import org.bitcoins.spvnode.bloom.{BloomFilter, BloomFlag}
 import org.bitcoins.spvnode.headers.NetworkHeader
 import org.bitcoins.spvnode.messages.control.{Alert, ServiceIdentifier}
 import org.bitcoins.spvnode.messages.data.Inventory
@@ -344,36 +344,8 @@ case object FilterClearMessage extends ControlPayload {
   */
 trait FilterLoadMessage extends ControlPayload {
 
-  /**
-    * Number of bytes in the following filter bit field.
-    * @return
-    */
-  def filterSize : CompactSizeUInt
-
-  /**
-    * A bit field of arbitrary byte-aligned size. The maximum size is 36,000 bytes.
-    * @return
-    */
-  def filter : Seq[Byte]
-
-  /**
-    * The number of hash functions to use in this filter. The maximum value allowed in this field is 50.
-    * @return
-    */
-  def hashFuncs : UInt32
-
-  /**
-    * An arbitrary value to add to the seed value in the hash function used by the bloom filter.
-    * @return
-    */
-  def tweak : UInt32
-
-  /**
-    * A set of flags that control how outpoints corresponding to a matched pubkey script are added to the filter.
-    * See the table in the Updating A Bloom Filter subsection below.
-    * @return
-    */
-  def flags : BloomFlag
+  /** The underlying bloom filter inside of the FilterLoadMessage */
+  def bloomFilter: BloomFilter
 
   override def commandName = NetworkPayload.filterLoadCommandName
 

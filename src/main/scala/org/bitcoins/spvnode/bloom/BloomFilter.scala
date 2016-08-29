@@ -189,12 +189,12 @@ sealed trait BloomFilter extends NetworkElement with BitcoinSLogger {
       case h :: t => loop(t,accumFilter)
       case Nil => accumFilter
     }
-    val p2pkhOrMultiSigScriptPubKeys: Seq[(ScriptPubKey,Int)] = scriptPubKeysWithIndex.filter {
+    val p2pkOrMultiSigScriptPubKeys: Seq[(ScriptPubKey,Int)] = scriptPubKeysWithIndex.filter {
       case (s,index) => s.isInstanceOf[P2PKScriptPubKey] ||
         s.isInstanceOf[MultiSignatureScriptPubKey]
     }
     //gets rid of all asm operations in the scriptPubKey except for the constants
-    val scriptConstantsWithOutputIndex: Seq[(ScriptToken,Int)] = p2pkhOrMultiSigScriptPubKeys.flatMap { case (scriptPubKey,index) =>
+    val scriptConstantsWithOutputIndex: Seq[(ScriptToken,Int)] = p2pkOrMultiSigScriptPubKeys.flatMap { case (scriptPubKey,index) =>
       (scriptPubKey.asm.map(token => (token,index))).filter {
         case (token,index) => token.isInstanceOf[ScriptConstant]
       }
