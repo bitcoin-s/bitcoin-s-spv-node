@@ -15,6 +15,7 @@ import org.bitcoins.spvnode.constant.Constants
 import org.bitcoins.spvnode.messages._
 import org.bitcoins.spvnode.messages.control.PingMessage
 import org.bitcoins.spvnode.messages.data.{GetBlocksMessage, GetDataMessage, GetHeadersMessage, Inventory}
+import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FlatSpecLike, MustMatchers}
 
 import scala.concurrent.duration.DurationInt
@@ -27,8 +28,9 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
   with BeforeAndAfter with BeforeAndAfterAll with BitcoinSLogger {
 
   def peerMsgHandlerRef: (ActorRef, TestProbe) = {
-    val probe = TestProbe()
-    (TestActorRef(PeerMessageHandler.props,probe.ref),probe)
+    val probe = TestProbe("TestProbe" + BitcoinSpvNodeUtil.createActorName(this.getClass))
+    (TestActorRef(PeerMessageHandler.props,probe.ref,
+      BitcoinSpvNodeUtil.createActorName(PeerMessageHandler.getClass)),probe)
   }
 
   "PeerMessageHandler" must "be able to send a GetHeadersMessage then receive a list of headers back" in {
@@ -38,10 +40,9 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     val hashStop = DoubleSha256Digest(BitcoinSUtil.flipEndianess("000000006c02c8ea6e4ff69651f7fcde348fb9d557a06e6957b65552002a7820"))
     val getHeadersMessage = GetHeadersMessage(Constants.version,Seq(hashStart),hashStop)
 
-    val peerRequest = buildPeerRequest(getHeadersMessage)
     val (peerMsgHandler,probe) = peerMsgHandlerRef
 
-    probe.send(peerMsgHandler, peerRequest)
+    probe.send(peerMsgHandler, getHeadersMessage)
 
     val headersMsg = probe.expectMsgType[HeadersMessage](10.seconds)
     headersMsg.commandName must be (NetworkPayload.headersCommandName)
@@ -55,6 +56,7 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     probe.expectMsg(Tcp.Closed)
 
   }
+
   it must "send a getblocks message and receive a list of blocks back" in {
     val hashStart = DoubleSha256Digest("0000000000000000000000000000000000000000000000000000000000000000")
     //this is the hash of block 2, so this test will send two blocks
@@ -118,7 +120,6 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
     val peerRequest = buildPeerRequest(GetAddrMessage)
     probe.send(peerMsgHandler,peerRequest)
     val addrMsg = probe.expectMsgType[AddrMessage](15.seconds)
-    logger.debug("" + addrMsg)
     peerMsgHandler ! Tcp.Close
     probe.expectMsg(Tcp.Closed)
   }

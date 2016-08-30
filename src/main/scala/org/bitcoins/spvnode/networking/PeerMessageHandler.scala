@@ -2,15 +2,15 @@ package org.bitcoins.spvnode.networking
 
 import java.net.InetSocketAddress
 
-import akka.actor.{Actor, ActorContext, ActorRef, Props}
+import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
 import akka.event.LoggingReceive
 import akka.io.Tcp
 import akka.util.ByteString
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
 import org.bitcoins.spvnode.NetworkMessage
 import org.bitcoins.spvnode.constant.Constants
-import org.bitcoins.spvnode.messages.{GetAddrMessage, VerAckMessage, _}
 import org.bitcoins.spvnode.messages.control.{PongMessage, VersionMessage}
+import org.bitcoins.spvnode.messages.{GetAddrMessage, VerAckMessage, _}
 import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 
 /**
@@ -23,13 +23,16 @@ import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
   */
 sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
 
-  lazy val peer: ActorRef = Client(context)
+  lazy val peer: ActorRef = context.actorOf(Client.props,BitcoinSpvNodeUtil.createActorName(this.getClass))
 
   def receive = LoggingReceive {
-    case message : Tcp.Message => handleTcpMessage(message, Seq())
+    case message : Tcp.Message => handleTcpMessage(message, Nil, sender)
     case msg: NetworkMessage =>
       logger.info("Switching to awaitConnected from default receive")
-      context.become(awaitConnected(Seq((sender,msg)), Seq()))
+      context.become(awaitConnected(Seq((sender,msg)), Nil))
+    case networkPayload: NetworkPayload =>
+      val networkMessage = NetworkMessage(Constants.networkParameters,networkPayload)
+      self.tell(networkMessage,sender)
     case msg =>
       logger.error("Unknown message inside of PeerMessageHandler: " + msg)
       throw new IllegalArgumentException("Unknown message inside of PeerMessageHandler: " + msg)
@@ -44,7 +47,7 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
       context.become(awaitVersionMessage(requests, unalignedBytes))
 
     case msg: Tcp.Message =>
-      val newUnalignedBytes = handleTcpMessage(msg, unalignedBytes)
+      val newUnalignedBytes = handleTcpMessage(msg, unalignedBytes,sender)
       context.become(awaitConnected(requests, newUnalignedBytes))
     case msg: NetworkMessage =>
       logger.debug("Received another peer request while waiting for Tcp.Connected: " + msg)
@@ -63,11 +66,10 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
         logger.debug("Switching to awaitVerack from awaitVersionMessage")
         context.become(awaitVerack(requests, unalignedBytes))
       case msg : NetworkPayload =>
-        logger.error("Expected a version message, got: " + msg)
         context.become(awaitVersionMessage((sender,networkMessage) +: requests, unalignedBytes))
     }
     case msg: Tcp.Message =>
-      val newUnalignedBytes = handleTcpMessage(msg, unalignedBytes)
+      val newUnalignedBytes = handleTcpMessage(msg, unalignedBytes,sender)
       context.become(awaitVersionMessage(requests,newUnalignedBytes))
     case msg =>
       logger.error("Unknown message inside of awaitVersionMessage: " + msg)
@@ -78,7 +80,7 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
     case networkMessage : NetworkMessage => networkMessage.payload match {
       case VerAckMessage =>
         logger.info("Received verack message, sending queued messages: " + requests)
-        sendPeerRequests(requests,peer)
+        sendPeerRequests(requests)
         logger.info("Switching to peerMessageHandler from awaitVerack")
         val controlPayloads = findControlPayloads(requests)
         context.become(peerMessageHandler(controlPayloads, unalignedBytes))
@@ -86,7 +88,7 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
         context.become(awaitVerack((sender,networkMessage) +: requests, unalignedBytes))
     }
     case msg: Tcp.Message =>
-      val newUnalignedBytes = handleTcpMessage(msg,unalignedBytes)
+      val newUnalignedBytes = handleTcpMessage(msg,unalignedBytes,sender)
       context.become(awaitVerack(requests,newUnalignedBytes))
     case msg =>
       logger.error("Unknown message inside of awaitVerack: " + msg)
@@ -96,31 +98,11 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
   /**
     * Sends all of the given [[NetworkMessage]] to our peer on the p2p network
     * @param requests
-    * @param peer
     * @return
     */
-  private def sendPeerRequests(requests: Seq[(ActorRef,NetworkMessage)], peer: ActorRef) = for {
+  private def sendPeerRequests(requests: Seq[(ActorRef,NetworkMessage)]) = for {
     (sender,peerRequest) <- requests
-    destination = deriveDestination(peer,sender)
-  } yield {
-    if (destination == context.parent) {
-      logger.debug("Sending msg {} to context.parent", peerRequest)
-    } else {
-      logger.debug("Sending msg {} to peer", peerRequest)
-    }
-    sendPeerRequest(peerRequest,destination)
-  }
-
-  /**
-    * Sends the given [[NetworkMessage]] to our peer on the bitcoin p2p network
-    * Sends a message to the original sender of the peer request
-    * confirming that the message was sent to the p2p network
-    * @param msg
-    * @param destination
-    * @return
-    */
-  private def sendPeerRequest(msg: NetworkMessage, destination: ActorRef) = destination ! msg
-
+  } yield peer ! peerRequest
 
   /**
     * This is the main receive function inside of [[PeerMessageHandler]]
@@ -130,16 +112,15 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
     */
   def peerMessageHandler(controlMessages: Seq[(ActorRef,ControlPayload)], unalignedBytes: Seq[Byte]) : Receive = LoggingReceive {
     case networkMessage: NetworkMessage =>
-      self ! networkMessage.payload
+      //hack to get around using 'self' as the sender
+      self.tell(networkMessage.payload,sender)
     case controlPayload: ControlPayload =>
-      val newControlMsgs = handleControlPayload(controlPayload,peer,sender,controlMessages)
+      val newControlMsgs = handleControlPayload(controlPayload,sender,controlMessages)
       context.become(peerMessageHandler(newControlMsgs,unalignedBytes))
-    case dataPayload: DataPayload => handleDataPayload(dataPayload,peer,sender)
+    case dataPayload: DataPayload => handleDataPayload(dataPayload,sender)
     case msg: Tcp.Message =>
-      val newUnalignedBytes = handleTcpMessage(msg,unalignedBytes)
+      val newUnalignedBytes = handleTcpMessage(msg,unalignedBytes,sender)
       context.become(peerMessageHandler(controlMessages,newUnalignedBytes))
-    case msg =>
-      logger.error("Unknown message in peerMessageHandler: " + msg)
   }
 
   /**
@@ -151,14 +132,14 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
     *                       rest of the message
     * @return the new unaligned bytes, if there are any
     */
-  private def handleEvent(event : Tcp.Event, unalignedBytes: Seq[Byte]): Seq[Byte] = event match {
+  private def handleEvent(event : Tcp.Event, unalignedBytes: Seq[Byte], sender: ActorRef): Seq[Byte] = event match {
     case Tcp.Received(byteString: ByteString) =>
       logger.debug("Received byte string in peerMessageHandler " + BitcoinSUtil.encodeHex(byteString.toArray))
       //this means that we receive a bunch of messages bundled into one [[ByteString]]
       //need to parse out the individual message
       val bytes: Seq[Byte] = unalignedBytes ++ byteString.toArray.toSeq
       val (messages,remainingBytes) = BitcoinSpvNodeUtil.parseIndividualMessages(bytes)
-      for {m <- messages} yield self ! m
+      for {m <- messages} yield self.tell(m,sender)
       remainingBytes
     case Tcp.CommandFailed(w: Tcp.Write) =>
       logger.debug("Peer message Handler command failed: " + Tcp.CommandFailed(w))
@@ -189,8 +170,8 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
       peer ! close
   }
 
-  private def handleTcpMessage(message: Tcp.Message, unalignedBytes: Seq[Byte]): Seq[Byte] = message match {
-    case event: Tcp.Event => handleEvent(event, unalignedBytes)
+  private def handleTcpMessage(message: Tcp.Message, unalignedBytes: Seq[Byte], sender: ActorRef): Seq[Byte] = message match {
+    case event: Tcp.Event => handleEvent(event, unalignedBytes,sender)
     case command: Tcp.Command =>
       handleCommand(command)
       Nil
@@ -201,76 +182,55 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
     * actor, it sends it to our peer on the network. If the sender was the
     * peer on the network, forward to the actor that spawned our actor
     * @param payload
-    * @param peer
     * @param sender
     */
-  private def handleDataPayload(payload: DataPayload, peer : ActorRef, sender: ActorRef): Unit = {
-    val destination = deriveDestination(peer,sender)
-    handleDataPayload(payload,destination)
-  }
-
-  /**
-    * Sends a [[DataPayload]] to the destination actor
-    * @param payload
-    * @param destination
-    */
-  private def handleDataPayload(payload: DataPayload, destination: ActorRef): Unit = destination ! payload
-
-
-  /**
-    * Handles a control payload.
-    * @param payload
-    * @param peer
-    * @param sender
-    * @param requests
-    * @return
-    */
-  private def handleControlPayload(payload: ControlPayload, peer: ActorRef, sender: ActorRef,
-                                   requests: Seq[(ActorRef,ControlPayload)]): Seq[(ActorRef,ControlPayload)] = {
-    val destination = deriveDestination(peer,sender)
-    handleControlPayload(payload,destination,requests)
+  private def handleDataPayload(payload: DataPayload, sender: ActorRef): Unit = {
+    val destination = deriveDestination(sender)
+    destination ! payload
   }
 
   /**
     * Handles control payloads defined here https://bitcoin.org/en/developer-reference#control-messages
     * @param payload the payload we need to do something with
-    * @param destination where the payload is going
     * @param requests the @payload may be a response to a request inside this sequence
     * @return the requests with the request removed for which the @payload is responding too
     */
-  private def handleControlPayload(payload: ControlPayload, destination: ActorRef,
-                                   requests: Seq[(ActorRef,ControlPayload)]): Seq[(ActorRef,ControlPayload)] = payload match {
-    case pingMsg: PingMessage =>
-      if (destination == context.parent) {
-        //means that our peer sent us a ping message, we respond with a pong
-        peer ! PongMessage(pingMsg.nonce)
-        //remove ping message from requests
-        requests.filterNot { case (sender,msg) => msg.isInstanceOf[PingMessage] }
-      } else {
-        //means we initialized the ping message, send it to our peer
-        logger.debug("Sending ping message to peer: " + pingMsg)
-        peer ! pingMsg
+  private def handleControlPayload(payload: ControlPayload, sender: ActorRef,
+                                   requests: Seq[(ActorRef,ControlPayload)]): Seq[(ActorRef,ControlPayload)] = {
+    logger.debug("Control payload before derive: " + payload)
+    val destination = deriveDestination(sender)
+    payload match {
+      case pingMsg: PingMessage =>
+        if (destination == context.parent) {
+          //means that our peer sent us a ping message, we respond with a pong
+          peer ! PongMessage(pingMsg.nonce)
+          //remove ping message from requests
+          requests.filterNot { case (sender,msg) => msg.isInstanceOf[PingMessage] }
+        } else {
+          //means we initialized the ping message, send it to our peer
+          logger.debug("Sending ping message to peer: " + pingMsg)
+          peer ! pingMsg
+          requests
+        }
+      case SendHeadersMessage =>
         requests
-      }
-    case SendHeadersMessage =>
-      requests
-
-    case addrMessage: AddrMessage =>
-      //figure out if this was a solicited AddrMessage or an Unsolicited AddrMessage
-      //see https://bitcoin.org/en/developer-reference#addr
-      val getAddrMessage: Option[(ActorRef,ControlPayload)] = requests.find{ case (sender,msg) => msg == GetAddrMessage}
-      if (getAddrMessage.isDefined) {
-        destination ! addrMessage
-        //remove the GetAddrMessage request
-        requests.filterNot{ case (sender,msg) => msg == GetAddrMessage }
-      } else requests
-    case filterMsg @ (_: FilterAddMessage | _: FilterLoadMessage | FilterClearMessage) =>
-      logger.debug("Sending filter message: " + filterMsg + " to " + "destination")
-      destination ! filterMsg
-      requests
-    case controlMsg @ (GetAddrMessage | VerAckMessage | _ : VersionMessage | _ : PongMessage) =>
-      destination ! controlMsg
-      requests
+      case addrMessage: AddrMessage =>
+        //figure out if this was a solicited AddrMessage or an Unsolicited AddrMessage
+        //see https://bitcoin.org/en/developer-reference#addr
+        val getAddrMessage: Option[(ActorRef,ControlPayload)] = requests.find{ case (sender,msg) => msg == GetAddrMessage}
+        if (getAddrMessage.isDefined) {
+          destination ! addrMessage
+          //remove the GetAddrMessage request
+          requests.filterNot{ case (sender,msg) => msg == GetAddrMessage }
+        } else requests
+      case filterMsg @ (_: FilterAddMessage | _: FilterLoadMessage | FilterClearMessage) =>
+        logger.debug("Sending filter message: " + filterMsg + " to " + "destination")
+        destination ! filterMsg
+        requests
+      case controlMsg @ (GetAddrMessage | VerAckMessage | _ : VersionMessage | _ : PongMessage) =>
+        destination ! controlMsg
+        requests
+    }
   }
 
 
@@ -278,13 +238,17 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
     * Figures out the actor that is the destination for a message
     * For messages, if the sender was context.parent, we need to send the message to our peer on the network
     * if the sender was the peer, we need to relay the message to the context.parent
-    * @param peer
     * @param sender
     * @return
     */
-  private def deriveDestination(peer: ActorRef, sender: ActorRef): ActorRef = {
-    if (sender == context.parent) peer
-    else context.parent
+  private def deriveDestination(sender: ActorRef): ActorRef = {
+    if (sender == context.parent) {
+      logger.debug("The sender was context.parent, therefore we are sending this message to our peer on the network")
+      peer
+    } else {
+      logger.debug("The sender was the peer on the network, therefore we need to send to context.parent")
+      context.parent
+    }
   }
 
   /**
@@ -301,9 +265,7 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
 
 
 object PeerMessageHandler {
-  private case class PeerMessageHandlerImpl(seed: InetSocketAddress) extends PeerMessageHandler {
-    peer ! Tcp.Connect(seed)
-  }
+
 
   def props: Props = {
     val seed = new InetSocketAddress(Constants.networkParameters.dnsSeeds(0), Constants.networkParameters.port)
@@ -312,9 +274,13 @@ object PeerMessageHandler {
 
   def props(seed: InetSocketAddress): Props = Props(classOf[PeerMessageHandlerImpl],seed)
 
-  def apply(context : ActorContext): ActorRef = context.actorOf(props, BitcoinSpvNodeUtil.createActorName(this.getClass))
+  def apply(context : ActorRefFactory): ActorRef = context.actorOf(props, BitcoinSpvNodeUtil.createActorName(this.getClass))
 
-  def apply(context: ActorContext, seed: InetSocketAddress) = {
+  def apply(context: ActorRefFactory, seed: InetSocketAddress): ActorRef = {
     context.actorOf(props(seed), BitcoinSpvNodeUtil.createActorName(this.getClass))
   }
+}
+
+case class PeerMessageHandlerImpl(seed: InetSocketAddress) extends PeerMessageHandler {
+  peer ! Tcp.Connect(seed)
 }
