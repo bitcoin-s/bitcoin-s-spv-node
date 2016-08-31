@@ -44,6 +44,7 @@ sealed trait PaymentActor extends Actor with BitcoinSLogger {
       BitcoinSpvNodeUtil.createActorName(this.getClass))
     val bloomFilterNetworkMsg = NetworkMessage(Constants.networkParameters,filterLoadMsg)
     peerMsgHandler ! bloomFilterNetworkMsg
+    logger.debug("Switching to awaitTransactionInventoryMessage")
     context.become(awaitTransactionInventoryMessage(hash, peerMsgHandler))
   }
 
@@ -55,10 +56,10 @@ sealed trait PaymentActor extends Actor with BitcoinSLogger {
       //fire off individual GetDataMessages for the txids we received
       for { txInv <- txInventories } yield {
         val inventory = GetDataMessage(txInv)
-        val networkMsg = NetworkMessage(Constants.networkParameters,inventory)
-        peerMessageHandler ! networkMsg
+        peerMessageHandler ! inventory
       }
-      context.become(awaitTransactionInventoryMessage(hash,peerMessageHandler))
+      logger.debug("Switching to awaitTransactionInventoryMessage")
+      context.become(awaitTransactionGetDataMessage(hash,peerMessageHandler))
   }
 
   def awaitTransactionGetDataMessage(hash: Sha256Hash160Digest, peerMessageHandler: ActorRef): Receive = LoggingReceive {
@@ -69,6 +70,7 @@ sealed trait PaymentActor extends Actor with BitcoinSLogger {
       if (outputs.nonEmpty) {
         logger.debug("matched transaction inside of awaitTransactionGetDataMsg: " + txMsg.transaction.hex)
         logger.debug("Matched txid: " + txMsg.transaction.txId.hex)
+        logger.debug("Switching to awaitBlockAnnouncement")
         context.become(awaitBlockAnnouncement(hash,txMsg.transaction.txId, peerMessageHandler))
       }
       //otherwise we do nothing and wait for another transaction message
@@ -77,12 +79,17 @@ sealed trait PaymentActor extends Actor with BitcoinSLogger {
   def awaitBlockAnnouncement(hash: Sha256Hash160Digest, txId: DoubleSha256Digest, peerMessageHandler: ActorRef): Receive = LoggingReceive {
     case invMsg: InventoryMessage =>
       val blockHashes = invMsg.inventories.filter(_.typeIdentifier == MsgBlock).map(_.hash)
-      //construct a merkle block message to verify that the txIds was in the block
-      val merkleBlockInventory = Inventory(MsgFilteredBlock,blockHashes.head)
-      val getDataMsg = GetDataMessage(merkleBlockInventory)
-      val getDataNetworkMessage = NetworkMessage(Constants.networkParameters,getDataMsg)
-      peerMessageHandler ! getDataNetworkMessage
-      context.become(awaitMerkleBlockMessage(hash,txId,blockHashes))
+      if (blockHashes.nonEmpty) {
+        //construct a merkle block message to verify that the txIds was in the block
+        val merkleBlockInventory = Inventory(MsgFilteredBlock,blockHashes.head)
+        val getDataMsg = GetDataMessage(merkleBlockInventory)
+        val getDataNetworkMessage = NetworkMessage(Constants.networkParameters,getDataMsg)
+        peerMessageHandler ! getDataNetworkMessage
+        logger.debug("Switching to awaitMerkleBlockMessage")
+        context.become(awaitMerkleBlockMessage(hash,txId,blockHashes))
+      }
+      //else do nothing and wait for another block announcement
+
   }
 
   def awaitMerkleBlockMessage(hash: Sha256Hash160Digest, txId: DoubleSha256Digest, blockHashes: Seq[DoubleSha256Digest]): Receive = LoggingReceive {
