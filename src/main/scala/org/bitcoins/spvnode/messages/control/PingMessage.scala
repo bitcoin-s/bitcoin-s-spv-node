@@ -3,7 +3,7 @@ package org.bitcoins.spvnode.messages.control
 import org.bitcoins.core.number.UInt64
 import org.bitcoins.core.util.Factory
 import org.bitcoins.spvnode.messages.{PingMessage}
-import org.bitcoins.spvnode.serializers.control.RawPingMessageSerializer
+import org.bitcoins.spvnode.serializers.messages.control.RawPingMessageSerializer
 
 
 

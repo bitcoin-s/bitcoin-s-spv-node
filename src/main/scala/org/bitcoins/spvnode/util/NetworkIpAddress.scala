@@ -6,7 +6,7 @@ import org.bitcoins.core.number.UInt32
 import org.bitcoins.core.protocol.NetworkElement
 import org.bitcoins.core.util.Factory
 import org.bitcoins.spvnode.messages.control.ServiceIdentifier
-import org.bitcoins.spvnode.serializers.control.RawNetworkIpAddressSerializer
+import org.bitcoins.spvnode.serializers.messages.control.RawNetworkIpAddressSerializer
 
 /**
   * Created by chris on 5/31/16.

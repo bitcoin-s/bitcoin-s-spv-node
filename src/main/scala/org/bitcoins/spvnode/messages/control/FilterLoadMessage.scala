@@ -5,7 +5,7 @@ import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.util.Factory
 import org.bitcoins.spvnode.bloom.{BloomFilter, BloomFlag}
 import org.bitcoins.spvnode.messages.FilterLoadMessage
-import org.bitcoins.spvnode.serializers.control.RawFilterLoadMessageSerializer
+import org.bitcoins.spvnode.serializers.messages.control.RawFilterLoadMessageSerializer
 
 /**
   * Created by chris on 7/19/16.

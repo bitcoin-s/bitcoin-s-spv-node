@@ -7,7 +7,7 @@ import org.bitcoins.core.protocol.transaction.{Transaction, TransactionOutPoint}
 import org.bitcoins.core.protocol.{CompactSizeUInt, NetworkElement}
 import org.bitcoins.core.script.constant.{ScriptConstant, ScriptToken}
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil, Factory, NumberUtil}
-import org.bitcoins.spvnode.serializers.control.RawBloomFilterSerializer
+import org.bitcoins.spvnode.serializers.messages.control.RawBloomFilterSerializer
 
 import scala.annotation.tailrec
 import scala.util.hashing.MurmurHash3

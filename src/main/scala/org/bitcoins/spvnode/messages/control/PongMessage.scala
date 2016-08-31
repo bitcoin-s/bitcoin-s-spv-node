@@ -3,7 +3,7 @@ package org.bitcoins.spvnode.messages.control
 import org.bitcoins.core.number.UInt64
 import org.bitcoins.core.util.Factory
 import org.bitcoins.spvnode.messages.PongMessage
-import org.bitcoins.spvnode.serializers.control.RawPongMessageSerializer
+import org.bitcoins.spvnode.serializers.messages.control.RawPongMessageSerializer
 
 /**
   * Created by chris on 7/5/16.

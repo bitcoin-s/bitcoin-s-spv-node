@@ -3,7 +3,7 @@ package org.bitcoins.spvnode.messages.control
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.util.Factory
 import org.bitcoins.spvnode.messages.FilterAddMessage
-import org.bitcoins.spvnode.serializers.control.RawFilterAddMessageSerializer
+import org.bitcoins.spvnode.serializers.messages.control.RawFilterAddMessageSerializer
 
 /**
   * Created by chris on 8/26/16.

@@ -14,7 +14,7 @@ import org.bitcoins.spvnode.bloom.{BloomFilter, BloomFlag}
 import org.bitcoins.spvnode.headers.NetworkHeader
 import org.bitcoins.spvnode.messages.control.{Alert, ServiceIdentifier}
 import org.bitcoins.spvnode.messages.data.Inventory
-import org.bitcoins.spvnode.serializers.control._
+import org.bitcoins.spvnode.serializers.messages.control._
 import org.bitcoins.spvnode.serializers.messages.data._
 import org.bitcoins.spvnode.util.NetworkIpAddress
 import org.bitcoins.spvnode.versions.ProtocolVersion

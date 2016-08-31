@@ -3,7 +3,7 @@ package org.bitcoins.spvnode.messages.control
 import org.bitcoins.core.number.UInt64
 import org.bitcoins.core.protocol.NetworkElement
 import org.bitcoins.core.util.{BitcoinSLogger, Factory}
-import org.bitcoins.spvnode.serializers.control.RawServiceIdentifierSerializer
+import org.bitcoins.spvnode.serializers.messages.control.RawServiceIdentifierSerializer
 
 /**
   * Created by chris on 6/2/16.

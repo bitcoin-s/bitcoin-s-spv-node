@@ -38,7 +38,6 @@ sealed trait PaymentActor extends Actor with BitcoinSLogger {
       paymentToHash(hash)
     case address: Address =>
       self.forward(address.hash)
-
   }
 
   def paymentToHash(hash: Sha256Hash160Digest) = {

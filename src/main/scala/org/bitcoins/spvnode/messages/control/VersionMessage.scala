@@ -7,7 +7,7 @@ import org.bitcoins.core.number.{Int32, Int64, UInt64}
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.util.Factory
 import org.bitcoins.spvnode.messages._
-import org.bitcoins.spvnode.serializers.control.RawVersionMessageSerializer
+import org.bitcoins.spvnode.serializers.messages.control.RawVersionMessageSerializer
 import org.bitcoins.spvnode.versions.{ProtocolVersion}
 import org.bitcoins.spvnode.constant.Constants
 import org.joda.time.DateTime

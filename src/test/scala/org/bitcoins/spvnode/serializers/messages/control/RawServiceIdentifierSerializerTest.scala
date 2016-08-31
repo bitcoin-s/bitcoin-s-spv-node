@@ -1,4 +1,4 @@
-package org.bitcoins.spvnode.serializers.control
+package org.bitcoins.spvnode.serializers.messages.control
 
 import org.bitcoins.spvnode.messages.control.{NodeNetwork, UnnamedService}
 import org.scalatest.{FlatSpec, MustMatchers}

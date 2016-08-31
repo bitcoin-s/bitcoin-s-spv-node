@@ -1,4 +1,4 @@
-package org.bitcoins.spvnode.serializers.control
+package org.bitcoins.spvnode.serializers.messages.control
 
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.serializers.RawBitcoinSerializer

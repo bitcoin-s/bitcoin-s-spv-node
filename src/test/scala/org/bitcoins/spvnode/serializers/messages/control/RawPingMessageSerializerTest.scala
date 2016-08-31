@@ -1,4 +1,4 @@
-package org.bitcoins.spvnode.serializers.control
+package org.bitcoins.spvnode.serializers.messages.control
 
 import org.bitcoins.core.number.UInt64
 import org.bitcoins.spvnode.messages.control.PingMessage

@@ -3,7 +3,7 @@ package org.bitcoins.spvnode.messages.control
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.util.Factory
 import org.bitcoins.spvnode.messages.AddrMessage
-import org.bitcoins.spvnode.serializers.control.RawAddrMessageSerializer
+import org.bitcoins.spvnode.serializers.messages.control.RawAddrMessageSerializer
 import org.bitcoins.spvnode.util.NetworkIpAddress
 
 /**
