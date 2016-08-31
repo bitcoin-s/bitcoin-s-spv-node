@@ -104,6 +104,7 @@ sealed trait PaymentActor extends Actor with BitcoinSLogger {
         context.parent ! successfulPayment
       } else context.parent ! PaymentActor.FailedPayment(hash)
       peerMessageHandler ! Tcp.Close
+      context.stop(self)
   }
 }
 

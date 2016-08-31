@@ -29,7 +29,7 @@ object BitcoinSSpvNodeBuild extends Build {
     //buildInfoPackage := "org.bitcoins.spvnode",
     resolvers += Resolver.sonatypeRepo("releases"),  
     libraryDependencies ++= appDependencies,
-    scalacOptions ++= Seq("-unchecked", "-deprecation"),
+    scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
     mainClass := Some("org.bitcoins.spvnode.Main")
   )
 } 
