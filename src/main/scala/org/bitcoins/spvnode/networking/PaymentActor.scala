@@ -4,8 +4,10 @@ import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorContext, ActorRef, ActorRefFactory, Props}
 import akka.event.LoggingReceive
+import akka.io.Tcp
 import org.bitcoins.core.crypto.{DoubleSha256Digest, Sha256Hash160Digest}
 import org.bitcoins.core.number.UInt32
+import org.bitcoins.core.protocol.Address
 import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
 import org.bitcoins.spvnode.NetworkMessage
 import org.bitcoins.spvnode.block.MerkleBlock
@@ -27,21 +29,22 @@ import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
   * 3.) Nodes matches the bloom filter
   * 4.) When another block is announced on the network, we send a MsgMerkleBlock
   * to our peer on the network to see if the tx was included on that block
-  * 5.) If it was, send the actor that that requested this a successful message back
+  * 5.) If it was, send the actor that that requested this [[PaymentActor.SuccessfulPayment]] message back
   */
 sealed trait PaymentActor extends Actor with BitcoinSLogger {
 
   def receive = LoggingReceive {
     case hash: Sha256Hash160Digest =>
       paymentToHash(hash)
+    case address: Address =>
+      self.forward(address.hash)
+
   }
 
   def paymentToHash(hash: Sha256Hash160Digest) = {
     val bloomFilter = BloomFilter(10,0.0001,UInt32.zero,BloomUpdateNone).insert(hash)
     val filterLoadMsg = FilterLoadMessage(bloomFilter)
-    val peerMsgHandler = context.actorOf(Props(classOf[PeerMessageHandlerImpl],
-      new InetSocketAddress(Constants.networkParameters.dnsSeeds(0), Constants.networkParameters.port)),
-      BitcoinSpvNodeUtil.createActorName(this.getClass))
+    val peerMsgHandler = PeerMessageHandler(context)
     val bloomFilterNetworkMsg = NetworkMessage(Constants.networkParameters,filterLoadMsg)
     peerMsgHandler ! bloomFilterNetworkMsg
     logger.debug("Switching to awaitTransactionInventoryMessage")
@@ -86,13 +89,14 @@ sealed trait PaymentActor extends Actor with BitcoinSLogger {
         val getDataNetworkMessage = NetworkMessage(Constants.networkParameters,getDataMsg)
         peerMessageHandler ! getDataNetworkMessage
         logger.debug("Switching to awaitMerkleBlockMessage")
-        context.become(awaitMerkleBlockMessage(hash,txId,blockHashes))
+        context.become(awaitMerkleBlockMessage(hash,txId,blockHashes, peerMessageHandler))
       }
       //else do nothing and wait for another block announcement
 
   }
 
-  def awaitMerkleBlockMessage(hash: Sha256Hash160Digest, txId: DoubleSha256Digest, blockHashes: Seq[DoubleSha256Digest]): Receive = LoggingReceive {
+  def awaitMerkleBlockMessage(hash: Sha256Hash160Digest, txId: DoubleSha256Digest, blockHashes: Seq[DoubleSha256Digest],
+                              peerMessageHandler: ActorRef): Receive = LoggingReceive {
     case merkleBlockMsg: MerkleBlockMessage =>
       val result = merkleBlockMsg.merkleBlock.partialMerkleTree.extractMatches.contains(txId)
       if (result) {
@@ -100,6 +104,7 @@ sealed trait PaymentActor extends Actor with BitcoinSLogger {
         logger.info("Receive successful payment: " + successfulPayment)
         context.parent ! successfulPayment
       } else context.parent ! PaymentActor.FailedPayment(hash)
+      peerMessageHandler ! Tcp.Close
   }
 }
 

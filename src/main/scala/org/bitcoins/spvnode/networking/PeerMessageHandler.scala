@@ -265,7 +265,9 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
 
 
 object PeerMessageHandler {
-
+  private case class PeerMessageHandlerImpl(seed: InetSocketAddress) extends PeerMessageHandler {
+    peer ! Tcp.Connect(seed)
+  }
 
   def props: Props = {
     val seed = new InetSocketAddress(Constants.networkParameters.dnsSeeds(0), Constants.networkParameters.port)
@@ -281,6 +283,3 @@ object PeerMessageHandler {
   }
 }
 
-case class PeerMessageHandlerImpl(seed: InetSocketAddress) extends PeerMessageHandler {
-  peer ! Tcp.Connect(seed)
-}

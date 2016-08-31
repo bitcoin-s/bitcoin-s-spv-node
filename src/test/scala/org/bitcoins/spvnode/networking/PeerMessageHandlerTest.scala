@@ -143,7 +143,6 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
 
 
   override def afterAll = {
-    //peerMsgHandler ! Tcp.Close
     TestKit.shutdownActorSystem(system)
   }
 }
