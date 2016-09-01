@@ -26,8 +26,10 @@ import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
   *
   * 1.) Creates a bloom filter
   * 2.) Sends the bloom filter to a node on the network
-  * 3.) Nodes matches the bloom filter
-  * 4.) When another block is announced on the network, we send a MsgMerkleBlock
+  * 3.) Nodes matches the bloom filter, sends a txid that matched the filter back to us
+  * 4.) We request the full transaction using a [[GetDataMessage]]
+  * 5.) We verify the transaction given to us has an output that matches the address we expected a payment to
+  * 6.) When another block is announced on the network, we send a MsgMerkleBlock
   * to our peer on the network to see if the tx was included on that block
   * 5.) If it was, send the actor that that requested this [[PaymentActor.SuccessfulPayment]] message back
   */
@@ -40,6 +42,8 @@ sealed trait PaymentActor extends Actor with BitcoinSLogger {
       self.forward(address.hash)
   }
 
+  /** Constructs a bloom filter that matches the given hash,
+    * then sends that bloom filter to a peer on the network */
   def paymentToHash(hash: Sha256Hash160Digest) = {
     val bloomFilter = BloomFilter(10,0.0001,UInt32.zero,BloomUpdateNone).insert(hash)
     val filterLoadMsg = FilterLoadMessage(bloomFilter)
@@ -50,20 +54,18 @@ sealed trait PaymentActor extends Actor with BitcoinSLogger {
     context.become(awaitTransactionInventoryMessage(hash, peerMsgHandler))
   }
 
+  /** Waits for a transaction inventory message on the p2p network,
+    * once we receive one we switch to teh awaitTransactionGetDataMessage context */
   def awaitTransactionInventoryMessage(hash: Sha256Hash160Digest, peerMessageHandler: ActorRef): Receive = LoggingReceive {
     case invMsg: InventoryMessage =>
       //txs are broadcast by nodes on the network when they are seen by a node
       //filter out the txs we do not care about
       val txInventories = invMsg.inventories.filter(_.typeIdentifier == MsgTx)
-      //fire off individual GetDataMessages for the txids we received
-      for { txInv <- txInventories } yield {
-        val inventory = GetDataMessage(txInv)
-        peerMessageHandler ! inventory
-      }
-      logger.debug("Switching to awaitTransactionInventoryMessage")
+      handleTransactionInventoryMessages(txInventories,peerMessageHandler)
       context.become(awaitTransactionGetDataMessage(hash,peerMessageHandler))
   }
 
+  /** Awaits for a [[GetDataMessage]] that requested a transaction. We can also fire off more [[GetDataMessage]] inside of this context */
   def awaitTransactionGetDataMessage(hash: Sha256Hash160Digest, peerMessageHandler: ActorRef): Receive = LoggingReceive {
     case txMsg : TransactionMessage =>
       //check to see if any of the outputs on this tx match our hash
@@ -76,8 +78,22 @@ sealed trait PaymentActor extends Actor with BitcoinSLogger {
         context.become(awaitBlockAnnouncement(hash,txMsg.transaction.txId, peerMessageHandler))
       }
       //otherwise we do nothing and wait for another transaction message
+    case invMsg: InventoryMessage =>
+      //txs are broadcast by nodes on the network when they are seen by a node
+      //filter out the txs we do not care about
+      val txInventories = invMsg.inventories.filter(_.typeIdentifier == MsgTx)
+      handleTransactionInventoryMessages(txInventories,peerMessageHandler)
   }
 
+  /** Sends a [[GetDataMessage]] to get the full transaction for a transaction inventory message */
+  private def handleTransactionInventoryMessages(inventory: Seq[Inventory], peerMessageHandler: ActorRef) = for {
+    txInv <- inventory
+    inventory = GetDataMessage(txInv)
+  } yield peerMessageHandler ! inventory
+
+  /** This context waits for a block announcement on the network,
+    * then constructs a [[MerkleBlockMessage]] to check
+    * if the txid was included in that block */
   def awaitBlockAnnouncement(hash: Sha256Hash160Digest, txId: DoubleSha256Digest, peerMessageHandler: ActorRef): Receive = LoggingReceive {
     case invMsg: InventoryMessage =>
       val blockHashes = invMsg.inventories.filter(_.typeIdentifier == MsgBlock).map(_.hash)
@@ -94,6 +110,16 @@ sealed trait PaymentActor extends Actor with BitcoinSLogger {
 
   }
 
+  /** This context waits for a [[MerkleBlockMessage]] from our peer on the network, then checks
+    * if the given txid is contained inside of the block. If it is included, send a [[PaymentActor.SuccessfulPayment]]
+    * message back to the actor that created this actor, else send a [[PaymentActor.FailedPayment]] message back to
+    * the actor that created this actor
+    * @param hash
+    * @param txId
+    * @param blockHashes
+    * @param peerMessageHandler
+    * @return
+    */
   def awaitMerkleBlockMessage(hash: Sha256Hash160Digest, txId: DoubleSha256Digest, blockHashes: Seq[DoubleSha256Digest],
                               peerMessageHandler: ActorRef): Receive = LoggingReceive {
     case merkleBlockMsg: MerkleBlockMessage =>

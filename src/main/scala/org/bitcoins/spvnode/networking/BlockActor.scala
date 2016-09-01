@@ -19,11 +19,6 @@ sealed trait BlockActor extends Actor with BitcoinSLogger {
 
 
   def receive: Receive = LoggingReceive {
-    case getBlocksMessage: GetBlocksMessage =>
-      val peerMsgHandler = PeerMessageHandler(context)
-      val networkMessage = NetworkMessage(Constants.networkParameters, getBlocksMessage)
-      peerMsgHandler ! networkMessage
-      context.become(awaitBlockMsg)
     case hash: DoubleSha256Digest =>
       val peerMsgHandler = PeerMessageHandler(context)
       val inv = Inventory(MsgBlock,hash)
@@ -32,9 +27,7 @@ sealed trait BlockActor extends Actor with BitcoinSLogger {
       peerMsgHandler ! networkMessage
       context.become(awaitBlockMsg)
     case blockHeader: BlockHeader =>
-      self ! blockHeader.hash
-    case blockMsg: BlockMessage =>
-      logger.debug("Received blockMsg in BlockActor: " + blockMsg)
+      self.forward(blockHeader.hash)
   }
 
   def awaitBlockMsg: Receive = LoggingReceive {

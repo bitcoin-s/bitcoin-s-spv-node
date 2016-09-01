@@ -1,6 +1,6 @@
 package org.bitcoins.spvnode.gen
 
-import org.bitcoins.core.gen.CryptoGenerators
+import org.bitcoins.core.gen.{CryptoGenerators, TransactionGenerators}
 import org.bitcoins.core.number.UInt32
 import org.bitcoins.spvnode.messages._
 import org.bitcoins.spvnode.messages.data.{GetDataMessage, GetHeadersMessage, InventoryMessage, MerkleBlockMessage, _}
@@ -75,6 +75,14 @@ trait DataMessageGenerator {
   def merkleBlockMessage: Gen[MerkleBlockMessage] = for {
     (merkleBlock,_,_) <- MerkleGenerator.merkleBlockWithInsertedTxIds
   } yield MerkleBlockMessage(merkleBlock)
+
+  /** Generates a [[org.bitcoins.spvnode.messages.TransactionMessage]]
+    * [[https://bitcoin.org/en/developer-reference#tx]]
+    * */
+  def transactionMessage: Gen[TransactionMessage] = for {
+    tx <- TransactionGenerators.transactions
+    txMsg = TransactionMessage(tx)
+  } yield txMsg
 }
 
 object DataMessageGenerator extends DataMessageGenerator
