@@ -108,6 +108,17 @@ trait ControlMessageGenerator {
     elementSize = CompactSizeUInt(UInt64(element.bytes.size))
   } yield FilterAddMessage(elementSize,element.bytes)
 
+  /**
+    * Creates a [[RejectMessage]]
+    * [[https://bitcoin.org/en/developer-reference#reject]]
+    * @return
+    */
+  def rejectMessage: Gen[RejectMessage] = for {
+    message <- StringGenerators.genString
+    code <- StringGenerators.strChar
+    reason <- StringGenerators.genString
+    extra <- CryptoGenerators.doubleSha256Digest
+  } yield RejectMessage(message,code,reason,extra.bytes)
 }
 
 object ControlMessageGenerator extends ControlMessageGenerator

@@ -409,7 +409,7 @@ trait PongMessage extends ControlPayload {
   * The reject message informs the receiving node that one of its previous messages has been rejected.
   * [[https://bitcoin.org/en/developer-reference#reject]]
   */
-sealed trait RejectMessage extends ControlPayload {
+trait RejectMessage extends ControlPayload {
   /**
     * The number of bytes in the following message field.
     * @return
@@ -449,9 +449,11 @@ sealed trait RejectMessage extends ControlPayload {
     * the hash of the rejected transaction or block header. See the code table below.
     * @return
     */
-  def extra : String
+  def extra : Seq[Byte]
 
   override def commandName = NetworkPayload.rejectCommandName
+
+  override def hex = RawRejectMessageSerializer.write(this)
 }
 
 /**
@@ -634,14 +636,14 @@ object NetworkPayload {
     getDataCommandName -> { RawGetDataMessageSerializer.read(_) },
     headersCommandName -> { RawHeadersMessageSerializer.read(_) },
     invCommandName -> { RawInventoryMessageSerializer.read(_) },
-    memPoolCommandName -> { x : Seq[Byte] => ???},
+    memPoolCommandName -> { x : Seq[Byte] => MemPoolMessage},
     merkleBlockCommandName -> { RawMerkleBlockMessageSerializer.read(_) },
     notFoundCommandName -> { RawNotFoundMessageSerializer.read(_) },
     transactionCommandName -> { RawTransactionMessageSerializer.read(_) },
     addrCommandName -> { RawAddrMessageSerializer.read(_) },
     filterAddCommandName -> { RawFilterAddMessageSerializer.read(_) },
     filterClearCommandName -> { x : Seq[Byte] => FilterClearMessage},
-    filterLoadCommandName -> { x : Seq[Byte] => ???},
+    filterLoadCommandName -> { RawFilterLoadMessageSerializer.read(_)},
     getAddrCommandName -> { x : Seq[Byte] => GetAddrMessage},
     pingCommandName -> { RawPingMessageSerializer.read(_)},
     pongCommandName -> { RawPongMessageSerializer.read(_) },
