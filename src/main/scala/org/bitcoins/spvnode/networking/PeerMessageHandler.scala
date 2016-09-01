@@ -230,6 +230,9 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
       case controlMsg @ (GetAddrMessage | VerAckMessage | _ : VersionMessage | _ : PongMessage) =>
         destination ! controlMsg
         requests
+      case rejectMsg: RejectMessage =>
+        logger.error("Received a reject message from the p2p network: " + rejectMsg)
+        requests
     }
   }
 

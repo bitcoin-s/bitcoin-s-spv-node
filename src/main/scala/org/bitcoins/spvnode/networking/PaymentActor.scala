@@ -126,7 +126,7 @@ sealed trait PaymentActor extends Actor with BitcoinSLogger {
       val result = merkleBlockMsg.merkleBlock.partialMerkleTree.extractMatches.contains(txId)
       if (result) {
         val successfulPayment = PaymentActor.SuccessfulPayment(hash,txId,blockHashes,merkleBlockMsg.merkleBlock)
-        logger.info("Receive successful payment: " + successfulPayment)
+        logger.info("Received successful payment: " + successfulPayment)
         context.parent ! successfulPayment
       } else context.parent ! PaymentActor.FailedPayment(hash)
       peerMessageHandler ! Tcp.Close

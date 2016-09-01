@@ -1,16 +1,12 @@
 package org.bitcoins.spvnode.networking
 
-import java.net.InetSocketAddress
-
-import akka.actor.{Actor, ActorContext, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorContext, ActorRef, Props}
 import akka.event.LoggingReceive
 import akka.io.{IO, Tcp}
-import akka.util.{ByteString, CompactByteString}
-import org.bitcoins.core.config.{NetworkParameters, TestNet3}
-import org.bitcoins.core.util.{BitcoinSLogger, BitcoinSUtil}
+import org.bitcoins.core.config.NetworkParameters
+import org.bitcoins.core.util.BitcoinSLogger
 import org.bitcoins.spvnode.NetworkMessage
 import org.bitcoins.spvnode.constant.Constants
-import org.bitcoins.spvnode.headers.NetworkHeader
 import org.bitcoins.spvnode.messages._
 import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 /**
@@ -36,25 +32,20 @@ sealed trait Client extends Actor with BitcoinSLogger {
 
   /**
     * This actor signifies the node we are connected to on the p2p network
-    * This is set when we received a [[Tcp.Connected]] message
+    * This is the context we are in after we received a [[Tcp.Connected]] message
     */
   private def awaitNetworkRequest(peer: ActorRef): Receive = LoggingReceive {
     case message: NetworkMessage => sendNetworkMessage(message,peer)
     case payload: NetworkPayload =>
       val networkMsg = NetworkMessage(network,payload)
-      self ! networkMsg
+      self.forward(networkMsg)
     case message: Tcp.Message =>
       handleTcpMessage(message,Some(peer))
-    case unknownMessage =>
-      logger.error("Client recieved an unknown network message: "  + unknownMessage)
-      throw new IllegalArgumentException("Unknown message for client in awaitNetworkRequest: " + unknownMessage)
   }
 
+  /** This context is responpsible for initialiazing a tcp connection with a peer on the bitcoin p2p network */
   def receive = LoggingReceive {
     case message : Tcp.Message => handleTcpMessage(message,None)
-    case unknownMessage =>
-      logger.error("Client.receive received an unknown network message: "  + unknownMessage)
-      throw new IllegalArgumentException("Unknown message for client receive: " + unknownMessage)
   }
 
   /**
@@ -77,9 +68,6 @@ sealed trait Client extends Actor with BitcoinSLogger {
       context.parent ! Tcp.Bound(localAddress)
     case Tcp.CommandFailed(w: Tcp.Write) =>
       logger.debug("Client write command failed: " + Tcp.CommandFailed(w))
-      logger.debug("O/S buffer was full")
-      // O/S buffer was full
-      //listener ! "write failed"
     case Tcp.CommandFailed(command) =>
       logger.debug("Client Command failed:" + command)
     case Tcp.Connected(remote, local) =>
@@ -106,7 +94,6 @@ sealed trait Client extends Actor with BitcoinSLogger {
       manager ! connectCmd
     case bind: Tcp.Bind =>
       manager ! bind
-    case x => throw new IllegalArgumentException("Unknown command: " + x)
   }
 
   /**
@@ -130,8 +117,6 @@ object Client {
 
   def props: Props = Props(classOf[ClientImpl])
 
-
   def apply(context: ActorContext): ActorRef = context.actorOf(props,BitcoinSpvNodeUtil.createActorName(this.getClass))
-
 }
 
