@@ -22,6 +22,8 @@ object Main extends App {
 
 
   override def main(args : Array[String]) = {
+    //note this needs to be a TestNet3 address, unless you modify the network inside of 
+    //https://github.com/Christewart/bitcoin-s-spv-node/blob/networking/src/main/scala/org/bitcoins/spvnode/constant/Constants.scala#L15
     val address = BitcoinAddress("mmUW4R8SKtRA2uEKhiw5m3DsUYV76bsMZ9")
     val paymentActor = PaymentActor(Constants.actorSystem)
     paymentActor ! address
