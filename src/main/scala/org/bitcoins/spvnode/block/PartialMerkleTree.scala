@@ -266,7 +266,8 @@ object PartialMerkleTree extends BitcoinSLogger {
             if (existsRightSubTree(pos,numTransaction,maxHeight,height)) {
               val (rightNode,rightRemainingHashes, rightRemainingBits) =
                 loop(leftRemainingHashes,leftRemainingBits,height+1, (2 * pos) + 1)
-              require(leftNode.value.get != rightNode.value.get, "Cannot have the same hashes in two child nodes, got: " + leftNode + " and " + rightNode)
+
+              require(leftNode.value.get != rightNode.value.get, "Cannot have the same hashes in two child nodes, got: " + leftNode + ", tree: " + this)
               (rightNode,rightRemainingHashes, rightRemainingBits)
           } else (leftNode, leftRemainingHashes, leftRemainingBits)
           val nodeHash = CryptoUtil.doubleSHA256(leftNode.value.get.bytes ++ rightNode.value.get.bytes)

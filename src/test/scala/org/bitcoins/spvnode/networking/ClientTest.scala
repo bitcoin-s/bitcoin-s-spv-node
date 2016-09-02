@@ -49,8 +49,10 @@ class ClientTest extends TestKit(ActorSystem("ClientTest")) with FlatSpecLike
   }
 
   it must "bind connect to two nodes on one port" in {
+    //NOTE if this test case fails it is more than likely because one of the two dns seeds
+    //below is offline
     val remote1 = new InetSocketAddress(TestNet3.dnsSeeds(0), TestNet3.port)
-    val remote2 = new InetSocketAddress(TestNet3.dnsSeeds(1), TestNet3.port)
+    val remote2 = new InetSocketAddress(TestNet3.dnsSeeds(2), TestNet3.port)
 
     val probe1 = TestProbe()
     val probe2 = TestProbe()
