@@ -4,6 +4,7 @@ import org.bitcoins.core.crypto.DoubleSha256Digest
 import org.bitcoins.core.number.UInt64
 import org.bitcoins.core.protocol.CompactSizeUInt
 import org.bitcoins.core.util.Factory
+import org.bitcoins.spvnode.constant.Constants
 import org.bitcoins.spvnode.messages.GetHeadersMessage
 import org.bitcoins.spvnode.serializers.messages.data.RawGetHeadersMessageSerializer
 import org.bitcoins.spvnode.versions.ProtocolVersion
@@ -25,5 +26,20 @@ object GetHeadersMessage extends Factory[GetHeadersMessage] {
   def apply(version: ProtocolVersion, hashes: Seq[DoubleSha256Digest], hashStop: DoubleSha256Digest): GetHeadersMessage = {
     val hashCount = CompactSizeUInt(UInt64(hashes.length))
     GetHeadersMessage(version, hashCount, hashes, hashStop)
+  }
+
+  /** Creates a [[GetHeadersMessage]] with the default protocol version in [[Constants]] */
+  def apply(hashes: Seq[DoubleSha256Digest], hashStop: DoubleSha256Digest): GetHeadersMessage = {
+    GetHeadersMessage(Constants.version,hashes,hashStop)
+  }
+
+  /** Creates a [[GetHeadersMessage]] with no hash stop set, this requests all possible blocks
+    * if we need more than 500 block headers, we will have to send another [[GetHeadersMessage]] */
+  def apply(hashes: Seq[DoubleSha256Digest]): GetHeadersMessage = {
+    val zeroBytes = for { _ <- 0 until 32 } yield 0.toByte
+    //The header hash of the last header hash being requested; set to all zeroes to request an inv message with all
+    //subsequent header hashes (a maximum of 500 will be sent as a reply to this message
+    val hashStop = DoubleSha256Digest(zeroBytes)
+    GetHeadersMessage(hashes,hashStop)
   }
 }
