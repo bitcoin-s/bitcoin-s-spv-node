@@ -18,6 +18,9 @@ trait Constants {
   def timeout = 5.seconds
 
   def userAgent = "/bitcoins-spv-node/0.0.1"
+
+  /** This is the file where our block headers are stored */
+  def blockHeaderFile = new java.io.File("src/main/resources/block_header.dat")
 }
 
 object Constants extends Constants
