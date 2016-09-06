@@ -38,12 +38,8 @@ class BitcoinSpvNodeUtilTest extends FlatSpec with MustMatchers with BitcoinSLog
           UInt32(4046619225L),UInt32(1231236881))))
     val networkMsg = NetworkMessage(Constants.networkParameters,headersMsg)
     //split the network msg at a random index to simulate a tcp frame not being aligned
-    val randomIndex = 176//scala.util.Random.nextInt().abs % networkMsg.bytes.size
-    logger.debug("Random index: " + randomIndex)
-    logger.debug("Network message size: " + networkMsg.bytes.size)
+    val randomIndex = scala.util.Random.nextInt().abs % networkMsg.bytes.size
     val (firstHalf,secondHalf) = networkMsg.bytes.splitAt(randomIndex)
-    logger.debug("First half: " + BitcoinSUtil.encodeHex(firstHalf))
-    logger.debug("Second half: " + BitcoinSUtil.encodeHex(secondHalf))
     val (firstHalfParseHeaders,remainingBytes) = BitcoinSpvNodeUtil.parseIndividualMessages(firstHalf)
     firstHalfParseHeaders.isEmpty must be (true)
 

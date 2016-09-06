@@ -50,8 +50,6 @@ trait BitcoinSpvNodeUtil extends BitcoinSLogger {
         val messageTry = Try(NetworkMessage(remainingBytes))
         messageTry match {
           case Success(message) =>
-            logger.debug("Payload size: " + message.header.payloadSize.toInt)
-            logger.debug("Message payload size: " + message.payload.bytes.size)
             if (message.header.payloadSize.toInt != message.payload.bytes.size) {
               //this means our tcp frame was not aligned, therefore put the message back in the
               //buffer and wait for the remaining bytes

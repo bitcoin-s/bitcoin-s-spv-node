@@ -19,7 +19,7 @@ class RawHeadersMessageSerializerTest extends FlatSpec with MustMatchers with Bi
     "9d10aa52ee949386ca9385695f04ede270dda20810decd12bc9b048aaab31471" +
     "24d95a54" +
     "30c31b18" +
-    "fe9f0864"
+    "fe9f0864" + "00"
   "RawHeadersMessageSerializer" must "deserialize a list of block headers" in {
     val headersMsg = RawHeadersMessageSerializer.read(hex)
     val header = headersMsg.headers.head
