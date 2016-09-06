@@ -22,7 +22,7 @@ trait RawHeadersMessageSerializer extends RawBitcoinSerializer[HeadersMessage] {
   }
 
   def write(headersMessage: HeadersMessage): String = {
-    headersMessage.count.hex + headersMessage.headers.map(_.hex).mkString
+    headersMessage.count.hex + headersMessage.headers.map(_.hex + "00").mkString
   }
 
   private def parseBlockHeaders(bytes: Seq[Byte], compactSizeUInt: CompactSizeUInt): Seq[BlockHeader] = {

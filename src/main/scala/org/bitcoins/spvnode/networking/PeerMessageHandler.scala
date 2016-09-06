@@ -26,7 +26,9 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
   lazy val peer: ActorRef = context.actorOf(Client.props,BitcoinSpvNodeUtil.createActorName(this.getClass))
 
   def receive = LoggingReceive {
-    case message : Tcp.Message => handleTcpMessage(message, Nil, sender)
+    case message : Tcp.Message =>
+      val remainingBytes = handleTcpMessage(message, Nil, sender)
+
     case msg: NetworkMessage =>
       logger.info("Switching to awaitConnected from default receive")
       context.become(awaitConnected(Seq((sender,msg)), Nil))
@@ -135,9 +137,11 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
   private def handleEvent(event : Tcp.Event, unalignedBytes: Seq[Byte], sender: ActorRef): Seq[Byte] = event match {
     case Tcp.Received(byteString: ByteString) =>
       logger.debug("Received byte string in peerMessageHandler " + BitcoinSUtil.encodeHex(byteString.toArray))
+      logger.debug("Unaligned bytes: " + BitcoinSUtil.encodeHex(unalignedBytes))
       //this means that we receive a bunch of messages bundled into one [[ByteString]]
       //need to parse out the individual message
       val bytes: Seq[Byte] = unalignedBytes ++ byteString.toArray.toSeq
+      logger.debug("Bytes for message parsing: " + BitcoinSUtil.encodeHex(bytes))
       val (messages,remainingBytes) = BitcoinSpvNodeUtil.parseIndividualMessages(bytes)
       for {m <- messages} yield self.tell(m,sender)
       remainingBytes

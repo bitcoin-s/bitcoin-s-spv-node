@@ -8,6 +8,7 @@ import org.bitcoins.spvnode.messages.HeadersMessage
 import org.bitcoins.spvnode.messages.data.GetHeadersMessage
 import org.bitcoins.spvnode.networking.PeerMessageHandler
 import org.bitcoins.spvnode.networking.sync.BlockHeaderSyncActor.StartAtLastSavedHeader
+import org.bitcoins.spvnode.store.BlockHeaderStore
 import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 
 /**
@@ -35,12 +36,18 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
   def awaitBlockHeaders(startHeaders: BlockHeaderSyncActor.StartHeaders, peerMessageHandler: ActorRef) = LoggingReceive {
     case headersMsg: HeadersMessage =>
       val headers = headersMsg.headers
+      BlockHeaderStore.append(headers)
+      val lastHeader = headers.last
       if (headers.size == maxHeaders) {
         //means we need to send another GetHeaders message with the last header in this message as our starting point
-
+        val startHeader = BlockHeaderSyncActor.StartHeaders(Seq(lastHeader.hash))
+        context.become(receive)
+        context.stop(self)
+        //self ! startHeader
       } else {
-        //we should be synced up with all of the headers on the network.
-        //store these headers in some sort a block store
+        //else we we are synced up on the network, send the parent the last header we have seen
+        context.parent ! lastHeader
+        context.stop(self)
       }
   }
 
@@ -50,7 +57,7 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
 object BlockHeaderSyncActor {
   private case class BlockHeaderSyncActorImpl() extends BlockHeaderSyncActor
 
-  def props: Props = Props(classOf[BlockHeaderSyncActor])
+  def props: Props = Props(classOf[BlockHeaderSyncActorImpl])
 
   def apply(context: ActorRefFactory): ActorRef = context.actorOf(props,
     BitcoinSpvNodeUtil.createActorName(BlockHeaderSyncActor.getClass))
@@ -61,4 +68,6 @@ object BlockHeaderSyncActor {
   case class StartHeaders(hashes: Seq[DoubleSha256Digest]) extends BlockHeaderSyncMsg
   //case class SyncSetOfHeaders(startHeaders: Seq[DoubleSha256Digest], stopHeaders: Seq[DoubleSha256Digest]) extends BlockHeaderSyncMsg
   case object StartAtLastSavedHeader extends BlockHeaderSyncMsg
+
+
 }
