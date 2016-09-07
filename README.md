@@ -4,7 +4,7 @@ This is an implementation of an SPV node on the bitcoin network using Scala & bi
 
 # Examples
 
-Look inside of [Main.scala](https://github.com/Christewart/bitcoin-s-spv-node/blob/networking/src/main/scala/org/bitcoins/spvnode/Main.scala) for example of creating a [`PaymentActor`](https://github.com/Christewart/bitcoin-s-spv-node/blob/networking/src/main/scala/org/bitcoins/spvnode/networking/PaymentActor.scala), that montiors a address. Once transaction that pays to the address is included in a block, it sends a message back to your actor saying a payment was successful. 
+Look inside of [Main.scala](https://github.com/Christewart/bitcoin-s-spv-node/blob/header_sync/src/main/scala/org/bitcoins/spvnode/Main.scala) for example of creating a [`BlockHeaderSyncActor`](https://github.com/Christewart/bitcoin-s-spv-node/blob/header_sync/src/main/scala/org/bitcoins/spvnode/networking/sync/BlockHeaderSyncActor.scala), that syncs the blockchain.
 
 ```scala
 package org.bitcoins.spvnode
