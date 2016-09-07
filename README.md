@@ -41,8 +41,6 @@ After that, you are ready to fire up your spv node with this command
 chris@chris-870Z5E-880Z5E-680Z5E:~/dev/bitcoins-spv-node$ sbt run
 ```
 
-After firing up the node, and seeing some logging output, you can make a payment to the address you specified above. You should see logging output indicating your transaction was seen on the network, and receive a [PaymentActor.SuccessfulPayment](https://github.com/Christewart/bitcoin-s-spv-node/blob/networking/src/main/scala/org/bitcoins/spvnode/networking/PaymentActor.scala#L145) when the transaction paying to your address is included in a block. 
-
-NOTE: Block times are HIGHLY variable on testnet, it can take 30 minutes for a block to be mined -- which means you would not see a `PaymentActor.SuccessfulPayment` message for 30 minutes.
+After that, you should start seeing headers being synced to your node. The headers are stored inside of a file called `block_headers.dat` file inside of `src/main/resources`. Note that this does not use any checkpointing system, so to sync up all ~930,000 headers on TestNet3 will take awhile. 
 
 
