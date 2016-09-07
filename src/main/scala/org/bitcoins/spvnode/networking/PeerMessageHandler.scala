@@ -136,8 +136,8 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
     */
   private def handleEvent(event : Tcp.Event, unalignedBytes: Seq[Byte], sender: ActorRef): Seq[Byte] = event match {
     case Tcp.Received(byteString: ByteString) =>
-      logger.debug("Received byte string in peerMessageHandler " + BitcoinSUtil.encodeHex(byteString.toArray))
-      logger.debug("Unaligned bytes: " + BitcoinSUtil.encodeHex(unalignedBytes))
+      //logger.debug("Received byte string in peerMessageHandler " + BitcoinSUtil.encodeHex(byteString.toArray))
+      //logger.debug("Unaligned bytes: " + BitcoinSUtil.encodeHex(unalignedBytes))
       //this means that we receive a bunch of messages bundled into one [[ByteString]]
       //need to parse out the individual message
       val bytes: Seq[Byte] = unalignedBytes ++ byteString.toArray.toSeq
@@ -277,7 +277,7 @@ object PeerMessageHandler {
   }
 
   def props: Props = {
-    val seed = new InetSocketAddress(Constants.networkParameters.dnsSeeds(0), Constants.networkParameters.port)
+    val seed = new InetSocketAddress(Constants.networkParameters.dnsSeeds(2), Constants.networkParameters.port)
     props(seed)
   }
 

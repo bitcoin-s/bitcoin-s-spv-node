@@ -20,7 +20,7 @@ trait Constants {
   def userAgent = "/bitcoins-spv-node/0.0.1"
 
   /** This is the file where our block headers are stored */
-  def blockHeaderFile = new java.io.File("src/main/resources/block_header.dat")
+  def blockHeaderFile = new java.io.File("src/main/resources/block_headers.dat")
 }
 
 object Constants extends Constants

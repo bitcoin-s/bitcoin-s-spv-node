@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
 import akka.event.LoggingReceive
 import org.bitcoins.core.crypto.DoubleSha256Digest
 import org.bitcoins.core.util.BitcoinSLogger
-import org.bitcoins.spvnode.messages.HeadersMessage
+import org.bitcoins.spvnode.messages.{GetHeadersMessage, HeadersMessage}
 import org.bitcoins.spvnode.messages.data.GetHeadersMessage
 import org.bitcoins.spvnode.networking.PeerMessageHandler
 import org.bitcoins.spvnode.networking.sync.BlockHeaderSyncActor.StartAtLastSavedHeader
@@ -26,14 +26,16 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
   def receive = LoggingReceive {
     case startHeader: BlockHeaderSyncActor.StartHeaders =>
       //construct a get headers message
-      val getHeadersMsg = GetHeadersMessage(startHeader.hashes)
       val peerMsgHandler = PeerMessageHandler(context)
-      peerMsgHandler ! getHeadersMsg
-      context.become(awaitBlockHeaders(startHeader, peerMsgHandler))
+      context.become(blockHeaderSync(peerMsgHandler))
+      self.forward(startHeader)
     case StartAtLastSavedHeader => ???
   }
 
-  def awaitBlockHeaders(startHeaders: BlockHeaderSyncActor.StartHeaders, peerMessageHandler: ActorRef) = LoggingReceive {
+  def blockHeaderSync(peerMessageHandler: ActorRef) = LoggingReceive {
+    case startHeader: BlockHeaderSyncActor.StartHeaders =>
+      val getHeadersMsg = GetHeadersMessage(startHeader.hashes)
+      peerMessageHandler ! getHeadersMsg
     case headersMsg: HeadersMessage =>
       val headers = headersMsg.headers
       BlockHeaderStore.append(headers)
@@ -41,9 +43,7 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
       if (headers.size == maxHeaders) {
         //means we need to send another GetHeaders message with the last header in this message as our starting point
         val startHeader = BlockHeaderSyncActor.StartHeaders(Seq(lastHeader.hash))
-        context.become(receive)
-        context.stop(self)
-        //self ! startHeader
+        self ! startHeader
       } else {
         //else we we are synced up on the network, send the parent the last header we have seen
         context.parent ! lastHeader
