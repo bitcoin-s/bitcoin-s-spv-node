@@ -26,8 +26,16 @@ trait BlockHeaderStore {
     line <- Source.fromFile(file).getLines()
   } yield BlockHeader(line)).toSeq
 
-  /** Reads block headers from the default blockheader file */
+  /** Reads block headers from the default [[BlockHeader]] file */
   def read: Seq[BlockHeader] = read(Constants.blockHeaderFile)
+
+  /** Returns the last [[BlockHeader]] in the block header store */
+  def lastHeader: Option[BlockHeader] = lastHeader(Constants.blockHeaderFile)
+
+  def lastHeader(file: java.io.File): Option[BlockHeader] = {
+    val headers = read(file)
+    if (headers.isEmpty) None else Some(headers.last)
+  }
 
   private def printToFile(f: java.io.File)(op: java.io.PrintWriter => Unit) {
     val p = new java.io.PrintWriter(new FileOutputStream(f,true))
