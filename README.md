@@ -4,16 +4,19 @@ This is an implementation of an SPV node on the bitcoin network using Scala & bi
 
 # Examples
 
-Look inside of [Main.scala](https://github.com/Christewart/bitcoin-s-spv-node/blob/networking/src/main/scala/org/bitcoins/spvnode/Main.scala) for example of creating a [`PaymentActor`](https://github.com/Christewart/bitcoin-s-spv-node/blob/networking/src/main/scala/org/bitcoins/spvnode/networking/PaymentActor.scala), that montiors a address. Once transaction that pays to the address is included in a block, it sends a message back to your actor saying a payment was successful. 
+Look inside of [Main.scala](https://github.com/Christewart/bitcoin-s-spv-node/blob/header_sync/src/main/scala/org/bitcoins/spvnode/Main.scala) for example of creating a [`BlockHeaderSyncActor`](https://github.com/Christewart/bitcoin-s-spv-node/blob/header_sync/src/main/scala/org/bitcoins/spvnode/networking/sync/BlockHeaderSyncActor.scala), that syncs the blockchain.
 
 ```scala
 package org.bitcoins.spvnode
 
 import org.bitcoins.core.config.TestNet3
-import org.bitcoins.core.crypto.Sha256Hash160Digest
-import org.bitcoins.core.protocol.P2PKHAddress
+import org.bitcoins.core.crypto.{DoubleSha256Digest, Sha256Hash160Digest}
+import org.bitcoins.core.protocol.blockchain.TestNetChainParams
+import org.bitcoins.core.protocol.{BitcoinAddress, P2PKHAddress}
+import org.bitcoins.core.util.BitcoinSUtil
 import org.bitcoins.spvnode.constant.Constants
 import org.bitcoins.spvnode.networking.PaymentActor
+import org.bitcoins.spvnode.networking.sync.BlockHeaderSyncActor
 
 /**
   * Created by chris on 8/29/16.
@@ -22,11 +25,10 @@ object Main extends App {
 
 
   override def main(args : Array[String]) = {
-    //note this needs to be a TestNet3 address, unless you modify the network inside of 
-    //https://github.com/Christewart/bitcoin-s-spv-node/blob/networking/src/main/scala/org/bitcoins/spvnode/constant/Constants.scala#L15
-    val address = BitcoinAddress("mmUW4R8SKtRA2uEKhiw5m3DsUYV76bsMZ9")
-    val paymentActor = PaymentActor(Constants.actorSystem)
-    paymentActor ! address
+    val blockHeaderSyncActor = BlockHeaderSyncActor(Constants.actorSystem)
+    val gensisBlockHash = TestNetChainParams.genesisBlock.blockHeader.hash
+    val startHeader = BlockHeaderSyncActor.StartHeaders(Seq(gensisBlockHash))
+    blockHeaderSyncActor ! startHeader
   }
 }
 ```
@@ -39,8 +41,6 @@ After that, you are ready to fire up your spv node with this command
 chris@chris-870Z5E-880Z5E-680Z5E:~/dev/bitcoins-spv-node$ sbt run
 ```
 
-After firing up the node, and seeing some logging output, you can make a payment to the address you specified above. You should see logging output indicating your transaction was seen on the network, and receive a [PaymentActor.SuccessfulPayment](https://github.com/Christewart/bitcoin-s-spv-node/blob/networking/src/main/scala/org/bitcoins/spvnode/networking/PaymentActor.scala#L145) when the transaction paying to your address is included in a block. 
-
-NOTE: Block times are HIGHLY variable on testnet, it can take 30 minutes for a block to be mined -- which means you would not see a `PaymentActor.SuccessfulPayment` message for 30 minutes.
+After that, you should start seeing headers being synced to your node. The headers are stored inside of a file called `block_headers.dat` file inside of `src/main/resources`. Note that this does not use any checkpointing system, so to sync up all ~930,000 headers on TestNet3 will take awhile. 
 
 
