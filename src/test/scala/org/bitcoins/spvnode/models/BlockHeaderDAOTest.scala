@@ -14,14 +14,15 @@ import slick.driver.PostgresDriver.api._
   * Created by chris on 9/8/16.
   */
 class BlockHeaderDAOTest  extends TestKit(ActorSystem("MySpec")) with ImplicitSender
-  with FlatSpecLike with MustMatchers with BeforeAndAfter {
-  val table = TableQuery[BlockHeaderTable]
+  with FlatSpecLike with MustMatchers with BeforeAndAfter with BeforeAndAfterAll {
+
+/*  val table = TableQuery[BlockHeaderTable]
   val dbConfig: DatabaseConfig[PostgresDriver] = DatabaseConfig.forConfig("databaseUrl")
   val database: Database = dbConfig.db
 
   before {
     database.run(table.schema.create)
-  }
+  }*/
 
   "BlockHeaderDAO" must "store a blockheader in the database, then read it from the database" in {
     val probe = TestProbe()
@@ -29,14 +30,32 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("MySpec")) with ImplicitSe
     val blockHeaderDAO = TestActorRef(BlockHeaderDAO.props,probe.ref)
     blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader)
     val createdHeader = probe.expectMsgType[BlockHeader]
-
     createdHeader must be (blockHeader)
 
-
+    blockHeaderDAO ! BlockHeaderDAO.Read(blockHeader.hash)
+    val readHeader = probe.expectMsgType[Option[BlockHeader]]
+    readHeader.get must be (blockHeader)
   }
 
-  after {
-    database.run(table.schema.drop)
-    database.close()
+  it must "delete a block header in the database" in {
+    val probe = TestProbe()
+    val blockHeader = BlockchainElementsGenerator.blockHeader.sample.get
+    val blockHeaderDAO = TestActorRef(BlockHeaderDAO.props,probe.ref)
+    blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader)
+    val createdHeader = probe.expectMsgType[BlockHeader]
+
+    //delete the header in the db
+    blockHeaderDAO ! BlockHeaderDAO.Delete(blockHeader)
+    val affectedRows = probe.expectMsgType[Int]
+    affectedRows must be (1)
+
+    //make sure we cannot read our deleted header
+    blockHeaderDAO ! BlockHeaderDAO.Read(blockHeader.hash)
+    val readHeader = probe.expectMsgType[Option[BlockHeader]]
+    readHeader must be (None)
+  }
+
+  override def afterAll = {
+    TestKit.shutdownActorSystem(system)
   }
 }

@@ -20,13 +20,13 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
   def receive = {
     case createMsg: BlockHeaderDAO.Create =>
       val createdBlockHeader = create(createMsg.blockHeader)
-      createdBlockHeader.onComplete {
-        case Success(x) =>
-          logger.info("Created block header: " + x)
-        case Failure(exception) => throw exception
-      }
-
       createdBlockHeader.map(blockHeader => context.parent ! blockHeader)
+    case readMsg: BlockHeaderDAO.Read =>
+      val readHeader = read(readMsg.hash)
+      readHeader.map(headerOpt => context.parent ! headerOpt)
+    case deleteMsg: BlockHeaderDAO.Delete =>
+      val deletedRowCount = delete(deleteMsg.blockHeader)
+      deletedRowCount.map(rowCount => context.parent ! rowCount)
     case _ => throw new IllegalArgumentException
   }
 
