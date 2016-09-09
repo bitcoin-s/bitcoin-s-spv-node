@@ -32,6 +32,7 @@ trait BlockHeaderStore {
   /** Returns the last [[BlockHeader]] in the block header store */
   def lastHeader: Option[BlockHeader] = lastHeader(Constants.blockHeaderFile)
 
+  /** Returns the last [[BlockHeader]] in the block header store */
   def lastHeader(file: java.io.File): Option[BlockHeader] = {
     val headers = read(file)
     if (headers.isEmpty) None else Some(headers.last)
