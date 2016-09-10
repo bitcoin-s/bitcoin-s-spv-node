@@ -24,7 +24,7 @@ trait CRUDActor[T, PrimaryKeyType] extends Actor with BitcoinSLogger {
   /** Database configuration for our postgres database */
   private def dbConfig: DatabaseConfig[PostgresDriver] = DatabaseConfig.forConfig("databaseUrl")
 
-  /** Binding to the actual database itself */
+  /** Binding to the actual database itself, this is what is used to run querys */
   lazy val database: Database = dbConfig.db
 
   /**
@@ -116,7 +116,6 @@ trait CRUDActor[T, PrimaryKeyType] extends Actor with BitcoinSLogger {
   protected def find(t: T): Query[Table[_],  T, Seq]
 
 
-  override def postStop = {
-    database.close()
-  }
+  override def postStop = database.close()
+
 }

@@ -8,19 +8,28 @@ import org.bitcoins.spvnode.modelsd.BlockHeaderTable
 import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 import slick.driver.PostgresDriver.api._
 
-import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 /**
   * Created by chris on 9/8/16.
+  * This actor is responsible for all databse operations relating to
+  * [[BlockHeader]]'s. Currently we store all block headers in a postgresql database
   */
 sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
 
   def receive = {
     case createMsg: BlockHeaderDAO.Create =>
       val createdBlockHeader = create(createMsg.blockHeader)
-      createdBlockHeader.map(blockHeader => context.parent ! blockHeader)
+      createdBlockHeader.onComplete {
+        case Success(blockHeader) =>
+          context.parent ! blockHeader
+        case Failure(exception) =>
+          logger.error("Exception: " + exception.toString)
+          throw exception
+      }
+      //createdBlockHeader.map(blockHeader => )
     case readMsg: BlockHeaderDAO.Read =>
       val readHeader = read(readMsg.hash)
       readHeader.map(headerOpt => context.parent ! headerOpt)
