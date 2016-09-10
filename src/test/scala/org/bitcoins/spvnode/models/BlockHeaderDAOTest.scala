@@ -24,6 +24,8 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("MySpec")) with ImplicitSe
   val database: Database = dbConfig.db
 
   before {
+    //Awaits need to be used to make sure this is fully executed before the next test case starts
+    //TODO: Figure out a way to make this asynchronous
     Await.result(database.run(table.schema.create), 10.seconds)
   }
 
@@ -59,6 +61,8 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("MySpec")) with ImplicitSe
   }
 
   after {
+    //Awaits need to be used to make sure this is fully executed before the next test case starts
+    //TODO: Figure out a way to make this asynchronous
     Await.result(database.run(table.schema.drop),10.seconds)
   }
 

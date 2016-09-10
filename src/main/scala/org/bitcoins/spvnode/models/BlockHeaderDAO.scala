@@ -22,21 +22,24 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
   def receive = {
     case createMsg: BlockHeaderDAO.Create =>
       val createdBlockHeader = create(createMsg.blockHeader)
-      createdBlockHeader.onComplete {
-        case Success(blockHeader) =>
-          context.parent ! blockHeader
-        case Failure(exception) =>
-          logger.error("Exception: " + exception.toString)
-          throw exception
-      }
-      //createdBlockHeader.map(blockHeader => )
+      sendToParent(createdBlockHeader)
     case readMsg: BlockHeaderDAO.Read =>
       val readHeader = read(readMsg.hash)
-      readHeader.map(headerOpt => context.parent ! headerOpt)
+      sendToParent(readHeader)
     case deleteMsg: BlockHeaderDAO.Delete =>
       val deletedRowCount = delete(deleteMsg.blockHeader)
-      deletedRowCount.map(rowCount => context.parent ! rowCount)
-    case _ => throw new IllegalArgumentException
+      sendToParent(deletedRowCount)
+  }
+
+
+  /** Sends a message to our parent actor */
+  private def sendToParent(returnMsg: Future[Any]): Unit = returnMsg.onComplete {
+    case Success(msg) =>
+      context.parent ! msg
+    case Failure(exception) =>
+      //means the future did not complete successfully, we encountered an error somewhere
+      logger.error("Exception: " + exception.toString)
+      throw exception
   }
 
   override val table = TableQuery[BlockHeaderTable]
@@ -59,8 +62,6 @@ object BlockHeaderDAO {
   sealed trait BlockHeaderDAOMessage
   case class Create(blockHeader: BlockHeader) extends BlockHeaderDAOMessage
   case class Read(hash: DoubleSha256Digest) extends BlockHeaderDAOMessage
-  case class Update(blockHeader: BlockHeader) extends BlockHeaderDAOMessage
-  case class Upsert(blockHeader: BlockHeader) extends BlockHeaderDAOMessage
   case class Delete(blockHeader: BlockHeader) extends BlockHeaderDAOMessage
 
   private case class BlockHeaderDAOImpl() extends BlockHeaderDAO
