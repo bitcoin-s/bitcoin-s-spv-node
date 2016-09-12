@@ -7,8 +7,6 @@ import org.bitcoins.core.protocol.blockchain.BlockHeader
 import org.bitcoins.spvnode.constant.TestConstants
 import org.bitcoins.spvnode.modelsd.BlockHeaderTable
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FlatSpecLike, MustMatchers}
-import slick.backend.DatabaseConfig
-import slick.driver.PostgresDriver
 import slick.driver.PostgresDriver.api._
 
 import scala.concurrent.Await
@@ -17,7 +15,7 @@ import scala.concurrent.duration.DurationInt
 /**
   * Created by chris on 9/8/16.
   */
-class BlockHeaderDAOTest  extends TestKit(ActorSystem("MySpec")) with ImplicitSender
+class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) with ImplicitSender
   with FlatSpecLike with MustMatchers with BeforeAndAfter with BeforeAndAfterAll {
 
   val table = TableQuery[BlockHeaderTable]

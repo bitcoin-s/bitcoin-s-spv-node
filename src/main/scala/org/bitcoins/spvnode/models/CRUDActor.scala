@@ -21,9 +21,6 @@ trait CRUDActor[T, PrimaryKeyType] extends Actor with BitcoinSLogger {
   /** The table inside our database we are inserting into */
   val table: TableQuery[_ <: Table[T]]
 
-  /** Database configuration for our postgres database */
-  //private def dbConfig: DatabaseConfig[PostgresDriver] = DatabaseConfig.forConfig("databaseUrl")
-
   /** Binding to the actual database itself, this is what is used to run querys */
   val database: Database
 

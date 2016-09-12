@@ -3,12 +3,9 @@ package org.bitcoins.spvnode.constant
 import akka.actor.ActorSystem
 import org.bitcoins.core.config.TestNet3
 import org.bitcoins.spvnode.messages.control.VersionMessage
-import org.bitcoins.spvnode.versions.{ProtocolVersion70002, ProtocolVersion70012}
-import slick.backend.DatabaseConfig
-import slick.driver.PostgresDriver
-import slick.driver.PostgresDriver.api._
-
+import org.bitcoins.spvnode.versions.ProtocolVersion70012
 import scala.concurrent.duration.DurationInt
+import slick.driver.PostgresDriver.api._
 
 /**
   * Created by chris on 7/1/16.
@@ -25,11 +22,7 @@ trait Constants {
   /** This is the file where our block headers are stored */
   def blockHeaderFile = new java.io.File("src/main/resources/block_headers.dat")
 
-  /** Reads the configuration for the databse specified inside of application.conf */
-  private def dbConfig: DatabaseConfig[PostgresDriver] = DatabaseConfig.forConfig("databaseUrl")
-
-  /** The production database used for our spv node */
-  def database: Database = dbConfig.db
+  def database: Database = TestNet3DbConfig.database
 }
 
 object Constants extends Constants
