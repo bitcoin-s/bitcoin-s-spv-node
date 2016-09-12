@@ -7,8 +7,6 @@ import org.bitcoins.spvnode.constant.Constants
 import org.bitcoins.spvnode.modelsd.BlockHeaderTable
 import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 import slick.driver.PostgresDriver.api._
-
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
@@ -19,10 +17,18 @@ import scala.util.{Failure, Success}
   */
 sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
 
+  override val table = TableQuery[BlockHeaderTable]
+
   def receive = {
     case createMsg: BlockHeaderDAO.Create =>
       val createdBlockHeader = create(createMsg.blockHeader)
       sendToParent(createdBlockHeader)
+    case createAllMsg: BlockHeaderDAO.CreateAll =>
+      for {
+        header <- createAllMsg.blockHeaders
+      } {
+        self.forward(BlockHeaderDAO.Create(header))
+      }
     case readMsg: BlockHeaderDAO.Read =>
       val readHeader = read(readMsg.hash)
       sendToParent(readHeader)
@@ -39,10 +45,8 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
     case Failure(exception) =>
       //means the future did not complete successfully, we encountered an error somewhere
       logger.error("Exception: " + exception.toString)
-      throw exception
-  }
-
-  override val table = TableQuery[BlockHeaderTable]
+      //throw exception
+  }(context.dispatcher)
 
   def create(blockHeader: BlockHeader): Future[BlockHeader] = {
     val action = (table += blockHeader).andThen(DBIO.successful(blockHeader))
@@ -61,6 +65,7 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
 object BlockHeaderDAO {
   sealed trait BlockHeaderDAOMessage
   case class Create(blockHeader: BlockHeader) extends BlockHeaderDAOMessage
+  case class CreateAll(blockHeaders: Seq[BlockHeader]) extends BlockHeaderDAOMessage
   case class Read(hash: DoubleSha256Digest) extends BlockHeaderDAOMessage
   case class Delete(blockHeader: BlockHeader) extends BlockHeaderDAOMessage
 

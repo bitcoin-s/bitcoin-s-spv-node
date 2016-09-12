@@ -40,6 +40,25 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
     readHeader.get must be (blockHeader)
   }
 
+  it must "be able to create multiple block headers in our database at once" in {
+    val probe = TestProbe()
+    val blockHeaderDAO = TestActorRef(BlockHeaderDAO.props(database),probe.ref)
+    val blockHeader1 = BlockchainElementsGenerator.blockHeader.sample.get
+    val blockHeader2 = BlockchainElementsGenerator.blockHeader.sample.get
+
+    val headers = Seq(blockHeader1,blockHeader2)
+
+    blockHeaderDAO ! BlockHeaderDAO.CreateAll(headers)
+
+    val actualBlockHeader1 = probe.expectMsgType[BlockHeader]
+    actualBlockHeader1 must be (blockHeader1)
+
+    val actualBlockHeader2 = probe.expectMsgType[BlockHeader]
+    actualBlockHeader2 must be (blockHeader2)
+
+
+  }
+
   it must "delete a block header in the database" in {
     val probe = TestProbe()
     val blockHeader = BlockchainElementsGenerator.blockHeader.sample.get

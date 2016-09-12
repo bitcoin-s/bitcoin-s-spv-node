@@ -22,5 +22,10 @@ object MainNetDbConfig extends MainNetDbConfig
 trait TestNet3DbConfig extends DbConfig {
   override def dbConfig: DatabaseConfig[PostgresDriver] = DatabaseConfig.forConfig("testNet3DatabaseUrl")
 }
-
 object TestNet3DbConfig extends TestNet3DbConfig
+
+
+trait RegTestDbConfig extends DbConfig {
+  override def dbConfig: DatabaseConfig[PostgresDriver] = DatabaseConfig.forConfig("regTestDatabaseUrl")
+}
+object RegTestDbConfig extends RegTestDbConfig
