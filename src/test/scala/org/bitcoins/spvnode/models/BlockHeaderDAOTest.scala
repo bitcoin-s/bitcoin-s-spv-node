@@ -4,6 +4,7 @@ import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import org.bitcoins.core.gen.BlockchainElementsGenerator
 import org.bitcoins.core.protocol.blockchain.BlockHeader
+import org.bitcoins.spvnode.constant.TestConstants
 import org.bitcoins.spvnode.modelsd.BlockHeaderTable
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FlatSpecLike, MustMatchers}
 import slick.backend.DatabaseConfig
@@ -20,8 +21,7 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("MySpec")) with ImplicitSe
   with FlatSpecLike with MustMatchers with BeforeAndAfter with BeforeAndAfterAll {
 
   val table = TableQuery[BlockHeaderTable]
-  val dbConfig: DatabaseConfig[PostgresDriver] = DatabaseConfig.forConfig("databaseUrl")
-  val database: Database = dbConfig.db
+  val database: Database = TestConstants.database
 
   before {
     //Awaits need to be used to make sure this is fully executed before the next test case starts
@@ -32,7 +32,7 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("MySpec")) with ImplicitSe
   "BlockHeaderDAO" must "store a blockheader in the database, then read it from the database" in {
     val probe = TestProbe()
     val blockHeader = BlockchainElementsGenerator.blockHeader.sample.get
-    val blockHeaderDAO = TestActorRef(BlockHeaderDAO.props,probe.ref)
+    val blockHeaderDAO = TestActorRef(BlockHeaderDAO.props(database),probe.ref)
     blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader)
     val createdHeader = probe.expectMsgType[BlockHeader]
     createdHeader must be (blockHeader)
@@ -45,7 +45,7 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("MySpec")) with ImplicitSe
   it must "delete a block header in the database" in {
     val probe = TestProbe()
     val blockHeader = BlockchainElementsGenerator.blockHeader.sample.get
-    val blockHeaderDAO = TestActorRef(BlockHeaderDAO.props,probe.ref)
+    val blockHeaderDAO = TestActorRef(BlockHeaderDAO.props(database),probe.ref)
     blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader)
     val createdHeader = probe.expectMsgType[BlockHeader]
 

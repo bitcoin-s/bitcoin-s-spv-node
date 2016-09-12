@@ -14,7 +14,7 @@ import scala.util.{Failure, Success}
 
 /**
   * Created by chris on 9/8/16.
-  * This actor is responsible for all databse operations relating to
+  * This actor is responsible for all database operations relating to
   * [[BlockHeader]]'s. Currently we store all block headers in a postgresql database
   */
 sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
@@ -64,12 +64,14 @@ object BlockHeaderDAO {
   case class Read(hash: DoubleSha256Digest) extends BlockHeaderDAOMessage
   case class Delete(blockHeader: BlockHeader) extends BlockHeaderDAOMessage
 
-  private case class BlockHeaderDAOImpl() extends BlockHeaderDAO
+  private case class BlockHeaderDAOImpl(database: Database) extends BlockHeaderDAO
 
-  def props = Props(BlockHeaderDAOImpl())
+  def props(database: Database): Props = Props(BlockHeaderDAOImpl(database))
 
-  def apply(context: ActorRefFactory): ActorRef = context.actorOf(props,
+  def apply(context: ActorRefFactory, database: Database): ActorRef = context.actorOf(props(database),
     BitcoinSpvNodeUtil.createActorName(BlockHeaderDAO.getClass))
 
-  def apply: ActorRef = BlockHeaderDAO(Constants.actorSystem)
+  def apply(database: Database): ActorRef = BlockHeaderDAO(Constants.actorSystem,database)
+
+  def apply: ActorRef = BlockHeaderDAO(Constants.actorSystem,Constants.database)
 }
