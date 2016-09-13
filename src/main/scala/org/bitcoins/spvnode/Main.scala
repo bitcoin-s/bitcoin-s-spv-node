@@ -19,7 +19,7 @@ object Main extends App {
     val db = Constants.database
     Await.result(Constants.database.run(table.schema.create),3.seconds)
     db.close()
-    
+
     val blockHeaderSyncActor = BlockHeaderSyncActor(Constants.actorSystem)
     val gensisBlockHash = TestNetChainParams.genesisBlock.blockHeader.hash
     val startHeader = BlockHeaderSyncActor.StartHeaders(Seq(gensisBlockHash))

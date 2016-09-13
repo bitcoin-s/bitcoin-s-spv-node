@@ -65,15 +65,8 @@ class PaymentActorTest extends TestKit(ActorSystem("MySpec")) with ImplicitSende
       DoubleSha256Digest("9b47cf5d64aa52d7536e2b469891a79ea8488092dc3c2e0ed26dbe9b508cce16"),
       UInt32(1472661981),UInt32(486604799),UInt32(4219144207L)),UInt32(36),
       partialMerkleTree))
-
     paymentActor ! merkleBlockMsg
-
     expectMsgType[PaymentActor.SuccessfulPayment](10.seconds)
-
-
-
-
-
   }
 
 

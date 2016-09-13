@@ -3,15 +3,18 @@ package org.bitcoins.spvnode.networking.sync
 import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
 import akka.event.LoggingReceive
 import org.bitcoins.core.crypto.DoubleSha256Digest
+import org.bitcoins.core.protocol.blockchain.BlockHeader
 import org.bitcoins.core.util.BitcoinSLogger
 import org.bitcoins.spvnode.constant.Constants
 import org.bitcoins.spvnode.messages.{GetHeadersMessage, HeadersMessage}
 import org.bitcoins.spvnode.messages.data.GetHeadersMessage
 import org.bitcoins.spvnode.models.BlockHeaderDAO
 import org.bitcoins.spvnode.networking.PeerMessageHandler
-import org.bitcoins.spvnode.networking.sync.BlockHeaderSyncActor.StartAtLastSavedHeader
+import org.bitcoins.spvnode.networking.sync.BlockHeaderSyncActor.{GetHeaders, StartAtLastSavedHeader}
 import org.bitcoins.spvnode.store.BlockHeaderStore
 import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
+
+import scala.annotation.tailrec
 
 /**
   * Created by chris on 9/5/16.
@@ -27,39 +30,90 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
 
   def receive = LoggingReceive {
     case startHeader: BlockHeaderSyncActor.StartHeaders =>
-      //construct a get headers message
-      val peerMsgHandler = PeerMessageHandler(context)
-      context.become(blockHeaderSync(peerMsgHandler))
+      val p = peerMessageHandler
+      context.become(blockHeaderSync(p,startHeader.hashes.last))
       self.forward(startHeader)
+    case getHeaders: GetHeaders =>
+      val getHeadersMessage = GetHeadersMessage(Seq(getHeaders.startHeader), getHeaders.stopHeader)
+      val p = peerMessageHandler
+      p ! getHeadersMessage
+      context.become(awaitGetHeaders)
     case StartAtLastSavedHeader => ???
   }
 
-  def blockHeaderSync(peerMessageHandler: ActorRef) = LoggingReceive {
+  /** Main block header sync context, lastHeaderHash is used to make sure the batch of block headers we see
+    * matches connects to the last batch of block headers we saw
+    * @param peerMessageHandler
+    * @param lastHeaderHash
+    * @return
+    */
+  def blockHeaderSync(peerMessageHandler: ActorRef, lastHeaderHash: DoubleSha256Digest): Receive = LoggingReceive {
     case startHeader: BlockHeaderSyncActor.StartHeaders =>
       val getHeadersMsg = GetHeadersMessage(startHeader.hashes)
       peerMessageHandler ! getHeadersMsg
     case headersMsg: HeadersMessage =>
       val headers = headersMsg.headers
-      val createAllMsg = BlockHeaderDAO.CreateAll(headers)
-      blockHeaderDAO ! createAllMsg
-      //stop the blockHeaderDAO actor after processing the creat all message
-      //to free up the database connections it was using before.
-      //context.stop(blockHeaderDAO)
-      val lastHeader = headers.last
-      if (headers.size == maxHeaders) {
-        //means we need to send another GetHeaders message with the last header in this message as our starting point
-        val startHeader = BlockHeaderSyncActor.StartHeaders(Seq(lastHeader.hash))
-        self ! startHeader
-      } else {
-        //else we we are synced up on the network, send the parent the last header we have seen
-        context.parent ! lastHeader
+      val (validHeaders,lastValidHeaderHash,firstInvalidHeaderHash) = checkHeaders(lastHeaderHash,headers)
+      if (!validHeaders) {
+        logger.error("Our blockchain headers are not connected, disconnected at: " + lastValidHeaderHash + " and " + firstInvalidHeaderHash)
+        context.parent !  BlockHeaderSyncActor.BlockHeadersDoNotConnect(lastValidHeaderHash.get,firstInvalidHeaderHash.get)
         context.stop(self)
-      }
+      } else handleValidHeaders(headers,peerMessageHandler)
+  }
+
+  /** Actor context that specifically deals with the [[BlockHeaderSyncActor.GetHeaders]] message */
+  def awaitGetHeaders: Receive = LoggingReceive {
+    case headersMsg: HeadersMessage =>
+      val headers = headersMsg.headers
+      val (validHeaders,lastValidHeaderHash,firstInvalidHeaderHash) = checkHeaders(headers.head.hash,headers.tail)
+      if (!validHeaders) {
+        logger.error("Our blockchain headers are not connected, disconnected at: " + lastValidHeaderHash + " and " + firstInvalidHeaderHash)
+        context.parent !  BlockHeaderSyncActor.BlockHeadersDoNotConnect(lastValidHeaderHash.get,firstInvalidHeaderHash.get)
+        context.stop(self)
+      } else context.parent ! headers
   }
 
 
   private def blockHeaderDAO = BlockHeaderDAO(context, Constants.database)
 
+  private def peerMessageHandler = PeerMessageHandler(context)
+
+  /** Checks that the given block headers all connect to each other
+    * If the headers do not connect, it returns the two block header hashes that do not connect */
+  private def checkHeaders(firstHeaderHash: DoubleSha256Digest, blockHeaders: Seq[BlockHeader]): (Boolean, Option[DoubleSha256Digest], Option[DoubleSha256Digest]) = {
+    @tailrec
+    def loop(previousBlockHash: DoubleSha256Digest, remainingBlockHeaders: Seq[BlockHeader]): (Boolean, Option[DoubleSha256Digest], Option[DoubleSha256Digest]) = {
+      if (remainingBlockHeaders.isEmpty) (true,None,None)
+      else {
+        val header = remainingBlockHeaders.head
+        if (header.previousBlockHash != previousBlockHash) (false,Some(previousBlockHash),Some(header.hash))
+        else loop(header.hash, remainingBlockHeaders.tail)
+      }
+    }
+    loop(firstHeaderHash,blockHeaders)
+  }
+
+  /** Stores the valid headers in our database, sends our actor a message to start syncing from the last
+    * header we received if necessary
+    * @param headers
+    * @param peerMessageHandler
+    */
+  def handleValidHeaders(headers: Seq[BlockHeader], peerMessageHandler: ActorRef) = {
+    val lastHeader = headers.last
+    val createAllMsg = BlockHeaderDAO.CreateAll(headers)
+    blockHeaderDAO ! createAllMsg
+    if (headers.size == maxHeaders) {
+      //means we need to send another GetHeaders message with the last header in this message as our starting point
+      val startHeader = BlockHeaderSyncActor.StartHeaders(Seq(lastHeader.hash))
+      //need to reset the last header hash we saw on the network
+      context.become(blockHeaderSync(peerMessageHandler,lastHeader.hash))
+      self ! startHeader
+    } else {
+      //else we we are synced up on the network, send the parent the last header we have seen
+      context.parent ! lastHeader
+      context.stop(self)
+    }
+  }
 }
 
 object BlockHeaderSyncActor {
@@ -74,8 +128,18 @@ object BlockHeaderSyncActor {
   sealed trait BlockHeaderSyncMsg
   /** Indicates a set of headers to query our peer on the network to start our sync process */
   case class StartHeaders(hashes: Seq[DoubleSha256Digest]) extends BlockHeaderSyncMsg
-  //case class SyncSetOfHeaders(startHeaders: Seq[DoubleSha256Digest], stopHeaders: Seq[DoubleSha256Digest]) extends BlockHeaderSyncMsg
+  /** Retrieves the set of headers from a node on the network, this does NOT store them */
+  case class GetHeaders(startHeader: DoubleSha256Digest, stopHeader: DoubleSha256Digest) extends BlockHeaderSyncMsg
+  /** Starts syncing our blockchain at the last header we have seen, if we haven't see any it starts at the genesis block */
   case object StartAtLastSavedHeader extends BlockHeaderSyncMsg
 
+  /** Indicates an error happened during the sync of our blockchain */
+  sealed trait BlockHeaderSyncError extends BlockHeaderSyncMsg
+
+  /** Indicates that our block headers do not properly reference one another
+    * @param previousBlockHash indicates the last valid block that connected to a header
+    * @param blockHash indicates the first block hash that did NOT connect to the previous valid chain
+    * */
+  case class BlockHeadersDoNotConnect(previousBlockHash: DoubleSha256Digest, blockHash: DoubleSha256Digest) extends BlockHeaderSyncError
 
 }
