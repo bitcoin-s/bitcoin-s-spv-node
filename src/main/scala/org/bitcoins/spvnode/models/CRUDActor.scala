@@ -113,6 +113,10 @@ trait CRUDActor[T, PrimaryKeyType] extends Actor with BitcoinSLogger {
   protected def find(t: T): Query[Table[_],  T, Seq]
 
 
-  override def postStop = database.close()
+  override def postStop = {
+    logger.info("CLOSING DATABASE CONNNECTION")
+    database.close()
+    logger.info("FINISHED CLOSING DATABASE")
+  }
 
 }

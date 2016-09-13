@@ -50,11 +50,8 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
 
     blockHeaderDAO ! BlockHeaderDAO.CreateAll(headers)
 
-    val actualBlockHeader1 = probe.expectMsgType[BlockHeader]
-    actualBlockHeader1 must be (blockHeader1)
-
-    val actualBlockHeader2 = probe.expectMsgType[BlockHeader]
-    actualBlockHeader2 must be (blockHeader2)
+    val actualBlockHeaders = probe.expectMsgType[Seq[BlockHeader]]
+    actualBlockHeaders must be (headers)
 
 
   }

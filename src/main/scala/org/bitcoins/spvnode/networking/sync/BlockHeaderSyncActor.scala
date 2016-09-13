@@ -4,8 +4,10 @@ import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
 import akka.event.LoggingReceive
 import org.bitcoins.core.crypto.DoubleSha256Digest
 import org.bitcoins.core.util.BitcoinSLogger
+import org.bitcoins.spvnode.constant.Constants
 import org.bitcoins.spvnode.messages.{GetHeadersMessage, HeadersMessage}
 import org.bitcoins.spvnode.messages.data.GetHeadersMessage
+import org.bitcoins.spvnode.models.BlockHeaderDAO
 import org.bitcoins.spvnode.networking.PeerMessageHandler
 import org.bitcoins.spvnode.networking.sync.BlockHeaderSyncActor.StartAtLastSavedHeader
 import org.bitcoins.spvnode.store.BlockHeaderStore
@@ -38,7 +40,11 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
       peerMessageHandler ! getHeadersMsg
     case headersMsg: HeadersMessage =>
       val headers = headersMsg.headers
-      BlockHeaderStore.append(headers)
+      val createAllMsg = BlockHeaderDAO.CreateAll(headers)
+      blockHeaderDAO ! createAllMsg
+      //stop the blockHeaderDAO actor after processing the creat all message
+      //to free up the database connections it was using before.
+      //context.stop(blockHeaderDAO)
       val lastHeader = headers.last
       if (headers.size == maxHeaders) {
         //means we need to send another GetHeaders message with the last header in this message as our starting point
@@ -51,6 +57,8 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
       }
   }
 
+
+  private def blockHeaderDAO = BlockHeaderDAO(context, Constants.database)
 
 }
 

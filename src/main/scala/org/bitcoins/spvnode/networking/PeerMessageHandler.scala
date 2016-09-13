@@ -141,7 +141,7 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
       //this means that we receive a bunch of messages bundled into one [[ByteString]]
       //need to parse out the individual message
       val bytes: Seq[Byte] = unalignedBytes ++ byteString.toArray.toSeq
-      logger.debug("Bytes for message parsing: " + BitcoinSUtil.encodeHex(bytes))
+      //logger.debug("Bytes for message parsing: " + BitcoinSUtil.encodeHex(bytes))
       val (messages,remainingBytes) = BitcoinSpvNodeUtil.parseIndividualMessages(bytes)
       for {m <- messages} yield self.tell(m,sender)
       remainingBytes
