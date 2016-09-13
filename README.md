@@ -2,6 +2,7 @@
 
 This is an implementation of an SPV node on the Bitcoin network using Scala & [Bitcoin-S-Core](https://github.com/bitcoin-s/bitcoin-s-core). 
 
+Our implementation relies heavily on [Akka](http://akka.io/), which has an implementation of the [Actor model](https://en.wikipedia.org/wiki/Actor_model) in Scala. If you want to read more about Akka and what it is/how it is used, it is best to start reading [here](http://doc.akka.io/docs/akka/2.4/scala.html).
 # Examples
 
 Look inside of [Main.scala](https://github.com/Christewart/bitcoin-s-spv-node/blob/networking/src/main/scala/org/bitcoins/spvnode/Main.scala) for example of creating a [`PaymentActor`](https://github.com/Christewart/bitcoin-s-spv-node/blob/networking/src/main/scala/org/bitcoins/spvnode/networking/PaymentActor.scala), that montiors an address. Once a transaction that pays to the address is included in a block, it sends a message back to your actor saying a payment was successful. 
