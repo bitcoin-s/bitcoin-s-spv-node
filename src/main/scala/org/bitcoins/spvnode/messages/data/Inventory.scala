@@ -1,17 +1,17 @@
-package org.bitcoins.spvnode.messages
+package org.bitcoins.spvnode.messages.data
 
 import org.bitcoins.core.crypto.DoubleSha256Digest
 import org.bitcoins.core.protocol.NetworkElement
 import org.bitcoins.core.util.{BitcoinSLogger, Factory}
-import org.bitcoins.spvnode.serializers.messages.RawInventorySerializer
+import org.bitcoins.spvnode.messages.TypeIdentifier
+import org.bitcoins.spvnode.serializers.messages.data.RawInventorySerializer
 
 /**
   * Created by chris on 5/31/16.
   * These are used as unique identifiers inside the peer-to-peer network
-  * https://bitcoin.org/en/developer-reference#data-messages
+  * [[https://bitcoin.org/en/developer-reference#term-inventory]]
   */
 trait Inventory extends NetworkElement with BitcoinSLogger {
-
 
   /**
     * The type of object which was hashed
@@ -34,7 +34,7 @@ object Inventory extends Factory[Inventory] {
 
   override def fromBytes(bytes : Seq[Byte]) : Inventory = RawInventorySerializer.read(bytes)
 
-  def apply(bytes : Seq[Byte]) : Inventory = fromBytes(bytes)
-
-  def apply(hex : String) : Inventory = fromHex(hex)
+  def apply(typeIdentifier: TypeIdentifier, hash : DoubleSha256Digest) : Inventory = {
+    InventoryImpl(typeIdentifier,hash)
+  }
 }
