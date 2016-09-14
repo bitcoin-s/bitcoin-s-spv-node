@@ -24,24 +24,28 @@ class BlockHeaderTable(tag: Tag) extends Table[BlockHeader](tag,"block_headers")
 
   def nonce = column[UInt32]("nonce")
 
-  def * = (hash, version, previousBlockHash, merkleRootHash, time, nBits, nonce).<>[BlockHeader,
-    (DoubleSha256Digest, UInt32, DoubleSha256Digest, DoubleSha256Digest, UInt32, UInt32, UInt32)](blockHeaderApply,blockHeaderUnapply)
+  def hex = column[String]("hex")
+
+  def * = (hash, version, previousBlockHash, merkleRootHash, time, nBits, nonce,hex).<>[BlockHeader,
+    (DoubleSha256Digest, UInt32, DoubleSha256Digest, DoubleSha256Digest, UInt32, UInt32, UInt32,String)](blockHeaderApply,blockHeaderUnapply)
 
   /** Creates a block header from a tuple */
-  private val blockHeaderApply : ((DoubleSha256Digest, UInt32, DoubleSha256Digest, DoubleSha256Digest, UInt32, UInt32, UInt32)) => BlockHeader = {
-    case (hash: DoubleSha256Digest, version: UInt32, previousBlockHash: DoubleSha256Digest, merkleRootHash: DoubleSha256Digest, time: UInt32,
-      nBits: UInt32, nonce: UInt32) =>
+  private val blockHeaderApply : ((DoubleSha256Digest, UInt32, DoubleSha256Digest, DoubleSha256Digest,
+    UInt32, UInt32, UInt32,String)) => BlockHeader = {
+    case (hash: DoubleSha256Digest, version: UInt32, previousBlockHash: DoubleSha256Digest,
+      merkleRootHash: DoubleSha256Digest, time: UInt32, nBits: UInt32, nonce: UInt32, hex : String) =>
       val header = BlockHeader(version,previousBlockHash,merkleRootHash, time,nBits,nonce)
-      require(header.hash == hash, "Block header is not giving us the same hash that was stored in the database, " +
-        "got: " + header.hash + " expected: " + hash)
+      require(header.hash == hash && header.hex == hex, "Block header is not giving us the same hash that was stored in the database, " +
+        "got: " + header.hash + " expected: " + hash + "\nStored hex: " + hex + "actual hex: " + header.hex)
       header
   }
 
   /** Destructs a block header to a tuple */
-  private val blockHeaderUnapply: BlockHeader => Option[(DoubleSha256Digest, UInt32, DoubleSha256Digest, DoubleSha256Digest, UInt32, UInt32, UInt32)] = {
+  private val blockHeaderUnapply: BlockHeader => Option[(DoubleSha256Digest, UInt32, DoubleSha256Digest,
+    DoubleSha256Digest, UInt32, UInt32, UInt32,String)] = {
     blockHeader: BlockHeader =>
       Some((blockHeader.hash, blockHeader.version, blockHeader.previousBlockHash, blockHeader.merkleRootHash,
-        blockHeader.time,blockHeader.nBits,blockHeader.nonce))
+        blockHeader.time,blockHeader.nBits,blockHeader.nonce,blockHeader.hex))
   }
 
 

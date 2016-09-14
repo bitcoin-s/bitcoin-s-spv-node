@@ -45,9 +45,9 @@ class BlockHeaderSyncActorTest extends TestKit(ActorSystem("BlockHeaderSyncActor
 
     actualHashes.size must be (expectedHashes.size)
     actualHashes must be (expectedHashes)
-
-
   }
+
+  it must "sync "
 
 
 
