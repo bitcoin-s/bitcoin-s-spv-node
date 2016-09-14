@@ -1,12 +1,13 @@
 package org.bitcoins.spvnode.networking.sync
 
 import akka.actor.ActorSystem
-import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
+import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import org.bitcoins.core.crypto.DoubleSha256Digest
 import org.bitcoins.core.gen.BlockchainElementsGenerator
 import org.bitcoins.core.protocol.blockchain.{BlockHeader, TestNetChainParams}
 import org.bitcoins.core.util.BitcoinSUtil
 import org.bitcoins.spvnode.messages.data.HeadersMessage
+import org.bitcoins.spvnode.util.TestUtil
 import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, MustMatchers}
 
 /**
@@ -15,6 +16,7 @@ import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, MustMatchers}
 class BlockHeaderSyncActorTest extends TestKit(ActorSystem("BlockHeaderSyncActorSpec"))
   with ImplicitSender with FlatSpecLike with MustMatchers with BeforeAndAfterAll {
 
+  val genesisBlockHash = TestNetChainParams.genesisBlock.blockHeader.hash
 
   "BlockHeaderSyncActor" must "send us an error if we receive two block headers that are not connected" in {
     val blockHeaderSyncActor = TestActorRef(BlockHeaderSyncActor.props,self)
@@ -28,13 +30,14 @@ class BlockHeaderSyncActorTest extends TestKit(ActorSystem("BlockHeaderSyncActor
   }
 
   it must "sync the first 5 headers on testnet" in {
+    //genesis block hash is 43497fd7f826957108f4a30fd9cec3aeba79972084e90ead01ea330900000000
     val genesisBlockHash = TestNetChainParams.genesisBlock.blockHeader.hash
-    val firstBlockHash = DoubleSha256Digest(BitcoinSUtil.flipEndianess("00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206"))
-    val secondBlockhash = DoubleSha256Digest(BitcoinSUtil.flipEndianess("000000006c02c8ea6e4ff69651f7fcde348fb9d557a06e6957b65552002a7820"))
-    val thirdBlockhash = DoubleSha256Digest(BitcoinSUtil.flipEndianess("000000008b896e272758da5297bcd98fdc6d97c9b765ecec401e286dc1fdbe10"))
-    val fourthBlockhash = DoubleSha256Digest(BitcoinSUtil.flipEndianess("000000008b5d0af9ffb1741e38b17b193bd12d7683401cecd2fd94f548b6e5dd"))
+    val firstBlockHash = TestUtil.firstFiveTestNetBlockHeaders.head.hash
+    val secondBlockhash = TestUtil.firstFiveTestNetBlockHeaders(1).hash
+    val thirdBlockhash = TestUtil.firstFiveTestNetBlockHeaders(2).hash
+    val fourthBlockhash = TestUtil.firstFiveTestNetBlockHeaders(3).hash
     //5th block hash on testnet
-    val fifthBlockHash = DoubleSha256Digest(BitcoinSUtil.flipEndianess("00000000bc45ac875fbd34f43f7732789b6ec4e8b5974b4406664a75d43b21a1"))
+    val fifthBlockHash = TestUtil.firstFiveTestNetBlockHeaders.last.hash
     val blockHeaderSyncActor = TestActorRef(BlockHeaderSyncActor.props,self)
 
     blockHeaderSyncActor ! BlockHeaderSyncActor.GetHeaders(genesisBlockHash, fifthBlockHash)
@@ -47,7 +50,30 @@ class BlockHeaderSyncActorTest extends TestKit(ActorSystem("BlockHeaderSyncActor
     actualHashes must be (expectedHashes)
   }
 
-  it must "sync "
+  it must "fail to sync with a GetHeaders message if they are not connected" in {
+    val probe = TestProbe()
+    val blockHeaderSyncActor = TestActorRef(BlockHeaderSyncActor.props,probe.ref)
+    val fifthBlockHash = TestUtil.firstFiveTestNetBlockHeaders.last.hash
+    blockHeaderSyncActor ! BlockHeaderSyncActor.GetHeaders(genesisBlockHash, fifthBlockHash)
+
+    val headers = TestUtil.firstFiveTestNetBlockHeaders.slice(0,2) ++ TestUtil.firstFiveTestNetBlockHeaders.slice(3,TestUtil.firstFiveTestNetBlockHeaders.size)
+    val headersMsgMissingHeader = HeadersMessage(headers)
+    blockHeaderSyncActor ! headersMsgMissingHeader
+
+    probe.expectMsgType[BlockHeaderSyncActor.BlockHeadersDoNotConnect]
+  }
+
+  it must "stop syncing when we do not receive 2000 block headers from our peer" in {
+    val probe = TestProbe()
+    val blockHeaderSyncActor = TestActorRef(BlockHeaderSyncActor.props,probe.ref)
+    blockHeaderSyncActor ! BlockHeaderSyncActor.StartHeaders(Seq(genesisBlockHash))
+
+    val headersMsg = HeadersMessage(TestUtil.firstFiveTestNetBlockHeaders)
+    blockHeaderSyncActor ! headersMsg
+
+    val lastHeader = probe.expectMsgType[BlockHeader]
+    lastHeader must be (TestUtil.firstFiveTestNetBlockHeaders.last)
+  }
 
 
 

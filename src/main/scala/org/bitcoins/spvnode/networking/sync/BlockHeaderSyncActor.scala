@@ -73,7 +73,6 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
       } else context.parent ! headers
   }
 
-
   private def blockHeaderDAO = BlockHeaderDAO(context, Constants.database)
 
   private def peerMessageHandler = PeerMessageHandler(context)
