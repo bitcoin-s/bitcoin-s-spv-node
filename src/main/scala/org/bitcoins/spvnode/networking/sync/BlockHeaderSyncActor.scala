@@ -1,6 +1,6 @@
 package org.bitcoins.spvnode.networking.sync
 
-import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
+import akka.actor.{Actor, ActorRef, ActorRefFactory, PoisonPill, Props}
 import akka.event.LoggingReceive
 import org.bitcoins.core.crypto.DoubleSha256Digest
 import org.bitcoins.core.protocol.blockchain.BlockHeader
@@ -18,6 +18,8 @@ import scala.annotation.tailrec
 
 /**
   * Created by chris on 9/5/16.
+  *
+  *
   */
 trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
 
@@ -59,6 +61,10 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
         context.parent !  BlockHeaderSyncActor.BlockHeadersDoNotConnect(lastValidHeaderHash.get,firstInvalidHeaderHash.get)
         context.stop(self)
       } else handleValidHeaders(headers,peerMessageHandler)
+    case createdHeaders: BlockHeaderDAO.CreatedHeaders =>
+      //indicates that our blockHeaderDAO successfully created the block headers we sent it inside of
+      //handleValidHeaders
+      sender ! PoisonPill
   }
 
   /** Actor context that specifically deals with the [[BlockHeaderSyncActor.GetHeaders]] message */
@@ -100,7 +106,8 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
   def handleValidHeaders(headers: Seq[BlockHeader], peerMessageHandler: ActorRef) = {
     val lastHeader = headers.last
     val createAllMsg = BlockHeaderDAO.CreateAll(headers)
-    blockHeaderDAO ! createAllMsg
+    val b = blockHeaderDAO
+    b ! createAllMsg
     if (headers.size == maxHeaders) {
       //means we need to send another GetHeaders message with the last header in this message as our starting point
       val startHeader = BlockHeaderSyncActor.StartHeaders(Seq(lastHeader.hash))

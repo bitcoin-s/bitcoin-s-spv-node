@@ -32,8 +32,8 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
     val blockHeader = BlockchainElementsGenerator.blockHeader.sample.get
     val blockHeaderDAO = TestActorRef(BlockHeaderDAO.props(database),probe.ref)
     blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader)
-    val createdHeader = probe.expectMsgType[BlockHeader]
-    createdHeader must be (blockHeader)
+    val createdHeader = probe.expectMsgType[BlockHeaderDAO.CreatedHeader]
+    createdHeader.header must be (blockHeader)
 
     blockHeaderDAO ! BlockHeaderDAO.Read(blockHeader.hash)
     val readHeader = probe.expectMsgType[Option[BlockHeader]]
@@ -50,8 +50,8 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
 
     blockHeaderDAO ! BlockHeaderDAO.CreateAll(headers)
 
-    val actualBlockHeaders = probe.expectMsgType[Seq[BlockHeader]]
-    actualBlockHeaders must be (headers)
+    val actualBlockHeaders = probe.expectMsgType[BlockHeaderDAO.CreatedHeaders]
+    actualBlockHeaders.headers must be (headers)
 
 
   }
@@ -61,7 +61,7 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
     val blockHeader = BlockchainElementsGenerator.blockHeader.sample.get
     val blockHeaderDAO = TestActorRef(BlockHeaderDAO.props(database),probe.ref)
     blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader)
-    val createdHeader = probe.expectMsgType[BlockHeader]
+    val createdHeader = probe.expectMsgType[BlockHeaderDAO.CreatedHeader]
 
     //delete the header in the db
     blockHeaderDAO ! BlockHeaderDAO.Delete(blockHeader)

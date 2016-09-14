@@ -21,10 +21,10 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
 
   def receive = {
     case createMsg: BlockHeaderDAO.Create =>
-      val createdBlockHeader = create(createMsg.blockHeader)
+      val createdBlockHeader = create(createMsg.blockHeader).map(BlockHeaderDAO.CreatedHeader(_))(context.dispatcher)
       sendToParent(createdBlockHeader)
     case createAllMsg: BlockHeaderDAO.CreateAll =>
-      val createAllHeaders = createAll(createAllMsg.blockHeaders)
+      val createAllHeaders = createAll(createAllMsg.blockHeaders).map(BlockHeaderDAO.CreatedHeaders(_))(context.dispatcher)
       sendToParent(createAllHeaders)
     case readMsg: BlockHeaderDAO.Read =>
       val readHeader = read(readMsg.hash)
@@ -71,6 +71,11 @@ object BlockHeaderDAO {
   case class CreateAll(blockHeaders: Seq[BlockHeader]) extends BlockHeaderDAOMessage
   case class Read(hash: DoubleSha256Digest) extends BlockHeaderDAOMessage
   case class Delete(blockHeader: BlockHeader) extends BlockHeaderDAOMessage
+
+  sealed trait BlockHeaderDAOMessageReplies extends BlockHeaderDAOMessage
+  case class CreatedHeader(header: BlockHeader) extends BlockHeaderDAOMessageReplies
+  case class CreatedHeaders(headers: Seq[BlockHeader]) extends BlockHeaderDAOMessageReplies
+
 
   private case class BlockHeaderDAOImpl(database: Database) extends BlockHeaderDAO
 
