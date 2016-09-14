@@ -17,7 +17,7 @@ import org.bitcoins.spvnode.messages.control.PingMessage
 import org.bitcoins.spvnode.messages.data.{GetBlocksMessage, GetDataMessage, GetHeadersMessage, Inventory}
 import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FlatSpecLike, MustMatchers}
-
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
 
 /**
@@ -130,8 +130,8 @@ class PeerMessageHandlerTest extends TestKit(ActorSystem("PeerMessageHandlerTest
 
     val peerRequest = buildPeerRequest(PingMessage(nonce))
 
-    probe.send(peerMsgHandler,peerRequest)
-    val pongMessage = probe.expectMsgType[PongMessage](5.seconds)
+    system.scheduler.schedule(2.seconds,30.seconds,peerMsgHandler,peerRequest)(global,probe.ref)
+    val pongMessage = probe.expectMsgType[PongMessage](8.seconds)
 
     pongMessage.nonce must be (nonce)
 

@@ -79,20 +79,8 @@ trait CRUDActor[T, PrimaryKeyType] extends Actor with BitcoinSLogger {
     * @return t - the record that has been inserted / updated
     */
   def upsert(t: T): Future[T] = {
-    logger.debug("Upserting record t: " + t )
-    val rowsFuture: Future[Seq[T]] = database.run(find(t).result)
-    val rowsOptFuture = rowsFuture.map(_.headOption)
-    val result: Future[Future[T]] = for {
-      rowOpt <- rowsOptFuture
-    } yield {
-      if (rowOpt.isEmpty) {
-        create(t)
-      } else {
-        //should be safe calling .get here because we found it in the first place
-        update(t).map(_.get)
-      }
-    }
-    result.flatMap(g => g)
+    database.run(table.insertOrUpdate(t))
+    database.run(find(t).result).map(_.head)
   }
 
   /**

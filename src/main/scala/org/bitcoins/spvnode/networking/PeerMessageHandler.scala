@@ -26,6 +26,10 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
   lazy val peer: ActorRef = context.actorOf(Client.props,BitcoinSpvNodeUtil.createActorName(this.getClass))
 
   def receive = LoggingReceive {
+    case connectedMsg: Tcp.Connected =>
+      //for the case where the first message we receive is a Tcp.Connected message
+      context.become(awaitConnected(Nil,Nil))
+      self.forward(connectedMsg)
     case message : Tcp.Message =>
       val remainingBytes = handleTcpMessage(message, Nil, sender)
       context.become(awaitConnected(Nil,remainingBytes))
@@ -34,7 +38,7 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
       context.become(awaitConnected(Seq((sender,msg)), Nil))
     case networkPayload: NetworkPayload =>
       val networkMessage = NetworkMessage(Constants.networkParameters,networkPayload)
-      self.tell(networkMessage,sender)
+      self.forward(networkMessage)
   }
 
   /** Waits for us to receive a [[Tcp.Connected]] message from our [[Client]] */
