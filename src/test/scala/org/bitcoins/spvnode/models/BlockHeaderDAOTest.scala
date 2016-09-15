@@ -95,6 +95,36 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
     lastSavedHeader2.header.get must be (blockHeader2)
   }
 
+
+  it must "retrieve a block header by height" in {
+    val probe = TestProbe()
+    val blockHeader = BlockchainElementsGenerator.blockHeader.sample.get
+    val blockHeaderDAO = TestActorRef(BlockHeaderDAO.props(database),probe.ref)
+    blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader)
+
+    probe.expectMsgType[BlockHeaderDAO.CreatedHeader]
+
+    blockHeaderDAO ! BlockHeaderDAO.GetAtHeight(1)
+
+    val blockHeaderAtHeight = probe.expectMsgType[BlockHeaderDAO.BlockHeaderAtHeight]
+    blockHeaderAtHeight.header.get must be (blockHeader)
+    blockHeaderAtHeight.height must be (1)
+
+    //create one at height 2
+    val blockHeader2 = BlockchainElementsGenerator.blockHeader.sample.get
+    blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader2)
+
+    probe.expectMsgType[BlockHeaderDAO.CreatedHeader]
+
+    blockHeaderDAO ! BlockHeaderDAO.GetAtHeight(2)
+
+    val blockHeaderAtHeight2 = probe.expectMsgType[BlockHeaderDAO.BlockHeaderAtHeight]
+
+    blockHeaderAtHeight2.header.get must be (blockHeader2)
+    blockHeaderAtHeight2.height must be (2)
+
+  }
+
   after {
     //Awaits need to be used to make sure this is fully executed before the next test case starts
     //TODO: Figure out a way to make this asynchronous

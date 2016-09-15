@@ -43,8 +43,13 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
     case BlockHeaderDAO.LastSavedHeader =>
       val last: Future[Seq[BlockHeader]] = database.run(table.result)
       val result: Future[Option[BlockHeader]] = last.map(_.reverse.headOption)(context.dispatcher)
+      result.map(h => logger.info("Last saved header in the database: " + h))(context.dispatcher)
       val lastSavedHeaderMsg = result.map(BlockHeaderDAO.LastSavedHeaderReply(_))(context.dispatcher)
       sendToParent(lastSavedHeaderMsg)
+    case BlockHeaderDAO.GetAtHeight(height) =>
+      val result = getAtHeight(height)
+      val reply = result.map(h => BlockHeaderDAO.BlockHeaderAtHeight(h._1, h._2))(context.dispatcher)
+      sendToParent(reply)
   }
 
   /** Sends a message to our parent actor */
@@ -74,21 +79,42 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
     import ColumnMappers._
     table.filter(_.hash === hash)
   }
+
+  /** Retreives a [[BlockHeader]] at the given height, if none is found it returns None */
+  def getAtHeight(height: Long): Future[(Long,Option[BlockHeader])] = {
+    //TODO: Have to consider the case of reorgs here, what if their are two competing chains
+    //which would both have height x
+    val query = table.filter(_.height === height).result
+    database.run(query).map(h => (height,h.headOption))(context.dispatcher)
+  }
 }
 
 
 object BlockHeaderDAO {
+  /** A message that the [[BlockHeaderDAO]] can send or receive */
   sealed trait BlockHeaderDAOMessage
-  case class Create(blockHeader: BlockHeader) extends BlockHeaderDAOMessage
-  case class CreateAll(blockHeaders: Seq[BlockHeader]) extends BlockHeaderDAOMessage
-  case class Read(hash: DoubleSha256Digest) extends BlockHeaderDAOMessage
-  case class Delete(blockHeader: BlockHeader) extends BlockHeaderDAOMessage
-  case object LastSavedHeader extends BlockHeaderDAOMessage
 
+  /** A message you can send to the [[BlockHeaderDAO]] */
+  sealed trait BlockHeaderDAORequest extends BlockHeaderDAOMessage
+
+  /** A message the [[BlockHeaderDAO]] can send to your Actor */
   sealed trait BlockHeaderDAOMessageReplies extends BlockHeaderDAOMessage
+
+  case class Create(blockHeader: BlockHeader) extends BlockHeaderDAORequest
   case class CreatedHeader(header: BlockHeader) extends BlockHeaderDAOMessageReplies
+
+  case class CreateAll(blockHeaders: Seq[BlockHeader]) extends BlockHeaderDAORequest
   case class CreatedHeaders(headers: Seq[BlockHeader]) extends BlockHeaderDAOMessageReplies
+
+  case class Read(hash: DoubleSha256Digest) extends BlockHeaderDAORequest
+
+  case class Delete(blockHeader: BlockHeader) extends BlockHeaderDAORequest
+
+  case object LastSavedHeader extends BlockHeaderDAORequest
   case class LastSavedHeaderReply(header: Option[BlockHeader]) extends BlockHeaderDAOMessageReplies
+
+  case class GetAtHeight(height: Long) extends BlockHeaderDAORequest
+  case class BlockHeaderAtHeight(height: Long, header: Option[BlockHeader]) extends BlockHeaderDAOMessageReplies
 
   private case class BlockHeaderDAOImpl(database: Database) extends BlockHeaderDAO
 

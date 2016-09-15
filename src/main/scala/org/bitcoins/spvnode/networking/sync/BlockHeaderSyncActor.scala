@@ -40,7 +40,9 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
       val p = peerMessageHandler
       p ! getHeadersMessage
       context.become(awaitGetHeaders)
-    case StartAtLastSavedHeader => ???
+    case StartAtLastSavedHeader =>
+      blockHeaderDAO ! BlockHeaderDAO.LastSavedHeader
+      context.become(awaitLastSavedHeader)
   }
 
   /** Main block header sync context, lastHeaderHash is used to make sure the batch of block headers we see
@@ -77,6 +79,18 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
         context.parent !  BlockHeaderSyncActor.BlockHeadersDoNotConnect(lastValidHeaderHash.get,firstInvalidHeaderHash.get)
         context.stop(self)
       } else context.parent ! headers
+  }
+
+  /** Awaits for our [[BlockHeaderDAO]] to send us the last saved header it has
+    * if we do not have a last saved header, it will use the genesis block's header
+    * on the network we are currently on as the last saved header */
+  def awaitLastSavedHeader: Receive = {
+    case lastSavedHeader: BlockHeaderDAO.LastSavedHeaderReply =>
+      val header = lastSavedHeader.header.getOrElse(Constants.chainParams.genesisBlock.blockHeader)
+      val p = PeerMessageHandler(context)
+      context.become(blockHeaderSync(p,header.hash))
+      self ! BlockHeaderSyncActor.StartHeaders(Seq(header.hash))
+      sender ! PoisonPill
   }
 
   private def blockHeaderDAO = BlockHeaderDAO(context, Constants.database)
