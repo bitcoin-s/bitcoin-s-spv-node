@@ -74,6 +74,27 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
     readHeader must be (None)
   }
 
+  it must "retrieve the last block header saved in the database" in {
+    val probe = TestProbe()
+    val blockHeader = BlockchainElementsGenerator.blockHeader.sample.get
+    val blockHeaderDAO = TestActorRef(BlockHeaderDAO.props(database),probe.ref)
+    blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader)
+    probe.expectMsgType[BlockHeaderDAO.CreatedHeader]
+
+    blockHeaderDAO ! BlockHeaderDAO.LastSavedHeader
+    val lastSavedHeader = probe.expectMsgType[BlockHeaderDAO.LastSavedHeaderReply]
+    lastSavedHeader.header.get must be (blockHeader)
+
+    //insert another header and make sure that is the new last header
+    val blockHeader2 = BlockchainElementsGenerator.blockHeader.sample.get
+    blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader2)
+    probe.expectMsgType[BlockHeaderDAO.CreatedHeader]
+
+    blockHeaderDAO ! BlockHeaderDAO.LastSavedHeader
+    val lastSavedHeader2 = probe.expectMsgType[BlockHeaderDAO.LastSavedHeaderReply]
+    lastSavedHeader2.header.get must be (blockHeader2)
+  }
+
   after {
     //Awaits need to be used to make sure this is fully executed before the next test case starts
     //TODO: Figure out a way to make this asynchronous

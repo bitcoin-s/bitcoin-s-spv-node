@@ -4,9 +4,11 @@ import akka.actor.{ActorRef, ActorRefFactory, Props}
 import org.bitcoins.core.crypto.DoubleSha256Digest
 import org.bitcoins.core.protocol.blockchain.BlockHeader
 import org.bitcoins.spvnode.constant.Constants
+import org.bitcoins.spvnode.models.BlockHeaderDAO.BlockHeaderDAOMessage
 import org.bitcoins.spvnode.modelsd.BlockHeaderTable
 import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 import slick.driver.PostgresDriver.api._
+
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
@@ -20,6 +22,12 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
   override val table = TableQuery[BlockHeaderTable]
 
   def receive = {
+    case msg: BlockHeaderDAOMessage =>
+      handleBlockHeaderDAOMsg(msg)
+  }
+
+
+  private def handleBlockHeaderDAOMsg(message: BlockHeaderDAO.BlockHeaderDAOMessage) = message match {
     case createMsg: BlockHeaderDAO.Create =>
       val createdBlockHeader = create(createMsg.blockHeader).map(BlockHeaderDAO.CreatedHeader(_))(context.dispatcher)
       sendToParent(createdBlockHeader)
@@ -32,8 +40,12 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
     case deleteMsg: BlockHeaderDAO.Delete =>
       val deletedRowCount = delete(deleteMsg.blockHeader)
       sendToParent(deletedRowCount)
+    case BlockHeaderDAO.LastSavedHeader =>
+      val last: Future[Seq[BlockHeader]] = database.run(table.result)
+      val result: Future[Option[BlockHeader]] = last.map(_.reverse.headOption)(context.dispatcher)
+      val lastSavedHeaderMsg = result.map(BlockHeaderDAO.LastSavedHeaderReply(_))(context.dispatcher)
+      sendToParent(lastSavedHeaderMsg)
   }
-
 
   /** Sends a message to our parent actor */
   private def sendToParent(returnMsg: Future[Any]): Unit = returnMsg.onComplete {
@@ -71,11 +83,12 @@ object BlockHeaderDAO {
   case class CreateAll(blockHeaders: Seq[BlockHeader]) extends BlockHeaderDAOMessage
   case class Read(hash: DoubleSha256Digest) extends BlockHeaderDAOMessage
   case class Delete(blockHeader: BlockHeader) extends BlockHeaderDAOMessage
+  case object LastSavedHeader extends BlockHeaderDAOMessage
 
   sealed trait BlockHeaderDAOMessageReplies extends BlockHeaderDAOMessage
   case class CreatedHeader(header: BlockHeader) extends BlockHeaderDAOMessageReplies
   case class CreatedHeaders(headers: Seq[BlockHeader]) extends BlockHeaderDAOMessageReplies
-
+  case class LastSavedHeaderReply(header: Option[BlockHeader]) extends BlockHeaderDAOMessageReplies
 
   private case class BlockHeaderDAOImpl(database: Database) extends BlockHeaderDAO
 
