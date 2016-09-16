@@ -83,7 +83,7 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
 
     blockHeaderDAO ! BlockHeaderDAO.LastSavedHeader
     val lastSavedHeader = probe.expectMsgType[BlockHeaderDAO.LastSavedHeaderReply]
-    lastSavedHeader.header.get must be (blockHeader)
+    lastSavedHeader.headers.head must be (blockHeader)
 
     //insert another header and make sure that is the new last header
     val blockHeader2 = BlockchainElementsGenerator.blockHeader.sample.get
@@ -92,7 +92,7 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
 
     blockHeaderDAO ! BlockHeaderDAO.LastSavedHeader
     val lastSavedHeader2 = probe.expectMsgType[BlockHeaderDAO.LastSavedHeaderReply]
-    lastSavedHeader2.header.get must be (blockHeader2)
+    lastSavedHeader2.headers.head must be (blockHeader2)
   }
 
 
@@ -104,7 +104,7 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
     blockHeaderDAO ! BlockHeaderDAO.LastSavedHeader
 
     val lastSavedHeader = probe.expectMsgType[BlockHeaderDAO.LastSavedHeaderReply]
-    lastSavedHeader.header must be (None)
+    lastSavedHeader.headers.headOption must be (None)
   }
 
   it must "retrieve a block header by height" in {
@@ -118,7 +118,7 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
     blockHeaderDAO ! BlockHeaderDAO.GetAtHeight(1)
 
     val blockHeaderAtHeight = probe.expectMsgType[BlockHeaderDAO.BlockHeaderAtHeight]
-    blockHeaderAtHeight.header.get must be (blockHeader)
+    blockHeaderAtHeight.headers.head must be (blockHeader)
     blockHeaderAtHeight.height must be (1)
 
     //create one at height 2
@@ -131,7 +131,7 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
 
     val blockHeaderAtHeight2 = probe.expectMsgType[BlockHeaderDAO.BlockHeaderAtHeight]
 
-    blockHeaderAtHeight2.header.get must be (blockHeader2)
+    blockHeaderAtHeight2.headers.head must be (blockHeader2)
     blockHeaderAtHeight2.height must be (2)
 
   }

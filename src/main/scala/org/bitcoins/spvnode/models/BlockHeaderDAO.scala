@@ -48,8 +48,7 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
       val maxHeight: Rep[Option[Long]] = table.map(_.height).max
       val query : Query[BlockHeaderTable, BlockHeader, Seq] = table.filter(_.height === maxHeight)
       val result: Future[Seq[BlockHeader]] = database.run(query.result)
-      //TODO: This is a bug here, shouldn't be picking just one header, maybe should return all of them
-      val reply = result.map(headers => BlockHeaderDAO.LastSavedHeaderReply(headers.headOption))(context.dispatcher)
+      val reply = result.map(headers => BlockHeaderDAO.LastSavedHeaderReply(headers))(context.dispatcher)
       sendToParent(reply)
     case BlockHeaderDAO.GetAtHeight(height) =>
       val result = getAtHeight(height)
@@ -88,11 +87,10 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
   }
 
   /** Retrieves a [[BlockHeader]] at the given height, if none is found it returns None */
-  def getAtHeight(height: Long): Future[(Long,Option[BlockHeader])] = {
-    //TODO: Have to consider the case of reorgs here, what if their are two competing chains
+  def getAtHeight(height: Long): Future[(Long,Seq[BlockHeader])] = {
     //which would both have height x
     val query = table.filter(_.height === height).result
-    database.run(query).map(h => (height,h.headOption))(context.dispatcher)
+    database.run(query).map(h => (height,h))(context.dispatcher)
   }
 }
 
@@ -127,11 +125,15 @@ object BlockHeaderDAO {
   /** The reply to a [[Delete]] message */
   case class DeleteReply(blockHeader: Option[BlockHeader]) extends BlockHeaderDAOMessageReplies
 
+  /** Asks our [[BlockHeaderDAO]] to return the last saved [[BlockHeader]] */
   case object LastSavedHeader extends BlockHeaderDAORequest
-  case class LastSavedHeaderReply(header: Option[BlockHeader]) extends BlockHeaderDAOMessageReplies
+  /** Returns the last saved [[BlockHeader]], this could be multiple headers if their is a fork in the chain */
+  case class LastSavedHeaderReply(headers: Seq[BlockHeader]) extends BlockHeaderDAOMessageReplies
 
+  /** Asks [[BlockHeaderDAO]] to give us the [[BlockHeader]] at the specified height */
   case class GetAtHeight(height: Long) extends BlockHeaderDAORequest
-  case class BlockHeaderAtHeight(height: Long, header: Option[BlockHeader]) extends BlockHeaderDAOMessageReplies
+  /** Returns the [[BlockHeader]]s at the given height, note this can be multiple headers if we have a fork in the chain */
+  case class BlockHeaderAtHeight(height: Long, headers: Seq[BlockHeader]) extends BlockHeaderDAOMessageReplies
 
   private case class BlockHeaderDAOImpl(database: Database) extends BlockHeaderDAO
 
