@@ -26,7 +26,6 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
       handleBlockHeaderDAOMsg(msg)
   }
 
-
   private def handleBlockHeaderDAOMsg(message: BlockHeaderDAO.BlockHeaderDAOMessage) = message match {
     case createMsg: BlockHeaderDAO.Create =>
       val createdBlockHeader = create(createMsg.blockHeader).map(BlockHeaderDAO.CreatedHeader(_))(context.dispatcher)
@@ -36,10 +35,15 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
       sendToParent(createAllHeaders)
     case readMsg: BlockHeaderDAO.Read =>
       val readHeader = read(readMsg.hash)
-      sendToParent(readHeader)
+      val reply = readHeader.map(BlockHeaderDAO.ReadReply(_))(context.dispatcher)
+      sendToParent(reply)
     case deleteMsg: BlockHeaderDAO.Delete =>
       val deletedRowCount = delete(deleteMsg.blockHeader)
-      sendToParent(deletedRowCount)
+      val reply = deletedRowCount.map {
+        case 0 => BlockHeaderDAO.DeleteReply(None)
+        case _ => BlockHeaderDAO.DeleteReply(Some(deleteMsg.blockHeader))
+      }(context.dispatcher)
+      sendToParent(reply)
     case BlockHeaderDAO.LastSavedHeader =>
       val maxHeight: Rep[Option[Long]] = table.map(_.height).max
       val query : Query[BlockHeaderTable, BlockHeader, Seq] = table.filter(_.height === maxHeight)
@@ -69,11 +73,13 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
     database.run(action)
   }
 
+  /** Creates all of the given [[BlockHeader]] in the database */
   def createAll(headers: Seq[BlockHeader]): Future[Seq[BlockHeader]] = {
     val actions = table ++= headers
     val bulkInsert = DBIO.seq(actions).andThen(DBIO.successful(headers))
     database.run(bulkInsert)
   }
+
   def find(blockHeader: BlockHeader): Query[Table[_],  BlockHeader, Seq] = findByPrimaryKey(blockHeader.hash)
 
   def findByPrimaryKey(hash : DoubleSha256Digest): Query[Table[_], BlockHeader, Seq] = {
@@ -101,15 +107,25 @@ object BlockHeaderDAO {
   /** A message the [[BlockHeaderDAO]] can send to your Actor */
   sealed trait BlockHeaderDAOMessageReplies extends BlockHeaderDAOMessage
 
+  /** The message to create a [[BlockHeader]] */
   case class Create(blockHeader: BlockHeader) extends BlockHeaderDAORequest
+  /** The message that is sent as a reply to [[Create]] */
   case class CreatedHeader(header: BlockHeader) extends BlockHeaderDAOMessageReplies
 
+  /** The message to create all [[BlockHeader]]s in our persistent storage */
   case class CreateAll(blockHeaders: Seq[BlockHeader]) extends BlockHeaderDAORequest
+  /** The reply to the message [[CreateAll]] */
   case class CreatedHeaders(headers: Seq[BlockHeader]) extends BlockHeaderDAOMessageReplies
 
+  /** Reads a [[BlockHeader]] with the given hash from persistent storage */
   case class Read(hash: DoubleSha256Digest) extends BlockHeaderDAORequest
+  /** The reply for the [[Read]] message */
+  case class ReadReply(hash: Option[BlockHeader]) extends BlockHeaderDAOMessageReplies
 
+  /** Deletes a [[BlockHeader]] from persistent storage */
   case class Delete(blockHeader: BlockHeader) extends BlockHeaderDAORequest
+  /** The reply to a [[Delete]] message */
+  case class DeleteReply(blockHeader: Option[BlockHeader]) extends BlockHeaderDAOMessageReplies
 
   case object LastSavedHeader extends BlockHeaderDAORequest
   case class LastSavedHeaderReply(header: Option[BlockHeader]) extends BlockHeaderDAOMessageReplies

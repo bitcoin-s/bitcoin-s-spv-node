@@ -36,8 +36,8 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
     createdHeader.header must be (blockHeader)
 
     blockHeaderDAO ! BlockHeaderDAO.Read(blockHeader.hash)
-    val readHeader = probe.expectMsgType[Option[BlockHeader]]
-    readHeader.get must be (blockHeader)
+    val readHeader = probe.expectMsgType[BlockHeaderDAO.ReadReply]
+    readHeader.hash.get must be (blockHeader)
   }
 
   it must "be able to create multiple block headers in our database at once" in {
@@ -65,13 +65,13 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
 
     //delete the header in the db
     blockHeaderDAO ! BlockHeaderDAO.Delete(blockHeader)
-    val affectedRows = probe.expectMsgType[Int]
-    affectedRows must be (1)
+    val deleteReply = probe.expectMsgType[BlockHeaderDAO.DeleteReply]
+    deleteReply.blockHeader.get must be (blockHeader)
 
     //make sure we cannot read our deleted header
     blockHeaderDAO ! BlockHeaderDAO.Read(blockHeader.hash)
-    val readHeader = probe.expectMsgType[Option[BlockHeader]]
-    readHeader must be (None)
+    val readHeader = probe.expectMsgType[BlockHeaderDAO.ReadReply]
+    readHeader.hash must be (None)
   }
 
   it must "retrieve the last block header saved in the database" in {
