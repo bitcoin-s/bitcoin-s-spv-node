@@ -15,17 +15,18 @@ object Main extends App {
 
 
   override def main(args : Array[String]) = {
-    val table = TableQuery[BlockHeaderTable]
+/*    val table = TableQuery[BlockHeaderTable]
     val db = Constants.database
     Await.result(Constants.database.run(table.schema.create),3.seconds)
-    db.close()
+    db.close()*/
 
-    val blockHeaderSyncActor = BlockHeaderSyncActor(Constants.actorSystem)
+/*
     val gensisBlockHash = TestNetChainParams.genesisBlock.blockHeader.hash
     val startHeader = BlockHeaderSyncActor.StartHeaders(Seq(gensisBlockHash))
 
-    Constants.database.executor
-    blockHeaderSyncActor ! startHeader
+    Constants.database.executor*/
+    val blockHeaderSyncActor = BlockHeaderSyncActor(Constants.actorSystem)
+    blockHeaderSyncActor ! BlockHeaderSyncActor.StartAtLastSavedHeader
   }
 
 }

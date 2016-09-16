@@ -96,6 +96,17 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
   }
 
 
+  it must "return none when retrieving block headers from an empty database" in {
+    val probe = TestProbe()
+    val blockHeader = BlockchainElementsGenerator.blockHeader.sample.get
+    val blockHeaderDAO = TestActorRef(BlockHeaderDAO.props(database),probe.ref)
+
+    blockHeaderDAO ! BlockHeaderDAO.LastSavedHeader
+
+    val lastSavedHeader = probe.expectMsgType[BlockHeaderDAO.LastSavedHeaderReply]
+    lastSavedHeader.header must be (None)
+  }
+
   it must "retrieve a block header by height" in {
     val probe = TestProbe()
     val blockHeader = BlockchainElementsGenerator.blockHeader.sample.get

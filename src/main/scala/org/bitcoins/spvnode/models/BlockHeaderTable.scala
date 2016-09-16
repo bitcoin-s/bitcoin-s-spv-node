@@ -29,6 +29,8 @@ class BlockHeaderTable(tag: Tag) extends Table[BlockHeader](tag,"block_headers")
 
   def hex = column[String]("hex")
 
+  def heightIndex = index("height_index",height)
+
   def * = (height.?, hash, version, previousBlockHash, merkleRootHash, time, nBits, nonce,hex).<>[BlockHeader,
     (Option[Long],DoubleSha256Digest, UInt32, DoubleSha256Digest, DoubleSha256Digest, UInt32, UInt32, UInt32,String)](blockHeaderApply,blockHeaderUnapply)
 

@@ -10,7 +10,7 @@ import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
 import slick.driver.PostgresDriver.api._
 
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 /**
   * Created by chris on 9/8/16.
@@ -41,11 +41,12 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
       val deletedRowCount = delete(deleteMsg.blockHeader)
       sendToParent(deletedRowCount)
     case BlockHeaderDAO.LastSavedHeader =>
-      val last: Future[Seq[BlockHeader]] = database.run(table.result)
-      val result: Future[Option[BlockHeader]] = last.map(_.reverse.headOption)(context.dispatcher)
-      result.map(h => logger.info("Last saved header in the database: " + h))(context.dispatcher)
-      val lastSavedHeaderMsg = result.map(BlockHeaderDAO.LastSavedHeaderReply(_))(context.dispatcher)
-      sendToParent(lastSavedHeaderMsg)
+      val maxHeight: Rep[Option[Long]] = table.map(_.height).max
+      val query : Query[BlockHeaderTable, BlockHeader, Seq] = table.filter(_.height === maxHeight)
+      val result: Future[Seq[BlockHeader]] = database.run(query.result)
+      //TODO: This is a bug here, shouldn't be picking just one header, maybe should return all of them
+      val reply = result.map(headers => BlockHeaderDAO.LastSavedHeaderReply(headers.headOption))(context.dispatcher)
+      sendToParent(reply)
     case BlockHeaderDAO.GetAtHeight(height) =>
       val result = getAtHeight(height)
       val reply = result.map(h => BlockHeaderDAO.BlockHeaderAtHeight(h._1, h._2))(context.dispatcher)
@@ -80,7 +81,7 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
     table.filter(_.hash === hash)
   }
 
-  /** Retreives a [[BlockHeader]] at the given height, if none is found it returns None */
+  /** Retrieves a [[BlockHeader]] at the given height, if none is found it returns None */
   def getAtHeight(height: Long): Future[(Long,Option[BlockHeader])] = {
     //TODO: Have to consider the case of reorgs here, what if their are two competing chains
     //which would both have height x
