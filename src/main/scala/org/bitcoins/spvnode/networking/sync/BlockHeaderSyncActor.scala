@@ -13,6 +13,7 @@ import org.bitcoins.spvnode.networking.PeerMessageHandler
 import org.bitcoins.spvnode.networking.sync.BlockHeaderSyncActor.{GetHeaders, StartAtLastSavedHeader}
 import org.bitcoins.spvnode.store.BlockHeaderStore
 import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
+import slick.driver.PostgresDriver.api._
 
 import scala.annotation.tailrec
 
@@ -61,7 +62,7 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
       if (!validHeaders) {
         logger.error("Our blockchain headers are not connected, disconnected at: " + lastValidHeaderHash + " and " + firstInvalidHeaderHash)
         context.parent !  BlockHeaderSyncActor.BlockHeadersDoNotConnect(lastValidHeaderHash.get,firstInvalidHeaderHash.get)
-        context.stop(self)
+        self ! PoisonPill
       } else handleValidHeaders(headers,peerMessageHandler)
     case createdHeaders: BlockHeaderDAO.CreatedHeaders =>
       //indicates that our blockHeaderDAO successfully created the block headers we sent it inside of
@@ -93,19 +94,24 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
         val p = PeerMessageHandler(context)
         context.become(blockHeaderSync(p,header.hash))
         self ! BlockHeaderSyncActor.StartHeaders(Seq(header.hash))
+        context.parent ! BlockHeaderSyncActor.StartAtLastSavedHeaderReply(header)
       } else {
+        //TODO: Need to write a test case for this inside of BlockHeaderSyncActorTest
         //means we have two (or more) competing chains, therefore we need to try and sync with both of them
         lastSavedHeader.headers.map { header =>
           val blockHeaderSyncActor = BlockHeaderSyncActor(context)
           blockHeaderSyncActor ! BlockHeaderSyncActor.StartHeaders(Seq(header.hash))
+          context.parent ! BlockHeaderSyncActor.StartAtLastSavedHeaderReply(header)
         }
       }
       sender ! PoisonPill
 
 
   }
+  /** The database that our [[BlockHeaderDAO]] connects to */
+  def database: Database
 
-  private def blockHeaderDAO = BlockHeaderDAO(context, Constants.database)
+  private def blockHeaderDAO = BlockHeaderDAO(context, database)
 
   private def peerMessageHandler = PeerMessageHandler(context)
 
@@ -149,24 +155,27 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
 }
 
 object BlockHeaderSyncActor {
-  private case class BlockHeaderSyncActorImpl() extends BlockHeaderSyncActor
+  private case class BlockHeaderSyncActorImpl(database: Database) extends BlockHeaderSyncActor
 
-  def props: Props = Props(classOf[BlockHeaderSyncActorImpl])
+  def props: Props = props(Constants.database)
+
+  def props(database: Database): Props = Props(classOf[BlockHeaderSyncActorImpl],database)
 
   def apply(context: ActorRefFactory): ActorRef = context.actorOf(props,
     BitcoinSpvNodeUtil.createActorName(BlockHeaderSyncActor.getClass))
 
 
-  sealed trait BlockHeaderSyncMsg
+  sealed trait BlockHeaderSyncMessage
   /** Indicates a set of headers to query our peer on the network to start our sync process */
-  case class StartHeaders(hashes: Seq[DoubleSha256Digest]) extends BlockHeaderSyncMsg
+  case class StartHeaders(hashes: Seq[DoubleSha256Digest]) extends BlockHeaderSyncMessage
   /** Retrieves the set of headers from a node on the network, this does NOT store them */
-  case class GetHeaders(startHeader: DoubleSha256Digest, stopHeader: DoubleSha256Digest) extends BlockHeaderSyncMsg
+  case class GetHeaders(startHeader: DoubleSha256Digest, stopHeader: DoubleSha256Digest) extends BlockHeaderSyncMessage
   /** Starts syncing our blockchain at the last header we have seen, if we haven't see any it starts at the genesis block */
-  case object StartAtLastSavedHeader extends BlockHeaderSyncMsg
-
+  case object StartAtLastSavedHeader extends BlockHeaderSyncMessage
+  /** Reply for [[StartAtLastSavedHeader]] */
+  case class StartAtLastSavedHeaderReply(header: BlockHeader) extends BlockHeaderSyncMessage
   /** Indicates an error happened during the sync of our blockchain */
-  sealed trait BlockHeaderSyncError extends BlockHeaderSyncMsg
+  sealed trait BlockHeaderSyncError extends BlockHeaderSyncMessage
 
   /** Indicates that our block headers do not properly reference one another
     * @param previousBlockHash indicates the last valid block that connected to a header

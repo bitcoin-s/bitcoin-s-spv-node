@@ -31,7 +31,7 @@ import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
   * 5.) We verify the transaction given to us has an output that matches the address we expected a payment to
   * 6.) When another block is announced on the network, we send a MsgMerkleBlock
   * to our peer on the network to see if the tx was included on that block
-  * 5.) If it was, send the actor that that requested this [[PaymentActor.SuccessfulPayment]] message back
+  * 7.) If it was, send the actor that that requested this [[PaymentActor.SuccessfulPayment]] message back
   */
 sealed trait PaymentActor extends Actor with BitcoinSLogger {
 

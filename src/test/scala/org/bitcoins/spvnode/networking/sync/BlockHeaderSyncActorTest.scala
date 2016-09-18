@@ -6,9 +6,16 @@ import org.bitcoins.core.crypto.DoubleSha256Digest
 import org.bitcoins.core.gen.BlockchainElementsGenerator
 import org.bitcoins.core.protocol.blockchain.{BlockHeader, TestNetChainParams}
 import org.bitcoins.core.util.BitcoinSUtil
+import org.bitcoins.spvnode.constant.{Constants, TestConstants}
 import org.bitcoins.spvnode.messages.data.HeadersMessage
+import org.bitcoins.spvnode.models.BlockHeaderDAO
+import org.bitcoins.spvnode.modelsd.BlockHeaderTable
 import org.bitcoins.spvnode.util.TestUtil
 import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, MustMatchers}
+import slick.driver.PostgresDriver.api._
+
+import scala.concurrent.Await
+import scala.concurrent.duration.DurationInt
 
 /**
   * Created by chris on 9/13/16.
@@ -74,6 +81,20 @@ class BlockHeaderSyncActorTest extends TestKit(ActorSystem("BlockHeaderSyncActor
     val lastHeader = probe.expectMsgType[BlockHeader]
     lastHeader must be (TestUtil.firstFiveTestNetBlockHeaders.last)
   }
+
+  it must "start syncing at the genesis block when there are no headers in the database" in {
+    val table = TableQuery[BlockHeaderTable]
+    val db = TestConstants.database
+    Await.result(db.run(table.schema.create), 10.seconds)
+    val probe = TestProbe()
+    val blockHeaderSyncActor = TestActorRef(BlockHeaderSyncActor.props(TestConstants.database),probe.ref)
+    blockHeaderSyncActor ! BlockHeaderSyncActor.StartAtLastSavedHeader
+    val lastSavedHeaderReply = probe.expectMsgType[BlockHeaderSyncActor.StartAtLastSavedHeaderReply]
+    lastSavedHeaderReply.header must be (Constants.chainParams.genesisBlock.blockHeader)
+    Await.result(db.run(table.schema.drop), 10.seconds)
+    db.close()
+  }
+
 
 
 
