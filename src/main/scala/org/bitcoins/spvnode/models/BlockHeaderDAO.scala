@@ -52,7 +52,11 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
       sendToParent(reply)
     case BlockHeaderDAO.GetAtHeight(height) =>
       val result = getAtHeight(height)
-      val reply = result.map(h => BlockHeaderDAO.BlockHeaderAtHeight(h._1, h._2))(context.dispatcher)
+      val reply = result.map(h => BlockHeaderDAO.BlockHeadersAtHeight(h._1, h._2))(context.dispatcher)
+      sendToParent(reply)
+    case BlockHeaderDAO.FindHeight(hash) =>
+      val result = findHeight(hash)
+      val reply = result.map(BlockHeaderDAO.FoundHeight(_))(context.dispatcher)
       sendToParent(reply)
   }
 
@@ -91,6 +95,14 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
     //which would both have height x
     val query = table.filter(_.height === height).result
     database.run(query).map(h => (height,h))(context.dispatcher)
+  }
+
+  /** Finds the height of the given [[BlockHeader]]'s hash, if it exists */
+  def findHeight(hash: DoubleSha256Digest): Future[Option[(Long,BlockHeader)]] = {
+    import ColumnMappers._
+    val query = table.filter(_.hash === hash).map(x => (x.height,x)).result
+    val b: Future[Option[(Long,BlockHeader)]] = database.run(query).map(_.headOption)(context.dispatcher)
+    b
   }
 }
 
@@ -133,7 +145,19 @@ object BlockHeaderDAO {
   /** Asks [[BlockHeaderDAO]] to give us the [[BlockHeader]] at the specified height */
   case class GetAtHeight(height: Long) extends BlockHeaderDAORequest
   /** Returns the [[BlockHeader]]s at the given height, note this can be multiple headers if we have a fork in the chain */
-  case class BlockHeaderAtHeight(height: Long, headers: Seq[BlockHeader]) extends BlockHeaderDAOMessageReplies
+  case class BlockHeadersAtHeight(height: Long, headers: Seq[BlockHeader]) extends BlockHeaderDAOMessageReplies
+
+  /** Asks [[BlockHeaderDAO]] to return the height of the given [[BlockHeader]]'s hash */
+  case class FindHeight(hash: DoubleSha256Digest) extends BlockHeaderDAORequest
+
+
+  /** Returns the height of the [[BlockHeader]], this is a reply to the [[FindHeight]] message
+    * note that this is different than [[BlockHeadersAtHeight]] in the fact that it will only
+    * return ONE [[BlockHeader]], [[BlockHeadersAtHeight]] will return multiple if their are
+    * competing chains
+    */
+  case class FoundHeight(headerAtHeight: Option[(Long,BlockHeader)]) extends BlockHeaderDAOMessageReplies
+
 
   private case class BlockHeaderDAOImpl(dbConfig: DbConfig) extends BlockHeaderDAO
 

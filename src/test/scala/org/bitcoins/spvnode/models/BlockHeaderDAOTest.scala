@@ -108,7 +108,7 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
 
     blockHeaderDAO ! BlockHeaderDAO.GetAtHeight(1)
 
-    val blockHeaderAtHeight = probe.expectMsgType[BlockHeaderDAO.BlockHeaderAtHeight]
+    val blockHeaderAtHeight = probe.expectMsgType[BlockHeaderDAO.BlockHeadersAtHeight]
     blockHeaderAtHeight.headers.head must be (blockHeader)
     blockHeaderAtHeight.height must be (1)
 
@@ -120,11 +120,36 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
 
     blockHeaderDAO ! BlockHeaderDAO.GetAtHeight(2)
 
-    val blockHeaderAtHeight2 = probe.expectMsgType[BlockHeaderDAO.BlockHeaderAtHeight]
+    val blockHeaderAtHeight2 = probe.expectMsgType[BlockHeaderDAO.BlockHeadersAtHeight]
 
     blockHeaderAtHeight2.headers.head must be (blockHeader2)
     blockHeaderAtHeight2.height must be (2)
+  }
 
+
+  it must "find the height of a block header" in {
+    val (blockHeaderDAO,probe) = blockHeaderDAORef
+    val blockHeader = BlockchainElementsGenerator.blockHeader.sample.get
+    blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader)
+
+    probe.expectMsgType[BlockHeaderDAO.CreatedHeader]
+
+    blockHeaderDAO ! BlockHeaderDAO.FindHeight(blockHeader.hash)
+    val foundMessage = probe.expectMsgType[BlockHeaderDAO.FoundHeight]
+
+    foundMessage.headerAtHeight.get._1 must be (1)
+    foundMessage.headerAtHeight.get._2 must be (blockHeader)
+  }
+
+  it must "not find the height of a header that DNE in the database" in {
+    val (blockHeaderDAO,probe) = blockHeaderDAORef
+    val blockHeader = BlockchainElementsGenerator.blockHeader.sample.get
+
+    blockHeaderDAO ! BlockHeaderDAO.FindHeight(blockHeader.hash)
+
+    val foundMessage = probe.expectMsgType[BlockHeaderDAO.FoundHeight]
+
+    foundMessage.headerAtHeight must be (None)
   }
 
 
