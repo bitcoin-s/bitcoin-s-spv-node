@@ -17,7 +17,6 @@ import scala.concurrent.ExecutionContext
   * Created by chris on 7/1/16.
   */
 trait Constants {
-  //lazy val executionContext = system.dispatchers.lookup("my-dispatcher")
   lazy val actorSystem = ActorSystem("BitcoinSpvNode")
   def networkParameters: NetworkParameters = TestNet3
   def version = ProtocolVersion70012
@@ -35,12 +34,14 @@ trait Constants {
     case TestNet3 => TestNet3DbConfig
     case RegTest => RegTestDbConfig
   }
+
   /** The [[ChainParams]] for the blockchain we are currently connected to */
   def chainParams: ChainParams = networkParameters match {
     case MainNet => MainNetChainParams
     case TestNet3 => TestNetChainParams
     case RegTest => RegTestNetChainParams
   }
+
   /** This is the database we are currently bound to, this
     * should be the database that stores information corresponding to the network
     * we are currently connected to inside of the [[networkParameters]] function

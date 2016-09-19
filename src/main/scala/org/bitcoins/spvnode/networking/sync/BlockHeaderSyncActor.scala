@@ -5,7 +5,7 @@ import akka.event.LoggingReceive
 import org.bitcoins.core.crypto.DoubleSha256Digest
 import org.bitcoins.core.protocol.blockchain.BlockHeader
 import org.bitcoins.core.util.BitcoinSLogger
-import org.bitcoins.spvnode.constant.Constants
+import org.bitcoins.spvnode.constant.{Constants, DbConfig}
 import org.bitcoins.spvnode.messages.{GetHeadersMessage, HeadersMessage}
 import org.bitcoins.spvnode.messages.data.GetHeadersMessage
 import org.bitcoins.spvnode.models.BlockHeaderDAO
@@ -78,7 +78,7 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
       if (!validHeaders) {
         logger.error("Our blockchain headers are not connected, disconnected at: " + lastValidHeaderHash + " and " + firstInvalidHeaderHash)
         context.parent !  BlockHeaderSyncActor.BlockHeadersDoNotConnect(lastValidHeaderHash.get,firstInvalidHeaderHash.get)
-        context.stop(self)
+        self ! PoisonPill
       } else context.parent ! headers
   }
 
@@ -99,19 +99,17 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
         //TODO: Need to write a test case for this inside of BlockHeaderSyncActorTest
         //means we have two (or more) competing chains, therefore we need to try and sync with both of them
         lastSavedHeader.headers.map { header =>
-          val blockHeaderSyncActor = BlockHeaderSyncActor(context)
+          val blockHeaderSyncActor = BlockHeaderSyncActor(context,dbConfig)
           blockHeaderSyncActor ! BlockHeaderSyncActor.StartHeaders(Seq(header.hash))
           context.parent ! BlockHeaderSyncActor.StartAtLastSavedHeaderReply(header)
         }
       }
       sender ! PoisonPill
-
-
   }
-  /** The database that our [[BlockHeaderDAO]] connects to */
-  def database: Database
 
-  private def blockHeaderDAO = BlockHeaderDAO(context, database)
+  def dbConfig: DbConfig
+
+  private def blockHeaderDAO = BlockHeaderDAO(context, dbConfig)
 
   private def peerMessageHandler = PeerMessageHandler(context)
 
@@ -149,21 +147,20 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
     } else {
       //else we we are synced up on the network, send the parent the last header we have seen
       context.parent ! lastHeader
-      context.stop(self)
+      self ! PoisonPill
     }
   }
 }
 
 object BlockHeaderSyncActor {
-  private case class BlockHeaderSyncActorImpl(database: Database) extends BlockHeaderSyncActor
+  private case class BlockHeaderSyncActorImpl(dbConfig: DbConfig) extends BlockHeaderSyncActor
 
-  def props: Props = props(Constants.database)
-
-  def props(database: Database): Props = Props(classOf[BlockHeaderSyncActorImpl],database)
-
-  def apply(context: ActorRefFactory): ActorRef = context.actorOf(props,
+  def apply(context: ActorRefFactory, dbConfig: DbConfig): ActorRef = context.actorOf(props(dbConfig),
     BitcoinSpvNodeUtil.createActorName(BlockHeaderSyncActor.getClass))
 
+  def props(dbConfig: DbConfig): Props = {
+    Props(classOf[BlockHeaderSyncActorImpl], dbConfig)
+  }
 
   sealed trait BlockHeaderSyncMessage
   /** Indicates a set of headers to query our peer on the network to start our sync process */
@@ -174,6 +171,8 @@ object BlockHeaderSyncActor {
   case object StartAtLastSavedHeader extends BlockHeaderSyncMessage
   /** Reply for [[StartAtLastSavedHeader]] */
   case class StartAtLastSavedHeaderReply(header: BlockHeader) extends BlockHeaderSyncMessage
+
+
   /** Indicates an error happened during the sync of our blockchain */
   sealed trait BlockHeaderSyncError extends BlockHeaderSyncMessage
 

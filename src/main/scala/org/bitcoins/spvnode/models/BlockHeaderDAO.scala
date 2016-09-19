@@ -3,7 +3,7 @@ package org.bitcoins.spvnode.models
 import akka.actor.{ActorRef, ActorRefFactory, Props}
 import org.bitcoins.core.crypto.DoubleSha256Digest
 import org.bitcoins.core.protocol.blockchain.BlockHeader
-import org.bitcoins.spvnode.constant.Constants
+import org.bitcoins.spvnode.constant.{Constants, DbConfig}
 import org.bitcoins.spvnode.models.BlockHeaderDAO.BlockHeaderDAOMessage
 import org.bitcoins.spvnode.modelsd.BlockHeaderTable
 import org.bitcoins.spvnode.util.BitcoinSpvNodeUtil
@@ -135,14 +135,14 @@ object BlockHeaderDAO {
   /** Returns the [[BlockHeader]]s at the given height, note this can be multiple headers if we have a fork in the chain */
   case class BlockHeaderAtHeight(height: Long, headers: Seq[BlockHeader]) extends BlockHeaderDAOMessageReplies
 
-  private case class BlockHeaderDAOImpl(database: Database) extends BlockHeaderDAO
+  private case class BlockHeaderDAOImpl(dbConfig: DbConfig) extends BlockHeaderDAO
 
-  def props(database: Database): Props = Props(BlockHeaderDAOImpl(database))
+  def props(dbConfig: DbConfig): Props = Props(classOf[BlockHeaderDAOImpl],dbConfig)
 
-  def apply(context: ActorRefFactory, database: Database): ActorRef = context.actorOf(props(database),
+  def apply(context: ActorRefFactory, dbConfig: DbConfig): ActorRef = context.actorOf(props(dbConfig),
     BitcoinSpvNodeUtil.createActorName(BlockHeaderDAO.getClass))
 
-  def apply(database: Database): ActorRef = BlockHeaderDAO(Constants.actorSystem,database)
+  def apply(dbConfig: DbConfig): ActorRef = BlockHeaderDAO(Constants.actorSystem,dbConfig)
 
-  def apply: ActorRef = BlockHeaderDAO(Constants.actorSystem,Constants.database)
+  def apply: ActorRef = BlockHeaderDAO(Constants.actorSystem,Constants.dbConfig)
 }

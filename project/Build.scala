@@ -28,6 +28,9 @@ object BitcoinSSpvNodeBuild extends Build {
     resolvers += Resolver.sonatypeRepo("releases"),  
     libraryDependencies ++= appDependencies,
     scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
-    mainClass := Some("org.bitcoins.spvnode.Main")
+    mainClass := Some("org.bitcoins.spvnode.Main"),
+    parallelExecution in Test := false,
+    //hints for testOptions config here: http://stackoverflow.com/questions/7237824/how-can-i-get-complete-stacktraces-for-exceptions-thrown-in-tests-when-using-sbt 
+    testOptions in Test += Tests.Argument("-oF")
   )
 } 

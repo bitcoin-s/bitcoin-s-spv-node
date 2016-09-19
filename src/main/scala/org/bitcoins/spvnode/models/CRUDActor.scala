@@ -2,6 +2,7 @@ package org.bitcoins.spvnode.models
 
 import akka.actor.Actor
 import org.bitcoins.core.util.BitcoinSLogger
+import org.bitcoins.spvnode.constant.DbConfig
 import slick.backend.DatabaseConfig
 import slick.driver.PostgresDriver
 import slick.driver.PostgresDriver.api._
@@ -21,8 +22,11 @@ trait CRUDActor[T, PrimaryKeyType] extends Actor with BitcoinSLogger {
   /** The table inside our database we are inserting into */
   val table: TableQuery[_ <: Table[T]]
 
+  /** The [[DbConfig]] we used to setup our database connection */
+  def dbConfig : DbConfig
+
   /** Binding to the actual database itself, this is what is used to run querys */
-  val database: Database
+  lazy val database: Database = dbConfig.database
 
   /**
     * create a record in the database
