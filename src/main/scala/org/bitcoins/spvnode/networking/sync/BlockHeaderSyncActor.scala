@@ -2,6 +2,7 @@ package org.bitcoins.spvnode.networking.sync
 
 import akka.actor.{Actor, ActorRef, ActorRefFactory, PoisonPill, Props}
 import akka.event.LoggingReceive
+import org.bitcoins.core.config.{MainNet, RegTest, TestNet3}
 import org.bitcoins.core.crypto.DoubleSha256Digest
 import org.bitcoins.core.protocol.blockchain.BlockHeader
 import org.bitcoins.core.util.BitcoinSLogger
@@ -30,6 +31,12 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
     * @return
     */
   private def maxHeaders = 2000
+
+  def dbConfig: DbConfig
+
+  private def blockHeaderDAO = BlockHeaderDAO(context, dbConfig)
+
+  private def peerMessageHandler = PeerMessageHandler(context)
 
   def receive = LoggingReceive {
     case startHeader: BlockHeaderSyncActor.StartHeaders =>
@@ -107,12 +114,6 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
       sender ! PoisonPill
   }
 
-  def dbConfig: DbConfig
-
-  private def blockHeaderDAO = BlockHeaderDAO(context, dbConfig)
-
-  private def peerMessageHandler = PeerMessageHandler(context)
-
   /** Checks that the given block headers all connect to each other
     * If the headers do not connect, it returns the two block header hashes that do not connect */
   private def checkHeaders(firstHeaderHash: DoubleSha256Digest, blockHeaders: Seq[BlockHeader]): (Boolean, Option[DoubleSha256Digest], Option[DoubleSha256Digest]) = {
@@ -127,6 +128,38 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
     }
     loop(firstHeaderHash,blockHeaders)
   }
+
+  /** Checks the mining difficulty adjustment of [[BlockHeader]]'s, this should only happen every 2016
+    * blocks on [[org.bitcoins.core.config.MainNet]]. [[org.bitcoins.core.config.TestNet3]]
+    * has some different semantics described
+    *
+    * Minimum difficulty of 1.0 on testnet is equal to difficulty of 0.5 on mainnet.
+    * This means that the mainnet-equivalent of any testnet difficulty is half the testnet difficulty.
+    * In addition, if no block has been found in 20 minutes,
+    * the difficulty automatically resets back to the minimum for a single block,
+    * after which it returns to its previous value.
+    *
+    * Returns true if the difficulty is valid, else returns false with two [[BlockHeader]]'s that break
+    * the difficulty invariant
+    */
+/*  private def checkDifficulty(headers: Seq[BlockHeader]): (Boolean, Option[BlockHeader], Option[BlockHeader]) = {
+    @tailrec
+    def loop(prevHeader: BlockHeader, remainingHeaders: Seq[BlockHeader]): (Boolean, Option[BlockHeader], Option[BlockHeader]) = {
+      if (remainingHeaders.isEmpty) (true,None,None)
+      else if (prevHeader.nBits == remainingHeaders.head.nBits) loop(remainingHeaders.head,remainingHeaders.tail)
+      else {
+        Constants.networkParameters match {
+          case MainNet =>
+            val blockHeaderHeight = headers.size - remainingHeaders.size
+            val
+          case RegTest | TestNet3 => loop(remainingHeaders.head, remainingHeaders.tail)
+        }
+      }
+    }
+
+    if (headers.isEmpty) (true,None,None)
+    else loop(headers.head, headers.tail)
+  }*/
 
   /** Stores the valid headers in our database, sends our actor a message to start syncing from the last
     * header we received if necessary

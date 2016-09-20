@@ -22,11 +22,11 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
   override val table = TableQuery[BlockHeaderTable]
 
   def receive = {
-    case msg: BlockHeaderDAOMessage =>
-      handleBlockHeaderDAOMsg(msg)
+    case msg: BlockHeaderDAO.BlockHeaderDAORequest =>
+      handleBlockHeaderDAORequest(msg)
   }
 
-  private def handleBlockHeaderDAOMsg(message: BlockHeaderDAO.BlockHeaderDAOMessage) = message match {
+  private def handleBlockHeaderDAORequest(message: BlockHeaderDAO.BlockHeaderDAORequest) = message match {
     case createMsg: BlockHeaderDAO.Create =>
       val createdBlockHeader = create(createMsg.blockHeader).map(BlockHeaderDAO.CreatedHeader(_))(context.dispatcher)
       sendToParent(createdBlockHeader)
@@ -57,6 +57,11 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
     case BlockHeaderDAO.FindHeight(hash) =>
       val result = findHeight(hash)
       val reply = result.map(BlockHeaderDAO.FoundHeight(_))(context.dispatcher)
+      sendToParent(reply)
+
+    case BlockHeaderDAO.MaxHeight =>
+      val result = maxHeight
+      val reply = result.map(BlockHeaderDAO.MaxHeightReply(_))(context.dispatcher)
       sendToParent(reply)
   }
 
@@ -104,6 +109,12 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
     val b: Future[Option[(Long,BlockHeader)]] = database.run(query).map(_.headOption)(context.dispatcher)
     b
   }
+
+  def maxHeight: Future[Long] = {
+    val query = table.map(_.height).max.result
+    val result = database.run(query)
+    result.map(_.getOrElse(0L))(context.dispatcher)
+  }
 }
 
 
@@ -150,7 +161,6 @@ object BlockHeaderDAO {
   /** Asks [[BlockHeaderDAO]] to return the height of the given [[BlockHeader]]'s hash */
   case class FindHeight(hash: DoubleSha256Digest) extends BlockHeaderDAORequest
 
-
   /** Returns the height of the [[BlockHeader]], this is a reply to the [[FindHeight]] message
     * note that this is different than [[BlockHeadersAtHeight]] in the fact that it will only
     * return ONE [[BlockHeader]], [[BlockHeadersAtHeight]] will return multiple if their are
@@ -158,6 +168,11 @@ object BlockHeaderDAO {
     */
   case class FoundHeight(headerAtHeight: Option[(Long,BlockHeader)]) extends BlockHeaderDAOMessageReplies
 
+  /** Requests the height of the longest chain */
+  case object MaxHeight extends BlockHeaderDAORequest
+
+  /** A reply to the [[MaxHeight]] request, returns the height of the longest chain in our store */
+  case class MaxHeightReply(height: Long) extends BlockHeaderDAOMessageReplies
 
   private case class BlockHeaderDAOImpl(dbConfig: DbConfig) extends BlockHeaderDAO
 

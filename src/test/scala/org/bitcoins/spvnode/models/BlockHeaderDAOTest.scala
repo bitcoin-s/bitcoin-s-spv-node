@@ -152,6 +152,28 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
     foundMessage.headerAtHeight must be (None)
   }
 
+  it must "find the height of the longest chain" in {
+    val (blockHeaderDAO,probe) = blockHeaderDAORef
+    val blockHeader = BlockchainElementsGenerator.blockHeader.sample.get
+    blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader)
+
+    probe.expectMsgType[BlockHeaderDAO.CreatedHeader]
+
+    blockHeaderDAO ! BlockHeaderDAO.MaxHeight
+
+    val heightReply1 = probe.expectMsgType[BlockHeaderDAO.MaxHeightReply]
+    heightReply1.height must be (1)
+
+    val blockHeader2  = BlockchainElementsGenerator.blockHeader.sample.get
+
+    blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader2)
+    probe.expectMsgType[BlockHeaderDAO.CreatedHeader]
+    
+    blockHeaderDAO ! BlockHeaderDAO.MaxHeight
+    val heightReply2 = probe.expectMsgType[BlockHeaderDAO.MaxHeightReply]
+    heightReply2.height must be (2)
+  }
+
 
   private def blockHeaderDAORef: (TestActorRef[BlockHeaderDAO], TestProbe) = {
     val probe = TestProbe()

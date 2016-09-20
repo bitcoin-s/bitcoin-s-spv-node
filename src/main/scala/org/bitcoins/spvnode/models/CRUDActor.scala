@@ -26,7 +26,7 @@ trait CRUDActor[T, PrimaryKeyType] extends Actor with BitcoinSLogger {
   def dbConfig : DbConfig
 
   /** Binding to the actual database itself, this is what is used to run querys */
-  lazy val database: Database = dbConfig.database
+  val database: Database = dbConfig.database
 
   /**
     * create a record in the database
