@@ -2,6 +2,7 @@ package org.bitcoins.spvnode.networking.sync
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
+import org.bitcoins.core.config.{MainNet, TestNet3}
 import org.bitcoins.core.gen.BlockchainElementsGenerator
 import org.bitcoins.core.protocol.blockchain.{BlockHeader, TestNetChainParams}
 import org.bitcoins.spvnode.constant.{Constants, TestConstants}
@@ -89,11 +90,32 @@ class BlockHeaderSyncActorTest extends TestKit(ActorSystem("BlockHeaderSyncActor
     lastSavedHeaderReply.header must be (Constants.chainParams.genesisBlock.blockHeader)
   }
 
+  it must "successfully check two block headers if their difficulty is the same" in {
+    val firstHeader = BlockchainElementsGenerator.blockHeader.sample.get
+    //note that this header properly references the previous header, but nBits are different
+    val secondHeader = BlockchainElementsGenerator.blockHeader(firstHeader.hash,firstHeader.nBits).sample.get
+    val checkHeaderResult = BlockHeaderSyncActor.checkHeaders(Some(firstHeader), Seq(secondHeader),0,MainNet)
+
+    checkHeaderResult.error.isDefined must be (false)
+    checkHeaderResult.headers must be (Seq(secondHeader))
+  }
+  it must "fail to check two block headers if the network difficulty isn't correct" in {
+    val firstHeader = BlockchainElementsGenerator.blockHeader.sample.get
+    //note that this header properly references the previous header, but nBits are different
+    val secondHeader = BlockchainElementsGenerator.blockHeader(firstHeader.hash).sample.get
+    val checkHeaderResult = BlockHeaderSyncActor.checkHeaders(Some(firstHeader), Seq(secondHeader),0,MainNet)
+
+    val errorMsg = checkHeaderResult.error.get.asInstanceOf[BlockHeaderSyncActor.BlockHeaderDifficultyFailure]
+
+    errorMsg.previousBlockHeader must be (firstHeader)
+    errorMsg.blockHeader must be (secondHeader)
+  }
+
   /** The [[TestActorRef]] for a [[BlockHeaderSyncActor]] we use for testing */
   private def blockHeaderSyncActor : (TestActorRef[BlockHeaderSyncActor],TestProbe) = {
     val probe = TestProbe()
     val blockHeaderSyncActor: TestActorRef[BlockHeaderSyncActor] = TestActorRef(
-      BlockHeaderSyncActor.props(TestConstants),probe.ref)
+      BlockHeaderSyncActor.props(TestConstants, TestNet3),probe.ref)
     (blockHeaderSyncActor,probe)
   }
 

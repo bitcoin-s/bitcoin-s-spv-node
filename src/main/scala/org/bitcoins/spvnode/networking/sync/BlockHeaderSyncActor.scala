@@ -2,7 +2,7 @@ package org.bitcoins.spvnode.networking.sync
 
 import akka.actor.{Actor, ActorRef, ActorRefFactory, PoisonPill, Props}
 import akka.event.LoggingReceive
-import org.bitcoins.core.config.{MainNet, RegTest, TestNet3}
+import org.bitcoins.core.config.{MainNet, NetworkParameters, RegTest, TestNet3}
 import org.bitcoins.core.crypto.DoubleSha256Digest
 import org.bitcoins.core.protocol.blockchain.BlockHeader
 import org.bitcoins.core.util.BitcoinSLogger
@@ -32,6 +32,8 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
     * @return
     */
   private def maxHeaders = 2000
+
+  def networkParameters: NetworkParameters
 
   def dbConfig: DbConfig
 
@@ -93,7 +95,7 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
     */
   def awaitCheckHeaders(lastHeader: Option[BlockHeader], headers: Seq[BlockHeader]) = LoggingReceive {
     case maxHeight: BlockHeaderDAO.MaxHeightReply =>
-      val result = checkHeaders(lastHeader,headers,maxHeight.height)
+      val result = BlockHeaderSyncActor.checkHeaders(lastHeader,headers,maxHeight.height,networkParameters)
       context.unbecome()
       self ! result
   }
@@ -128,7 +130,7 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
         //TODO: Need to write a test case for this inside of BlockHeaderSyncActorTest
         //means we have two (or more) competing chains, therefore we need to try and sync with both of them
         lastSavedHeader.headers.map { header =>
-          val blockHeaderSyncActor = BlockHeaderSyncActor(context,dbConfig)
+          val blockHeaderSyncActor = BlockHeaderSyncActor(context,dbConfig,networkParameters)
           blockHeaderSyncActor ! BlockHeaderSyncActor.StartHeaders(Seq(header))
           context.parent ! BlockHeaderSyncActor.StartAtLastSavedHeaderReply(header)
         }
@@ -136,39 +138,6 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
       sender ! PoisonPill
   }
 
-  /** Checks that the given block headers all connect to each other
-    * If the headers do not connect, it returns the two block header hashes that do not connec
-    * @param startingHeader header we are starting our header check from
-    * @param blockHeaders the set of headers we are checking the validity of
-    * @param maxHeight the height of the blockchain before checking the block headers
-    * */
-  private def checkHeaders(startingHeader: Option[BlockHeader], blockHeaders: Seq[BlockHeader], maxHeight: Long): CheckHeaderResult = {
-    @tailrec
-    def loop(previousBlockHeader: BlockHeader, remainingBlockHeaders: Seq[BlockHeader]): CheckHeaderResult = {
-      if (remainingBlockHeaders.isEmpty) CheckHeaderResult(None,blockHeaders)
-      else {
-        val header = remainingBlockHeaders.head
-        if (header.previousBlockHash != previousBlockHeader.hash) {
-          val error = BlockHeaderSyncActor.BlockHeadersDoNotConnect(previousBlockHeader.hash, header.hash)
-          CheckHeaderResult(Some(error),blockHeaders)
-        } else if (header.nBits != previousBlockHeader.nBits) {
-          Constants.networkParameters match {
-            case MainNet =>
-              val blockHeaderHeight = (blockHeaders.size - remainingBlockHeaders.size) + maxHeight
-              if ((blockHeaderHeight % 2016) == 0) loop(remainingBlockHeaders.head, remainingBlockHeaders.tail)
-              else {
-                val error = BlockHeaderSyncActor.BlockHeaderDifficultyFailure(previousBlockHeader,remainingBlockHeaders.head)
-                CheckHeaderResult(Some(error),blockHeaders)
-              }
-            case RegTest | TestNet3 => ???
-          }
-        }
-        else loop(header, remainingBlockHeaders.tail)
-      }
-    }
-    val result = if (startingHeader.isDefined) loop(startingHeader.get,blockHeaders) else loop(blockHeaders.head, blockHeaders.tail)
-    result
-  }
 
   /** Stores the valid headers in our database, sends our actor a message to start syncing from the last
     * header we received if necessary
@@ -195,14 +164,16 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
   }
 }
 
-object BlockHeaderSyncActor {
-  private case class BlockHeaderSyncActorImpl(dbConfig: DbConfig) extends BlockHeaderSyncActor
+object BlockHeaderSyncActor extends BitcoinSLogger {
+  private case class BlockHeaderSyncActorImpl(dbConfig: DbConfig, networkParameters: NetworkParameters) extends BlockHeaderSyncActor
 
-  def apply(context: ActorRefFactory, dbConfig: DbConfig): ActorRef = context.actorOf(props(dbConfig),
-    BitcoinSpvNodeUtil.createActorName(BlockHeaderSyncActor.getClass))
+  def apply(context: ActorRefFactory, dbConfig: DbConfig, networkParameters: NetworkParameters): ActorRef = {
+    context.actorOf(props(dbConfig, networkParameters),
+      BitcoinSpvNodeUtil.createActorName(BlockHeaderSyncActor.getClass))
+  }
 
-  def props(dbConfig: DbConfig): Props = {
-    Props(classOf[BlockHeaderSyncActorImpl], dbConfig)
+  def props(dbConfig: DbConfig, networkParameters: NetworkParameters): Props = {
+    Props(classOf[BlockHeaderSyncActorImpl], dbConfig, networkParameters)
   }
 
   sealed trait BlockHeaderSyncMessage
@@ -237,5 +208,45 @@ object BlockHeaderSyncActor {
 
   //INTERNAL MESSAGES FOR BlockHeaderSyncActor
   case class CheckHeaderResult(error: Option[BlockHeaderSyncError], headers: Seq[BlockHeader]) extends BlockHeaderSyncMessage
+
+  /** Checks that the given block headers all connect to each other
+    * If the headers do not connect, it returns the two block header hashes that do not connec
+    * @param startingHeader header we are starting our header check from
+    * @param blockHeaders the set of headers we are checking the validity of
+    * @param maxHeight the height of the blockchain before checking the block headers
+    * */
+  def checkHeaders(startingHeader: Option[BlockHeader], blockHeaders: Seq[BlockHeader],
+                   maxHeight: Long, networkParameters: NetworkParameters): CheckHeaderResult = {
+    @tailrec
+    def loop(previousBlockHeader: BlockHeader, remainingBlockHeaders: Seq[BlockHeader]): CheckHeaderResult = {
+      if (remainingBlockHeaders.isEmpty) CheckHeaderResult(None,blockHeaders)
+      else {
+        val header = remainingBlockHeaders.head
+        if (header.previousBlockHash != previousBlockHeader.hash) {
+          val error = BlockHeaderSyncActor.BlockHeadersDoNotConnect(previousBlockHeader.hash, header.hash)
+          CheckHeaderResult(Some(error),blockHeaders)
+        } else if (header.nBits != previousBlockHeader.nBits) {
+          logger.debug("NBits not the same, checking them now, previousBlockHeader.nBits: " + previousBlockHeader.nBits + " header.nBits: " + header.nBits)
+          networkParameters match {
+            case MainNet =>
+              val blockHeaderHeight = (blockHeaders.size - remainingBlockHeaders.tail.size) + maxHeight
+              logger.debug("Block header height: " + blockHeaderHeight)
+              if ((blockHeaderHeight % 2016) == 0) loop(remainingBlockHeaders.head, remainingBlockHeaders.tail)
+              else {
+                val error = BlockHeaderSyncActor.BlockHeaderDifficultyFailure(previousBlockHeader,remainingBlockHeaders.head)
+                CheckHeaderResult(Some(error),blockHeaders)
+              }
+            case RegTest | TestNet3 =>
+              //currently we are just ignoring checking difficulty on testnet and regtest as they vary wildly
+              loop(remainingBlockHeaders.head, remainingBlockHeaders.tail)
+          }
+        }
+        else loop(header, remainingBlockHeaders.tail)
+      }
+    }
+    val result = if (startingHeader.isDefined) loop(startingHeader.get,blockHeaders)
+    else loop(blockHeaders.head, blockHeaders.tail)
+    result
+  }
 
 }
