@@ -225,7 +225,9 @@ object BlockHeaderSyncActor extends BitcoinSLogger {
         if (header.previousBlockHash != previousBlockHeader.hash) {
           val error = BlockHeaderSyncActor.BlockHeadersDoNotConnect(previousBlockHeader.hash, header.hash)
           CheckHeaderResult(Some(error),blockHeaders)
-        } else if (header.nBits != previousBlockHeader.nBits) {
+        } else if (header.nBits == previousBlockHeader.nBits) {
+          loop(header, remainingBlockHeaders.tail)
+        } else {
           logger.debug("NBits not the same, checking them now, previousBlockHeader.nBits: " + previousBlockHeader.nBits + " header.nBits: " + header.nBits)
           networkParameters match {
             case MainNet =>
@@ -241,7 +243,6 @@ object BlockHeaderSyncActor extends BitcoinSLogger {
               loop(remainingBlockHeaders.head, remainingBlockHeaders.tail)
           }
         }
-        else loop(header, remainingBlockHeaders.tail)
       }
     }
     val result = if (startingHeader.isDefined) loop(startingHeader.get,blockHeaders)
