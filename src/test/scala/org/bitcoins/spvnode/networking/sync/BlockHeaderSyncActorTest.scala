@@ -4,7 +4,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import org.bitcoins.core.config.{MainNet, TestNet3}
 import org.bitcoins.core.gen.BlockchainElementsGenerator
-import org.bitcoins.core.protocol.blockchain.{BlockHeader, TestNetChainParams}
+import org.bitcoins.core.protocol.blockchain.{BlockHeader, MainNetChainParams, TestNetChainParams}
 import org.bitcoins.spvnode.constant.{Constants, TestConstants}
 import org.bitcoins.spvnode.messages.data.HeadersMessage
 import org.bitcoins.spvnode.modelsd.BlockHeaderTable
@@ -99,6 +99,35 @@ class BlockHeaderSyncActorTest extends TestKit(ActorSystem("BlockHeaderSyncActor
     checkHeaderResult.error.isDefined must be (false)
     checkHeaderResult.headers must be (Seq(secondHeader))
   }
+
+  it must "successfully check the header of ONLY the genesis block" in {
+    val genesisBlockHeader = MainNetChainParams.genesisBlock.blockHeader
+    val checkHeaderResult = BlockHeaderSyncActor.checkHeaders(None,Seq(genesisBlockHeader),0,MainNet)
+    checkHeaderResult.error.isDefined must be (false)
+  }
+
+  it must "successfully check a sequence of headers if their is a difficulty change on the 2016 block" in {
+    val firstHeaders = BlockchainElementsGenerator.validHeaderChain(2015).sample.get
+    val lastHeader = BlockchainElementsGenerator.blockHeader(firstHeaders.last.hash).sample.get
+    val headers = firstHeaders ++ Seq(lastHeader)
+    val checkHeaderResult = BlockHeaderSyncActor.checkHeaders(None,headers,0,MainNet)
+    checkHeaderResult.error must be (None)
+  }
+
+  it must "fail a checkHeader on a sequence of headers if their is a difficulty change on the 2015 or 2017 block" in {
+    val firstHeaders = BlockchainElementsGenerator.validHeaderChain(2014).sample.get
+    val lastHeader = BlockchainElementsGenerator.blockHeader(firstHeaders.last.hash).sample.get
+    val headers = firstHeaders ++ Seq(lastHeader)
+    val checkHeaderResult = BlockHeaderSyncActor.checkHeaders(None,headers,0,MainNet)
+    checkHeaderResult.error.isDefined must be (true)
+
+    val firstHeaders2 = BlockchainElementsGenerator.validHeaderChain(2016).sample.get
+    val lastHeader2 = BlockchainElementsGenerator.blockHeader(firstHeaders2.last.hash).sample.get
+    val headers2 = firstHeaders ++ Seq(lastHeader2)
+    val checkHeaderResult2 = BlockHeaderSyncActor.checkHeaders(None,headers2,0,MainNet)
+    checkHeaderResult2.error.isDefined must be (true)
+  }
+
   it must "fail to check two block headers if the network difficulty isn't correct" in {
     val firstHeader = BlockchainElementsGenerator.blockHeader.sample.get
     //note that this header properly references the previous header, but nBits are different

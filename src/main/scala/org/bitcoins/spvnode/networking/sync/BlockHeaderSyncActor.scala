@@ -231,7 +231,7 @@ object BlockHeaderSyncActor extends BitcoinSLogger {
             case MainNet =>
               val blockHeaderHeight = (blockHeaders.size - remainingBlockHeaders.tail.size) + maxHeight
               logger.debug("Block header height: " + blockHeaderHeight)
-              if ((blockHeaderHeight % 2016) == 0) loop(remainingBlockHeaders.head, remainingBlockHeaders.tail)
+              if ((blockHeaderHeight % MainNet.difficultyChangeThreshold) == 0) loop(remainingBlockHeaders.head, remainingBlockHeaders.tail)
               else {
                 val error = BlockHeaderSyncActor.BlockHeaderDifficultyFailure(previousBlockHeader,remainingBlockHeaders.head)
                 CheckHeaderResult(Some(error),blockHeaders)
