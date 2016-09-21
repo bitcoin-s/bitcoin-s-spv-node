@@ -33,7 +33,7 @@ class BlockHeaderSyncActorTest extends TestKit(ActorSystem("BlockHeaderSyncActor
     val blockHeader1 = BlockchainElementsGenerator.blockHeader.sample.get
     val blockHeader2 = BlockchainElementsGenerator.blockHeader.sample.get
     val headersMsg = HeadersMessage(Seq(blockHeader2))
-    b ! BlockHeaderSyncActor.StartHeaders(Seq(blockHeader1.hash))
+    b ! BlockHeaderSyncActor.StartHeaders(Seq(blockHeader1))
     b ! headersMsg
     val errorMsg = probe.expectMsgType[BlockHeaderSyncActor.BlockHeadersDoNotConnect]
     errorMsg must be (BlockHeaderSyncActor.BlockHeadersDoNotConnect(blockHeader1.hash,blockHeader2.hash))
@@ -44,9 +44,9 @@ class BlockHeaderSyncActorTest extends TestKit(ActorSystem("BlockHeaderSyncActor
     //genesis block hash is 43497fd7f826957108f4a30fd9cec3aeba79972084e90ead01ea330900000000
     val genesisBlockHash = TestNetChainParams.genesisBlock.blockHeader.hash
     val firstBlockHash = TestUtil.firstFiveTestNetBlockHeaders.head.hash
-    val secondBlockhash = TestUtil.firstFiveTestNetBlockHeaders(1).hash
-    val thirdBlockhash = TestUtil.firstFiveTestNetBlockHeaders(2).hash
-    val fourthBlockhash = TestUtil.firstFiveTestNetBlockHeaders(3).hash
+    val secondBlockHash = TestUtil.firstFiveTestNetBlockHeaders(1).hash
+    val thirdBlockHash = TestUtil.firstFiveTestNetBlockHeaders(2).hash
+    val fourthBlockHash = TestUtil.firstFiveTestNetBlockHeaders(3).hash
     //5th block hash on testnet
     val fifthBlockHash = TestUtil.firstFiveTestNetBlockHeaders.last.hash
     val (b,probe) = blockHeaderSyncActor
@@ -54,7 +54,7 @@ class BlockHeaderSyncActorTest extends TestKit(ActorSystem("BlockHeaderSyncActor
     b ! BlockHeaderSyncActor.GetHeaders(genesisBlockHash, fifthBlockHash)
     val headers = probe.expectMsgType[Seq[BlockHeader]](5.seconds)
     //note the hash we started the sync at is not included in the expected blockheaders we recevie from our peer
-    val expectedHashes = Seq(firstBlockHash,secondBlockhash,thirdBlockhash,fourthBlockhash,fifthBlockHash)
+    val expectedHashes = Seq(firstBlockHash,secondBlockHash,thirdBlockHash,fourthBlockHash,fifthBlockHash)
     val actualHashes = headers.map(_.hash)
 
     actualHashes.size must be (expectedHashes.size)
@@ -75,7 +75,7 @@ class BlockHeaderSyncActorTest extends TestKit(ActorSystem("BlockHeaderSyncActor
 
   it must "stop syncing when we do not receive 2000 block headers from our peer" in {
     val (b,probe) = blockHeaderSyncActor
-    b ! BlockHeaderSyncActor.StartHeaders(Seq(genesisBlockHash))
+    b ! BlockHeaderSyncActor.StartHeaders(Seq(TestNetChainParams.genesisBlock.blockHeader))
     val headersMsg = HeadersMessage(TestUtil.firstFiveTestNetBlockHeaders)
     b ! headersMsg
     val lastHeader = probe.expectMsgType[BlockHeader]
@@ -103,9 +103,7 @@ class BlockHeaderSyncActorTest extends TestKit(ActorSystem("BlockHeaderSyncActor
 
 
   override def afterAll = {
-    println("CLOSING DB CONNECTION")
     database.close()
-    println("SUCCESSFULLY CLOSED DB CONNECTION")
     TestKit.shutdownActorSystem(system)
   }
 }

@@ -168,7 +168,7 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
 
     blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader2)
     probe.expectMsgType[BlockHeaderDAO.CreatedHeader]
-    
+
     blockHeaderDAO ! BlockHeaderDAO.MaxHeight
     val heightReply2 = probe.expectMsgType[BlockHeaderDAO.MaxHeightReply]
     heightReply2.height must be (2)
