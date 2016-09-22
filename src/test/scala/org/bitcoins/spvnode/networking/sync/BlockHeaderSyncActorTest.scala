@@ -104,6 +104,7 @@ class BlockHeaderSyncActorTest extends TestKit(ActorSystem("BlockHeaderSyncActor
     val genesisBlockHeader = MainNetChainParams.genesisBlock.blockHeader
     val checkHeaderResult = BlockHeaderSyncActor.checkHeaders(None,Seq(genesisBlockHeader),0,MainNet)
     checkHeaderResult.error.isDefined must be (false)
+    checkHeaderResult.headers must be (Seq(genesisBlockHeader))
   }
 
   it must "successfully check a sequence of headers if their is a difficulty change on the 2016 block" in {
@@ -112,6 +113,7 @@ class BlockHeaderSyncActorTest extends TestKit(ActorSystem("BlockHeaderSyncActor
     val headers = firstHeaders ++ Seq(lastHeader)
     val checkHeaderResult = BlockHeaderSyncActor.checkHeaders(None,headers,0,MainNet)
     checkHeaderResult.error must be (None)
+    checkHeaderResult.headers must be (headers)
   }
 
   it must "fail a checkHeader on a sequence of headers if their is a difficulty change on the 2015 or 2017 block" in {
@@ -120,12 +122,14 @@ class BlockHeaderSyncActorTest extends TestKit(ActorSystem("BlockHeaderSyncActor
     val headers = firstHeaders ++ Seq(lastHeader)
     val checkHeaderResult = BlockHeaderSyncActor.checkHeaders(None,headers,0,MainNet)
     checkHeaderResult.error.isDefined must be (true)
+    checkHeaderResult.headers must be (headers)
 
     val firstHeaders2 = BlockchainElementsGenerator.validHeaderChain(2016).sample.get
     val lastHeader2 = BlockchainElementsGenerator.blockHeader(firstHeaders2.last.hash).sample.get
     val headers2 = firstHeaders ++ Seq(lastHeader2)
     val checkHeaderResult2 = BlockHeaderSyncActor.checkHeaders(None,headers2,0,MainNet)
     checkHeaderResult2.error.isDefined must be (true)
+    checkHeaderResult2.headers must be (headers2)
   }
 
   it must "fail to check two block headers if the network difficulty isn't correct" in {

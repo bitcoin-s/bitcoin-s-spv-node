@@ -68,6 +68,7 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
       peerMessageHandler ! getHeadersMsg
     case headersMsg: HeadersMessage =>
       val headers = headersMsg.headers
+      logger.debug("Headers before all of the checking: " + headers.size)
       context.become(awaitCheckHeaders(Some(lastHeader),headers),discardOld = false)
       blockHeaderDAO ! BlockHeaderDAO.MaxHeight
     case createdHeaders: BlockHeaderDAO.CreatedHeaders =>
@@ -76,6 +77,7 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
       sender ! PoisonPill
 
     case checkHeaderResult: CheckHeaderResult =>
+      logger.debug("Received check header result inside of blockHeaderSync")
       if (checkHeaderResult.error.isDefined) {
         logger.error("We had an error syncing our blockchain: " +checkHeaderResult.error.get)
         context.parent ! checkHeaderResult.error.get
@@ -146,11 +148,13 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
     * @param peerMessageHandler
     */
   def handleValidHeaders(headers: Seq[BlockHeader], peerMessageHandler: ActorRef) = {
+    logger.debug("Headers size to be inserted: "  + headers.size)
     val lastHeader = headers.last
     val createAllMsg = BlockHeaderDAO.CreateAll(headers)
     val b = blockHeaderDAO
     b ! createAllMsg
     if (headers.size == maxHeaders) {
+      logger.debug("Starting next sync with this block header: " + lastHeader.hash)
       //means we need to send another GetHeaders message with the last header in this message as our starting point
       val startHeader = BlockHeaderSyncActor.StartHeaders(Seq(lastHeader))
       //need to reset the last header hash we saw on the network
@@ -211,7 +215,8 @@ object BlockHeaderSyncActor extends BitcoinSLogger {
 
   /** Checks that the given block headers all connect to each other
     * If the headers do not connect, it returns the two block header hashes that do not connec
-    * @param startingHeader header we are starting our header check from
+    * @param startingHeader header we are starting our header check from, this header is not checked
+    *                       if this is not defined we just start from the first header in blockHeaders
     * @param blockHeaders the set of headers we are checking the validity of
     * @param maxHeight the height of the blockchain before checking the block headers
     * */
@@ -228,7 +233,6 @@ object BlockHeaderSyncActor extends BitcoinSLogger {
         } else if (header.nBits == previousBlockHeader.nBits) {
           loop(header, remainingBlockHeaders.tail)
         } else {
-          logger.debug("NBits not the same, checking them now, previousBlockHeader.nBits: " + previousBlockHeader.nBits + " header.nBits: " + header.nBits)
           networkParameters match {
             case MainNet =>
               val blockHeaderHeight = (blockHeaders.size - remainingBlockHeaders.tail.size) + maxHeight

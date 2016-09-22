@@ -29,6 +29,7 @@ class BlockHeaderTable(tag: Tag) extends Table[BlockHeader](tag,"block_headers")
 
   def hex = column[String]("hex")
 
+  /** The sql index for searching based on [[height]] */
   def heightIndex = index("height_index",height)
 
   def * = (height.?, hash, version, previousBlockHash, merkleRootHash, time, nBits, nonce,hex).<>[BlockHeader,
@@ -39,14 +40,14 @@ class BlockHeaderTable(tag: Tag) extends Table[BlockHeader](tag,"block_headers")
     UInt32, UInt32, UInt32,String)) => BlockHeader = {
     case (height: Option[Long], hash: DoubleSha256Digest, version: UInt32, previousBlockHash: DoubleSha256Digest,
       merkleRootHash: DoubleSha256Digest, time: UInt32, nBits: UInt32, nonce: UInt32, hex : String) =>
-      val header = BlockHeader(version,previousBlockHash,merkleRootHash, time,nBits,nonce)
+      val header = BlockHeader(version,previousBlockHash,merkleRootHash,time,nBits,nonce)
       require(header.hash == hash && header.hex == hex, "Block header is not giving us the same hash that was stored in the database, " +
         "got: " + header.hash + " expected: " + hash + "\nStored hex: " + hex + "actual hex: " + header.hex)
       header
   }
 
   /** Destructs a block header to a tuple */
-  private val blockHeaderUnapply: BlockHeader => Option[(Option[Long],DoubleSha256Digest, UInt32, DoubleSha256Digest,
+  private val blockHeaderUnapply: BlockHeader => Option[(Option[Long], DoubleSha256Digest, UInt32, DoubleSha256Digest,
     DoubleSha256Digest, UInt32, UInt32, UInt32,String)] = {
     blockHeader: BlockHeader =>
       Some((None,blockHeader.hash, blockHeader.version, blockHeader.previousBlockHash, blockHeader.merkleRootHash,
