@@ -25,7 +25,7 @@ trait RawNetworkIpAddressSerializer extends RawBitcoinSerializer[NetworkIpAddres
   }
 
   def write(networkIpAddress: NetworkIpAddress) : String = {
-    val time = BitcoinSUtil.flipEndianess(networkIpAddress.time.bytes)
+    val time = BitcoinSUtil.flipEndianness(networkIpAddress.time.bytes)
     val services = networkIpAddress.services.hex
     val ipAddress = BitcoinSpvNodeUtil.writeAddress(networkIpAddress.address)
     //uint16s are only 4 hex characters

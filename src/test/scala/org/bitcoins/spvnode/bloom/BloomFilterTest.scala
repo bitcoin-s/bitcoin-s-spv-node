@@ -131,7 +131,7 @@ class BloomFilterTest extends FlatSpec with MustMatchers with BitcoinSLogger {
     filter14.contains(hash) must be (true)
 
     val filter15 = BloomFilter(10, 0.000001, UInt32.zero, BloomUpdateAll)
-    val outPoint = TransactionOutPoint(DoubleSha256Digest(BitcoinSUtil.flipEndianess("90c122d70786e899529d71dbeba91ba216982fb6ba58f3bdaab65e73b7e9260b")), UInt32.zero)
+    val outPoint = TransactionOutPoint(DoubleSha256Digest(BitcoinSUtil.flipEndianness("90c122d70786e899529d71dbeba91ba216982fb6ba58f3bdaab65e73b7e9260b")), UInt32.zero)
     val filter16 = filter15.insert(outPoint)
     filter16.hex must be ("230008000000000100000000200040304001000020000000100800050801000400800024130000000000000001")
     filter16.isRelevant(creditingTx) must be (true)
@@ -148,7 +148,7 @@ class BloomFilterTest extends FlatSpec with MustMatchers with BitcoinSLogger {
     filter20.isRelevant(creditingTx) must be (false)
 
     val filter21 = BloomFilter(10, 0.000001, UInt32.zero, BloomUpdateAll)
-    val secondRandomOutPoint = TransactionOutPoint(DoubleSha256Digest(BitcoinSUtil.flipEndianess("000000d70786e899529d71dbeba91ba216982fb6ba58f3bdaab65e73b7e9260b")), UInt32.zero)
+    val secondRandomOutPoint = TransactionOutPoint(DoubleSha256Digest(BitcoinSUtil.flipEndianness("000000d70786e899529d71dbeba91ba216982fb6ba58f3bdaab65e73b7e9260b")), UInt32.zero)
     val filter22 = filter21.insert(secondRandomOutPoint)
     filter22.hex must be ("230090f00000004000000005040000000004000400000000100101000000008002040000130000000000000001")
     filter22.isRelevant(creditingTx) must be (false)

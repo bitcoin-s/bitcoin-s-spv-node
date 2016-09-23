@@ -41,7 +41,7 @@ trait RawMerkleBlockSerializer extends RawBitcoinSerializer[MerkleBlock] {
     val byteVectors = BitcoinSUtil.bitVectorsToBytes(bitVectors)
     val flagCount = CompactSizeUInt(UInt64(Math.ceil(partialMerkleTree.bits.size.toDouble / 8).toInt))
     merkleBlock.blockHeader.hex +
-      BitcoinSUtil.flipEndianess(merkleBlock.transactionCount.hex) +
+      BitcoinSUtil.flipEndianness(merkleBlock.transactionCount.hex) +
       CompactSizeUInt(UInt64(merkleBlock.hashes.size)).hex + merkleBlock.hashes.map(_.hex).mkString +
       flagCount.hex + BitcoinSUtil.encodeHex(byteVectors)
   }

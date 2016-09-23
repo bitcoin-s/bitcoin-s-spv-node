@@ -44,7 +44,7 @@ trait RawVersionMessageSerializer extends RawBitcoinSerializer[VersionMessage] w
 
   def write(versionMessage: VersionMessage) : String = {
     versionMessage.version.hex + versionMessage.services.hex +
-      BitcoinSUtil.flipEndianess(versionMessage.timestamp.hex) +
+      BitcoinSUtil.flipEndianness(versionMessage.timestamp.hex) +
       versionMessage.addressReceiveServices.hex +
       BitcoinSpvNodeUtil.writeAddress(versionMessage.addressReceiveIpAddress) +
       //encode hex returns 8 characters, but we only need the last 4 since port number is a uint16
@@ -56,7 +56,7 @@ trait RawVersionMessageSerializer extends RawBitcoinSerializer[VersionMessage] w
       versionMessage.nonce.hex +
       versionMessage.userAgentSize.hex +
       BitcoinSUtil.encodeHex(versionMessage.userAgent.getBytes) +
-      BitcoinSUtil.flipEndianess(versionMessage.startHeight.hex) +
+      BitcoinSUtil.flipEndianness(versionMessage.startHeight.hex) +
       (if (versionMessage.relay) "01" else "00")
   }
 

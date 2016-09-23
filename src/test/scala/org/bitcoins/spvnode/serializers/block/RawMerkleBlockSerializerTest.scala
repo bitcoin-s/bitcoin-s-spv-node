@@ -68,11 +68,11 @@ class RawMerkleBlockSerializerTest extends FlatSpec with MustMatchers {
 
 
     merkleBlock.hex must be (hex)
-    merkleBlock.blockHeader.hash.hex must be (BitcoinSUtil.flipEndianess("000000000000dab0130bbcc991d3d7ae6b81aa6f50a798888dfe62337458dc45"))
+    merkleBlock.blockHeader.hash.hex must be (BitcoinSUtil.flipEndianness("000000000000dab0130bbcc991d3d7ae6b81aa6f50a798888dfe62337458dc45"))
 
     val matches = merkleBlock.partialMerkleTree.extractMatches
 
-    matches must be (Seq(DoubleSha256Digest(BitcoinSUtil.flipEndianess("63194f18be0af63f2c6bc9dc0f777cbefed3d9415c4af83f3ee3a3d669c00cb5"))))
+    matches must be (Seq(DoubleSha256Digest(BitcoinSUtil.flipEndianness("63194f18be0af63f2c6bc9dc0f777cbefed3d9415c4af83f3ee3a3d669c00cb5"))))
   }
 
   it must "serialize and deserialize a merkle block with two bytes worth of bit flags" in {

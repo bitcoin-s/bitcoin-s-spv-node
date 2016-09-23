@@ -18,7 +18,7 @@ class BlockActorTest extends TestKit(ActorSystem("BlockActorTest")) with FlatSpe
   with BeforeAndAfter with BeforeAndAfterAll with BitcoinSLogger  {
 
   def blockActor = TestActorRef(BlockActor.props,self)
-  val blockHash = DoubleSha256Digest(BitcoinSUtil.flipEndianess("00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206"))
+  val blockHash = DoubleSha256Digest(BitcoinSUtil.flipEndianness("00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206"))
 
   "BlockActor" must "be able to send a GetBlocksMessage then receive that block back" in {
     blockActor ! blockHash
