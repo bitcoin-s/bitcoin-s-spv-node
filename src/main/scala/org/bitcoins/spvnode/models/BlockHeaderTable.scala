@@ -11,7 +11,7 @@ import slick.driver.PostgresDriver.api._
 class BlockHeaderTable(tag: Tag) extends Table[BlockHeader](tag,"block_headers")  {
   import ColumnMappers._
 
-  def height = column[Long]("height", O.AutoInc)
+  def height = column[Long]("height")
 
   def hash = column[DoubleSha256Digest]("hash", O.PrimaryKey)
 

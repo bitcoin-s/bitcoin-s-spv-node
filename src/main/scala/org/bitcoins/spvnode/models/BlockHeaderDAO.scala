@@ -52,7 +52,7 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
       sendToParent(reply)
     case BlockHeaderDAO.GetAtHeight(height) =>
       val result = getAtHeight(height)
-      val reply = result.map(h => BlockHeaderDAO.BlockHeadersAtHeight(h._1, h._2))(context.dispatcher)
+      val reply = result.map(h => BlockHeaderDAO.GetAtHeightReply(h._1, h._2))(context.dispatcher)
       sendToParent(reply)
     case BlockHeaderDAO.FindHeight(hash) =>
       val result = findHeight(hash)
@@ -69,7 +69,6 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
   private def sendToParent(returnMsg: Future[Any]): Unit = returnMsg.onComplete {
     case Success(msg) =>
       context.parent ! msg
-      //context.stop(self)
     case Failure(exception) =>
       //means the future did not complete successfully, we encountered an error somewhere
       logger.error("Exception: " + exception.toString)
@@ -77,15 +76,21 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
   }(context.dispatcher)
 
   def create(blockHeader: BlockHeader): Future[BlockHeader] = {
-    val action = (table += blockHeader).andThen(DBIO.successful(blockHeader))
+    //make an exception if the block header is the genesis block
+    val action = if (blockHeader == Constants.chainParams.genesisBlock.blockHeader) {
+      sqlu"insert into block_headers values(0, ${blockHeader.hash.hex}, ${blockHeader.version.underlying}, ${blockHeader.previousBlockHash.hex}, ${blockHeader.merkleRootHash.hex}, ${blockHeader.time.underlying}, ${blockHeader.nBits.underlying}, ${blockHeader.nonce.underlying}, ${blockHeader.hex})".andThen(DBIO.successful(blockHeader))
+    } else insertStatement(blockHeader)
     database.run(action)
   }
 
   /** Creates all of the given [[BlockHeader]] in the database */
   def createAll(headers: Seq[BlockHeader]): Future[Seq[BlockHeader]] = {
-    val actions = table ++= headers
-    val bulkInsert = DBIO.seq(actions).andThen(DBIO.successful(headers))
-    database.run(bulkInsert)
+    val actions = DBIO.sequence(headers.map(insertStatement(_)))
+    database.run(actions)
+  }
+
+  private def insertStatement(blockHeader: BlockHeader) = {
+    sqlu"insert into block_headers (height, hash, version, previous_block_hash, merkle_root_hash, time,n_bits,nonce,hex) select height + 1, ${blockHeader.hash.hex}, ${blockHeader.version.underlying}, ${blockHeader.previousBlockHash.hex}, ${blockHeader.merkleRootHash.hex}, ${blockHeader.time.underlying}, ${blockHeader.nBits.underlying}, ${blockHeader.nonce.underlying}, ${blockHeader.hex}  from block_headers where hash = ${blockHeader.previousBlockHash.hex}".andThen(DBIO.successful(blockHeader))
   }
 
   def find(blockHeader: BlockHeader): Query[Table[_],  BlockHeader, Seq] = findByPrimaryKey(blockHeader.hash)
@@ -110,6 +115,7 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
     b
   }
 
+  /** Returns the maximum block height from our database */
   def maxHeight: Future[Long] = {
     val query = table.map(_.height).max.result
     val result = database.run(query)
@@ -156,14 +162,14 @@ object BlockHeaderDAO {
   /** Asks [[BlockHeaderDAO]] to give us the [[BlockHeader]] at the specified height */
   case class GetAtHeight(height: Long) extends BlockHeaderDAORequest
   /** Returns the [[BlockHeader]]s at the given height, note this can be multiple headers if we have a fork in the chain */
-  case class BlockHeadersAtHeight(height: Long, headers: Seq[BlockHeader]) extends BlockHeaderDAOMessageReplies
+  case class GetAtHeightReply(height: Long, headers: Seq[BlockHeader]) extends BlockHeaderDAOMessageReplies
 
   /** Asks [[BlockHeaderDAO]] to return the height of the given [[BlockHeader]]'s hash */
   case class FindHeight(hash: DoubleSha256Digest) extends BlockHeaderDAORequest
 
   /** Returns the height of the [[BlockHeader]], this is a reply to the [[FindHeight]] message
-    * note that this is different than [[BlockHeadersAtHeight]] in the fact that it will only
-    * return ONE [[BlockHeader]], [[BlockHeadersAtHeight]] will return multiple if their are
+    * note that this is different than [[GetAtHeightReply]] in the fact that it will only
+    * return ONE [[BlockHeader]], [[GetAtHeightReply]] will return multiple if their are
     * competing chains
     */
   case class FoundHeight(headerAtHeight: Option[(Long,BlockHeader)]) extends BlockHeaderDAOMessageReplies
