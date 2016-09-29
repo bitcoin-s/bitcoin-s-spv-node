@@ -1,12 +1,13 @@
 package org.bitcoins.spvnode.networking.sync
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import org.bitcoins.core.config.{MainNet, TestNet3}
 import org.bitcoins.core.gen.BlockchainElementsGenerator
 import org.bitcoins.core.protocol.blockchain.{BlockHeader, MainNetChainParams, TestNetChainParams}
 import org.bitcoins.spvnode.constant.{Constants, TestConstants}
 import org.bitcoins.spvnode.messages.data.HeadersMessage
+import org.bitcoins.spvnode.models.BlockHeaderDAO
 import org.bitcoins.spvnode.modelsd.BlockHeaderTable
 import org.bitcoins.spvnode.util.TestUtil
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FlatSpecLike, MustMatchers}
@@ -38,6 +39,7 @@ class BlockHeaderSyncActorTest extends TestKit(ActorSystem("BlockHeaderSyncActor
     b ! headersMsg
     val errorMsg = probe.expectMsgType[BlockHeaderSyncActor.BlockHeadersDoNotConnect]
     errorMsg must be (BlockHeaderSyncActor.BlockHeadersDoNotConnect(blockHeader1.hash,blockHeader2.hash))
+    b ! PoisonPill
   }
 
 
@@ -60,6 +62,7 @@ class BlockHeaderSyncActorTest extends TestKit(ActorSystem("BlockHeaderSyncActor
 
     actualHashes.size must be (expectedHashes.size)
     actualHashes must be (expectedHashes)
+    b ! PoisonPill
   }
 
    it must "fail to sync with a GetHeaders message if they are not connected" in {
@@ -72,6 +75,7 @@ class BlockHeaderSyncActorTest extends TestKit(ActorSystem("BlockHeaderSyncActor
      b ! headersMsgMissingHeader
 
      probe.expectMsgType[BlockHeaderSyncActor.BlockHeadersDoNotConnect]
+     b ! PoisonPill
    }
 
   it must "stop syncing when we do not receive 2000 block headers from our peer" in {
@@ -79,8 +83,9 @@ class BlockHeaderSyncActorTest extends TestKit(ActorSystem("BlockHeaderSyncActor
     b ! BlockHeaderSyncActor.StartHeaders(Seq(TestNetChainParams.genesisBlock.blockHeader))
     val headersMsg = HeadersMessage(TestUtil.firstFiveTestNetBlockHeaders)
     b ! headersMsg
-    val lastHeader = probe.expectMsgType[BlockHeader]
+    val lastHeader = probe.expectMsgType[BlockHeader](7.seconds)
     lastHeader must be (TestUtil.firstFiveTestNetBlockHeaders.last)
+    b ! PoisonPill
   }
 
   it must "start syncing at the genesis block when there are no headers in the database" in {
@@ -88,6 +93,7 @@ class BlockHeaderSyncActorTest extends TestKit(ActorSystem("BlockHeaderSyncActor
     b ! BlockHeaderSyncActor.StartAtLastSavedHeader
     val lastSavedHeaderReply = probe.expectMsgType[BlockHeaderSyncActor.StartAtLastSavedHeaderReply]
     lastSavedHeaderReply.header must be (Constants.chainParams.genesisBlock.blockHeader)
+    b ! PoisonPill
   }
 
   it must "successfully check two block headers if their difficulty is the same" in {

@@ -3,6 +3,7 @@ package org.bitcoins.spvnode.models
 import akka.actor.{ActorRef, ActorRefFactory, Props}
 import org.bitcoins.core.crypto.DoubleSha256Digest
 import org.bitcoins.core.protocol.blockchain.BlockHeader
+import org.bitcoins.core.util.BitcoinSUtil
 import org.bitcoins.spvnode.constant.{Constants, DbConfig}
 import org.bitcoins.spvnode.models.BlockHeaderDAO.BlockHeaderDAOMessage
 import org.bitcoins.spvnode.modelsd.BlockHeaderTable
@@ -28,10 +29,10 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
 
   private def handleBlockHeaderDAORequest(message: BlockHeaderDAO.BlockHeaderDAORequest) = message match {
     case createMsg: BlockHeaderDAO.Create =>
-      val createdBlockHeader = create(createMsg.blockHeader).map(BlockHeaderDAO.CreatedHeader(_))(context.dispatcher)
+      val createdBlockHeader = create(createMsg.blockHeader).map(BlockHeaderDAO.CreateReply(_))(context.dispatcher)
       sendToParent(createdBlockHeader)
     case createAllMsg: BlockHeaderDAO.CreateAll =>
-      val createAllHeaders = createAll(createAllMsg.blockHeaders).map(BlockHeaderDAO.CreatedHeaders(_))(context.dispatcher)
+      val createAllHeaders = createAll(createAllMsg.blockHeaders).map(BlockHeaderDAO.CreateAllReply(_))(context.dispatcher)
       sendToParent(createAllHeaders)
     case readMsg: BlockHeaderDAO.Read =>
       val readHeader = read(readMsg.hash)
@@ -45,10 +46,9 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
       }(context.dispatcher)
       sendToParent(reply)
     case BlockHeaderDAO.LastSavedHeader =>
-      val maxHeight: Rep[Option[Long]] = table.map(_.height).max
-      val query : Query[BlockHeaderTable, BlockHeader, Seq] = table.filter(_.height === maxHeight)
-      val result: Future[Seq[BlockHeader]] = database.run(query.result)
-      val reply = result.map(headers => BlockHeaderDAO.LastSavedHeaderReply(headers))(context.dispatcher)
+      logger.error("RECEIVED LAST SAVED HEADER MSG")
+      val reply = lastSavedHeader.map(headers => BlockHeaderDAO.LastSavedHeaderReply(headers))(context.dispatcher)
+      reply.map(r => logger.error("Last saved header reply: " + r))(context.dispatcher)
       sendToParent(reply)
     case BlockHeaderDAO.GetAtHeight(height) =>
       val result = getAtHeight(height)
@@ -58,7 +58,6 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
       val result = findHeight(hash)
       val reply = result.map(BlockHeaderDAO.FoundHeight(_))(context.dispatcher)
       sendToParent(reply)
-
     case BlockHeaderDAO.MaxHeight =>
       val result = maxHeight
       val reply = result.map(BlockHeaderDAO.MaxHeightReply(_))(context.dispatcher)
@@ -89,8 +88,22 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
     database.run(actions)
   }
 
+  /** This is the custom insert statement needed for block headers, the magic here is it
+    * increments the height of the previous [[BlockHeader]] by one.
+    * See this question for how the statement works
+    * [[http://stackoverflow.com/questions/39628543/derive-column-value-from-another-rows-column-value-slick]]
+    * @param blockHeader
+    * @return
+    */
   private def insertStatement(blockHeader: BlockHeader) = {
-    sqlu"insert into block_headers (height, hash, version, previous_block_hash, merkle_root_hash, time,n_bits,nonce,hex) select height + 1, ${blockHeader.hash.hex}, ${blockHeader.version.underlying}, ${blockHeader.previousBlockHash.hex}, ${blockHeader.merkleRootHash.hex}, ${blockHeader.time.underlying}, ${blockHeader.nBits.underlying}, ${blockHeader.nonce.underlying}, ${blockHeader.hex}  from block_headers where hash = ${blockHeader.previousBlockHash.hex}".andThen(DBIO.successful(blockHeader))
+    sqlu"insert into block_headers (height, hash, version, previous_block_hash, merkle_root_hash, time,n_bits,nonce,hex) select height + 1, ${blockHeader.hash.hex}, ${blockHeader.version.underlying}, ${blockHeader.previousBlockHash.hex}, ${blockHeader.merkleRootHash.hex}, ${blockHeader.time.underlying}, ${blockHeader.nBits.underlying}, ${blockHeader.nonce.underlying}, ${blockHeader.hex}  from block_headers where hash = ${blockHeader.previousBlockHash.hex}"
+        .flatMap { rowsAffected =>
+          if (rowsAffected == 0) {
+            val exn = new IllegalArgumentException("Failed to insert blockHeader: " + BitcoinSUtil.flipEndianness(blockHeader.hash.bytes) + " prevHash: " + blockHeader.previousBlockHash)
+            DBIO.failed(exn)
+          }
+          else DBIO.successful(blockHeader)
+        }(context.dispatcher)
   }
 
   def find(blockHeader: BlockHeader): Query[Table[_],  BlockHeader, Seq] = findByPrimaryKey(blockHeader.hash)
@@ -121,6 +134,12 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
     val result = database.run(query)
     result.map(_.getOrElse(0L))(context.dispatcher)
   }
+
+  def lastSavedHeader: Future[Seq[BlockHeader]] = {
+    implicit val c = context.dispatcher
+    val max = maxHeight
+    max.flatMap(getAtHeight(_).map(_._2))
+  }
 }
 
 
@@ -137,12 +156,12 @@ object BlockHeaderDAO {
   /** The message to create a [[BlockHeader]] */
   case class Create(blockHeader: BlockHeader) extends BlockHeaderDAORequest
   /** The message that is sent as a reply to [[Create]] */
-  case class CreatedHeader(header: BlockHeader) extends BlockHeaderDAOMessageReplies
+  case class CreateReply(header: BlockHeader) extends BlockHeaderDAOMessageReplies
 
   /** The message to create all [[BlockHeader]]s in our persistent storage */
   case class CreateAll(blockHeaders: Seq[BlockHeader]) extends BlockHeaderDAORequest
   /** The reply to the message [[CreateAll]] */
-  case class CreatedHeaders(headers: Seq[BlockHeader]) extends BlockHeaderDAOMessageReplies
+  case class CreateAllReply(headers: Seq[BlockHeader]) extends BlockHeaderDAOMessageReplies
 
   /** Reads a [[BlockHeader]] with the given hash from persistent storage */
   case class Read(hash: DoubleSha256Digest) extends BlockHeaderDAORequest

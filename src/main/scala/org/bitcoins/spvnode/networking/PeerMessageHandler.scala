@@ -54,6 +54,9 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
     case msg: NetworkMessage =>
       logger.debug("Received another peer request while waiting for Tcp.Connected: " + msg)
       context.become(awaitConnected((sender,msg) +: requests, unalignedBytes))
+    case payload: NetworkPayload =>
+      val networkMsg = NetworkMessage(Constants.networkParameters,payload)
+      self ! networkMsg
   }
 
 
@@ -71,6 +74,9 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
     case msg: Tcp.Message =>
       val newUnalignedBytes = handleTcpMessage(msg, unalignedBytes,sender)
       context.become(awaitVersionMessage(requests,newUnalignedBytes))
+    case payload: NetworkPayload =>
+      val networkMsg = NetworkMessage(Constants.networkParameters,payload)
+      self ! networkMsg
   }
 
   /** Waits for our peer on the network to send us a [[VerAckMessage]] */
@@ -88,6 +94,9 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
     case msg: Tcp.Message =>
       val newUnalignedBytes = handleTcpMessage(msg,unalignedBytes,sender)
       context.become(awaitVerack(requests,newUnalignedBytes))
+    case payload: NetworkPayload =>
+      val networkMsg = NetworkMessage(Constants.networkParameters,payload)
+      self ! networkMsg
   }
 
   /**

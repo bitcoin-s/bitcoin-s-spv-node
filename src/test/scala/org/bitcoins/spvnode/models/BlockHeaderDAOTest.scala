@@ -28,7 +28,7 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
     //we need to seed our database with the genesis header to be able to insert subsequent headers
     val (blockHeaderDAO,probe) = blockHeaderDAORef
     blockHeaderDAO ! BlockHeaderDAO.Create(genesisHeader)
-    probe.expectMsgType[BlockHeaderDAO.CreatedHeader](10.seconds)
+    probe.expectMsgType[BlockHeaderDAO.CreateReply](10.seconds)
     blockHeaderDAO ! PoisonPill
   }
 
@@ -50,8 +50,8 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
     val (blockHeaderDAO,probe) = blockHeaderDAORef
     val blockHeader = BlockchainElementsGenerator.blockHeader(genesisHeader.hash).sample.get
     blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader)
-    val createdHeader = probe.expectMsgType[BlockHeaderDAO.CreatedHeader]
-    createdHeader.header must be (blockHeader)
+    val CreateReply = probe.expectMsgType[BlockHeaderDAO.CreateReply]
+    CreateReply.header must be (blockHeader)
 
     blockHeaderDAO ! BlockHeaderDAO.Read(blockHeader.hash)
     val readHeader = probe.expectMsgType[BlockHeaderDAO.ReadReply]
@@ -68,7 +68,7 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
 
     blockHeaderDAO ! BlockHeaderDAO.CreateAll(headers)
 
-    val actualBlockHeaders = probe.expectMsgType[BlockHeaderDAO.CreatedHeaders]
+    val actualBlockHeaders = probe.expectMsgType[BlockHeaderDAO.CreateAllReply]
     actualBlockHeaders.headers must be (headers)
     blockHeaderDAO ! PoisonPill
   }
@@ -77,7 +77,7 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
     val (blockHeaderDAO,probe) = blockHeaderDAORef
     val blockHeader = BlockchainElementsGenerator.blockHeader(genesisHeader.hash).sample.get
     blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader)
-    val createdHeader = probe.expectMsgType[BlockHeaderDAO.CreatedHeader]
+    val CreateReply = probe.expectMsgType[BlockHeaderDAO.CreateReply]
 
     //delete the header in the db
     blockHeaderDAO ! BlockHeaderDAO.Delete(blockHeader)
@@ -95,7 +95,7 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
     val (blockHeaderDAO,probe) = blockHeaderDAORef
     val blockHeader = BlockchainElementsGenerator.blockHeader(genesisHeader.hash).sample.get
     blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader)
-    probe.expectMsgType[BlockHeaderDAO.CreatedHeader]
+    probe.expectMsgType[BlockHeaderDAO.CreateReply]
 
     blockHeaderDAO ! BlockHeaderDAO.LastSavedHeader
     val lastSavedHeader = probe.expectMsgType[BlockHeaderDAO.LastSavedHeaderReply]
@@ -104,7 +104,7 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
     //insert another header and make sure that is the new last header
     val blockHeader2 = BlockchainElementsGenerator.blockHeader(blockHeader.hash).sample.get
     blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader2)
-    probe.expectMsgType[BlockHeaderDAO.CreatedHeader]
+    probe.expectMsgType[BlockHeaderDAO.CreateReply]
 
     blockHeaderDAO ! BlockHeaderDAO.LastSavedHeader
     val lastSavedHeader2 = probe.expectMsgType[BlockHeaderDAO.LastSavedHeaderReply]
@@ -126,7 +126,7 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
     val blockHeader = BlockchainElementsGenerator.blockHeader(genesisHeader.hash).sample.get
     blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader)
 
-    probe.expectMsgType[BlockHeaderDAO.CreatedHeader]
+    probe.expectMsgType[BlockHeaderDAO.CreateReply]
 
     blockHeaderDAO ! BlockHeaderDAO.GetAtHeight(1)
 
@@ -138,7 +138,7 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
     val blockHeader2 = BlockchainElementsGenerator.blockHeader(blockHeader.hash).sample.get
     blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader2)
 
-    probe.expectMsgType[BlockHeaderDAO.CreatedHeader]
+    probe.expectMsgType[BlockHeaderDAO.CreateReply]
 
     blockHeaderDAO ! BlockHeaderDAO.GetAtHeight(2)
 
@@ -155,7 +155,7 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
    val blockHeader = BlockchainElementsGenerator.blockHeader(genesisHeader.hash).sample.get
    blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader)
 
-   probe.expectMsgType[BlockHeaderDAO.CreatedHeader]
+   probe.expectMsgType[BlockHeaderDAO.CreateReply]
 
    blockHeaderDAO ! BlockHeaderDAO.FindHeight(blockHeader.hash)
    val foundMessage = probe.expectMsgType[BlockHeaderDAO.FoundHeight]
@@ -182,7 +182,7 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
    val blockHeader = BlockchainElementsGenerator.blockHeader(genesisHeader.hash).sample.get
    blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader)
 
-   probe.expectMsgType[BlockHeaderDAO.CreatedHeader]
+   probe.expectMsgType[BlockHeaderDAO.CreateReply]
 
    blockHeaderDAO ! BlockHeaderDAO.MaxHeight
 
@@ -192,7 +192,7 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
    val blockHeader2  = BlockchainElementsGenerator.blockHeader(blockHeader.hash).sample.get
 
    blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader2)
-   probe.expectMsgType[BlockHeaderDAO.CreatedHeader]
+   probe.expectMsgType[BlockHeaderDAO.CreateReply]
 
    blockHeaderDAO ! BlockHeaderDAO.MaxHeight
    val heightReply2 = probe.expectMsgType[BlockHeaderDAO.MaxHeightReply]
@@ -204,11 +204,11 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
     val (blockHeaderDAO,probe) = blockHeaderDAORef
     val blockHeader = BlockchainElementsGenerator.blockHeader(genesisHeader.hash).sample.get
     blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader)
-    probe.expectMsgType[BlockHeaderDAO.CreatedHeader]
+    probe.expectMsgType[BlockHeaderDAO.CreateReply]
 
     val blockHeader1 = BlockchainElementsGenerator.blockHeader(genesisHeader.hash).sample.get
     blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader1)
-    probe.expectMsgType[BlockHeaderDAO.CreatedHeader]
+    probe.expectMsgType[BlockHeaderDAO.CreateReply]
 
     //now make sure they are both at height 1
     blockHeaderDAO ! BlockHeaderDAO.GetAtHeight(1)

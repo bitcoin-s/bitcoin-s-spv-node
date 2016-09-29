@@ -64,18 +64,24 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
     */
   def blockHeaderSync(peerMessageHandler: ActorRef, lastHeader: BlockHeader): Receive = LoggingReceive {
     case startHeader: BlockHeaderSyncActor.StartHeaders =>
+      if (lastHeader == Constants.chainParams.genesisBlock.blockHeader) {
+        //TODO: Think this causes a bug in our test because the table is being dropped
+        //while the message is still being processed
+        //seed the database with the genesis header
+        blockHeaderDAO ! BlockHeaderDAO.Create(lastHeader)
+      }
       val getHeadersMsg = GetHeadersMessage(startHeader.headers.map(_.hash))
       peerMessageHandler ! getHeadersMsg
     case headersMsg: HeadersMessage =>
       val headers = headersMsg.headers
       logger.debug("Headers before all of the checking: " + headers.size)
       context.become(awaitCheckHeaders(Some(lastHeader),headers),discardOld = false)
-      blockHeaderDAO ! BlockHeaderDAO.MaxHeight
-    case createdHeaders: BlockHeaderDAO.CreatedHeaders =>
+      val b = blockHeaderDAO
+      b ! BlockHeaderDAO.MaxHeight
+    case createdHeaders: BlockHeaderDAO.CreateAllReply =>
       //indicates that our blockHeaderDAO successfully created the block headers we sent it inside of
       //handleValidHeaders
       sender ! PoisonPill
-
     case checkHeaderResult: CheckHeaderResult =>
       logger.debug("Received check header result inside of blockHeaderSync")
       if (checkHeaderResult.error.isDefined) {
@@ -99,6 +105,7 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
     case maxHeight: BlockHeaderDAO.MaxHeightReply =>
       val result = BlockHeaderSyncActor.checkHeaders(lastHeader,headers,maxHeight.height,networkParameters)
       context.unbecome()
+      sender ! PoisonPill
       self ! result
   }
 
@@ -121,8 +128,7 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
   def awaitLastSavedHeader: Receive = {
     case lastSavedHeader: BlockHeaderDAO.LastSavedHeaderReply =>
       if (lastSavedHeader.headers.size <= 1) {
-        //means we either have no saved headers at all, so we need to sync from the  genesis block
-        //or we have one last saved header, so we can start syncing from that
+        //means  we have one last saved header, so we can start syncing from that
         val header = lastSavedHeader.headers.headOption.getOrElse(Constants.chainParams.genesisBlock.blockHeader)
         val p = PeerMessageHandler(context)
         context.become(blockHeaderSync(p,header))
@@ -132,8 +138,7 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
         //TODO: Need to write a test case for this inside of BlockHeaderSyncActorTest
         //means we have two (or more) competing chains, therefore we need to try and sync with both of them
         lastSavedHeader.headers.map { header =>
-          val blockHeaderSyncActor = BlockHeaderSyncActor(context,dbConfig,networkParameters)
-          blockHeaderSyncActor ! BlockHeaderSyncActor.StartHeaders(Seq(header))
+          self ! BlockHeaderSyncActor.StartHeaders(Seq(header))
           context.parent ! BlockHeaderSyncActor.StartAtLastSavedHeaderReply(header)
         }
       }
@@ -149,22 +154,37 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
     */
   def handleValidHeaders(headers: Seq[BlockHeader], peerMessageHandler: ActorRef) = {
     logger.debug("Headers size to be inserted: "  + headers.size)
-    val lastHeader = headers.last
     val createAllMsg = BlockHeaderDAO.CreateAll(headers)
     val b = blockHeaderDAO
+    context.become(awaitCreatedAllReply(peerMessageHandler,headers))
     b ! createAllMsg
-    if (headers.size == maxHeaders) {
-      logger.debug("Starting next sync with this block header: " + lastHeader.hash)
-      //means we need to send another GetHeaders message with the last header in this message as our starting point
-      val startHeader = BlockHeaderSyncActor.StartHeaders(Seq(lastHeader))
-      //need to reset the last header hash we saw on the network
-      context.become(blockHeaderSync(peerMessageHandler,lastHeader))
-      self ! startHeader
-    } else {
-      //else we we are synced up on the network, send the parent the last header we have seen
-      context.parent ! lastHeader
-      self ! PoisonPill
-    }
+  }
+
+  /** Waits for our [[BlockHeaderDAO]] to reply with all the headers it created in persistent storage
+    * @param networkHeaders the headers we received from our peer on the network. This may be a different
+    *                       size than what is returned from [[BlockHeaderDAO.CreateAllReply]]. This can
+    *                       be the case if our database fails to insert some of the headers.
+    * */
+  def awaitCreatedAllReply(peerMessageHandler: ActorRef, networkHeaders: Seq[BlockHeader]): Receive = LoggingReceive {
+    case createdHeaders: BlockHeaderDAO.CreateAllReply =>
+      val headers = createdHeaders.headers
+      val lastHeader = createdHeaders.headers.last
+      if (headers.size == maxHeaders || headers.size != networkHeaders.size) {
+        //this means we either stored all the headers in the database and need to start from the last header or
+        //we failed to store all the headers (due to some error in BlockHeaderDAO) and we need to start from the last
+        //header we successfully stored in the database
+        logger.debug("Starting next sync with this block header: " + lastHeader.hash)
+        //means we need to send another GetHeaders message with the last header in this message as our starting point
+        val startHeader = BlockHeaderSyncActor.StartHeaders(Seq(lastHeader))
+        //need to reset the last header hash we saw on the network
+        context.become(blockHeaderSync(peerMessageHandler,lastHeader))
+        self ! startHeader
+      } else {
+        //else we we are synced up on the network, send the parent the last header we have seen
+        context.parent ! lastHeader
+        self ! PoisonPill
+      }
+      sender ! PoisonPill
   }
 }
 
