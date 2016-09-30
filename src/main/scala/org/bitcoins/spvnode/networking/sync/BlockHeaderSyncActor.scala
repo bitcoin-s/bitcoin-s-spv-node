@@ -119,12 +119,9 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
   def awaitGetHeaders: Receive = LoggingReceive {
     case headersMsg: HeadersMessage =>
       val headers = headersMsg.headers
-      if (headers.isEmpty) context.parent ! Nil
-      else {
-        logger.info("Switching to awaitCheckHeaders from awaitGetHeaders")
-        context.become(awaitCheckHeaders(None, headers), discardOld = false)
-        blockHeaderDAO ! BlockHeaderDAO.MaxHeight
-      }
+      logger.info("Switching to awaitCheckHeaders from awaitGetHeaders")
+      context.become(awaitCheckHeaders(None, headers), discardOld = false)
+      blockHeaderDAO ! BlockHeaderDAO.MaxHeight
     case checkHeaderResult: CheckHeaderResult =>
       context.parent ! checkHeaderResult.error.getOrElse(BlockHeaderSyncActor.GetHeadersReply(checkHeaderResult.headers))
   }
@@ -146,7 +143,8 @@ trait BlockHeaderSyncActor extends Actor with BitcoinSLogger {
         //TODO: Need to write a test case for this inside of BlockHeaderSyncActorTest
         //means we have two (or more) competing chains, therefore we need to try and sync with both of them
         lastSavedHeader.headers.map { header =>
-          self ! BlockHeaderSyncActor.StartHeaders(Seq(header))
+          val syncActor = BlockHeaderSyncActor(context,dbConfig,networkParameters)
+          syncActor ! BlockHeaderSyncActor.StartHeaders(Seq(header))
           context.parent ! BlockHeaderSyncActor.StartAtLastSavedHeaderReply(header)
         }
       }
@@ -234,8 +232,8 @@ object BlockHeaderSyncActor extends BitcoinSLogger {
 
   /** Retrieves the set of headers from a node on the network, this does NOT store them */
   case class GetHeaders(startHeader: DoubleSha256Digest, stopHeader: DoubleSha256Digest) extends BlockHeaderSyncMessageRequest
-
   case class GetHeadersReply(headers: Seq[BlockHeader]) extends BlockHeaderSyncMessageReply
+
   /** Starts syncing our blockchain at the last header we have seen, if we haven't see any it starts at the genesis block */
   case object StartAtLastSavedHeader extends BlockHeaderSyncMessageRequest
   /** Reply for [[StartAtLastSavedHeader]] */

@@ -2,24 +2,21 @@ package org.bitcoins.spvnode.messages
 
 import java.net.InetAddress
 
-import org.bitcoins.core.crypto.{DoubleSha256Digest, ECDigitalSignature}
-import org.bitcoins.core.number.{Int32, Int64, UInt32, UInt64}
+import org.bitcoins.core.crypto.DoubleSha256Digest
+import org.bitcoins.core.number.{Int32, Int64, UInt64}
 import org.bitcoins.core.protocol.blockchain.{Block, BlockHeader}
 import org.bitcoins.core.protocol.transaction.Transaction
 import org.bitcoins.core.protocol.{CompactSizeUInt, NetworkElement}
-import org.bitcoins.core.serializers.RawBitcoinSerializer
 import org.bitcoins.core.util.BitcoinSUtil
 import org.bitcoins.spvnode.block.MerkleBlock
-import org.bitcoins.spvnode.bloom.{BloomFilter, BloomFlag}
+import org.bitcoins.spvnode.bloom.BloomFilter
 import org.bitcoins.spvnode.headers.NetworkHeader
-import org.bitcoins.spvnode.messages.control.{Alert, ServiceIdentifier}
+import org.bitcoins.spvnode.messages.control.ServiceIdentifier
 import org.bitcoins.spvnode.messages.data.Inventory
 import org.bitcoins.spvnode.serializers.messages.control._
 import org.bitcoins.spvnode.serializers.messages.data._
 import org.bitcoins.spvnode.util.NetworkIpAddress
 import org.bitcoins.spvnode.versions.ProtocolVersion
-
-import scala.annotation.tailrec
 
 /**
   * Created by chris on 5/31/16.
@@ -278,20 +275,6 @@ trait AddrMessage extends ControlPayload {
   override def commandName = NetworkPayload.addrCommandName
   override def hex = RawAddrMessageSerializer.write(this)
 }
-
-/**
-  * The alert message warns nodes of problems that may affect them or the rest of the network.
-  * Each alert message is signed using a key controlled by respected community members,
-  * mostly Bitcoin Core developers.
-  */
-sealed trait AlertMessage extends ControlPayload {
-  def alertSize : CompactSizeUInt
-  def alert : Alert
-  def signatureSize : CompactSizeUInt
-  def signature : ECDigitalSignature
-  override def commandName = ""
-}
-
 
 /**
   * The filteradd message tells the receiving peer to add a single element to a
