@@ -1,10 +1,11 @@
 [![Build Status](https://travis-ci.org/bitcoin-s/bitcoin-s-spv-node.svg?branch=master)](https://travis-ci.org/bitcoin-s/bitcoin-s-spv-node) [![Coverage Status](https://coveralls.io/repos/github/bitcoin-s/bitcoin-s-spv-node/badge.svg?branch=master)](https://coveralls.io/github/bitcoin-s/bitcoin-s-spv-node?branch=master)
 
-This is an implementation of an SPV node on the bitcoin network using Scala & bitcoin-s-core. 
+This is an implementation of an SPV node on the Bitcoin network using Scala & [Bitcoin-S-Core](https://github.com/bitcoin-s/bitcoin-s-core). 
 
+Our implementation relies heavily on [Akka](http://akka.io/), which has an implementation of the [Actor model](https://en.wikipedia.org/wiki/Actor_model) in Scala. If you want to read more about Akka and what it is/how it is used, it is best to start reading [here](http://doc.akka.io/docs/akka/2.4/scala.html).
 # Examples
 
-Look inside of [Main.scala](https://github.com/Christewart/bitcoin-s-spv-node/blob/header_sync/src/main/scala/org/bitcoins/spvnode/Main.scala) for example of creating a [`BlockHeaderSyncActor`](https://github.com/Christewart/bitcoin-s-spv-node/blob/header_sync/src/main/scala/org/bitcoins/spvnode/networking/sync/BlockHeaderSyncActor.scala), that syncs the blockchain.
+Look inside of [Main.scala](https://github.com/Christewart/bitcoin-s-spv-node/blob/networking/src/main/scala/org/bitcoins/spvnode/Main.scala) for example of creating a [`PaymentActor`](https://github.com/Christewart/bitcoin-s-spv-node/blob/networking/src/main/scala/org/bitcoins/spvnode/networking/PaymentActor.scala), that montiors an address. Once a transaction that pays to the address is included in a block, it sends a message back to your actor saying a payment was successful. 
 
 ```scala
 package org.bitcoins.spvnode
@@ -35,12 +36,10 @@ object Main extends App {
 
 If you want to see more logging for the networking stuff, adjust your [logback.xml](https://github.com/Christewart/bitcoin-s-spv-node/blob/networking/src/main/resources/logback.xml#L18) file to DEBUG.
 
-After that, you are ready to fire up your spv node with this command
+After that, you are ready to fire up your spv node with this command:
 
 ```bash
 chris@chris-870Z5E-880Z5E-680Z5E:~/dev/bitcoins-spv-node$ sbt run
 ```
 
 After that, you should start seeing headers being synced to your node. The headers are stored inside of a file called `block_headers.dat` file inside of `src/main/resources`. Note that this does not use any checkpointing system, so to sync up all ~930,000 headers on TestNet3 will take awhile. 
-
-
