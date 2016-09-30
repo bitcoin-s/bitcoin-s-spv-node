@@ -50,8 +50,8 @@ class BlockHeaderDAOTest  extends TestKit(ActorSystem("BlockHeaderDAOTest")) wit
     val (blockHeaderDAO,probe) = blockHeaderDAORef
     val blockHeader = BlockchainElementsGenerator.blockHeader(genesisHeader.hash).sample.get
     blockHeaderDAO ! BlockHeaderDAO.Create(blockHeader)
-    val CreateReply = probe.expectMsgType[BlockHeaderDAO.CreateReply]
-    CreateReply.header must be (blockHeader)
+    val createReply = probe.expectMsgType[BlockHeaderDAO.CreateReply]
+    createReply.blockHeader must be (blockHeader)
 
     blockHeaderDAO ! BlockHeaderDAO.Read(blockHeader.hash)
     val readHeader = probe.expectMsgType[BlockHeaderDAO.ReadReply]

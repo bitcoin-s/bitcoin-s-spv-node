@@ -55,10 +55,10 @@ class BlockHeaderSyncActorTest extends TestKit(ActorSystem("BlockHeaderSyncActor
     val (b,probe) = blockHeaderSyncActor
 
     b ! BlockHeaderSyncActor.GetHeaders(genesisBlockHash, fifthBlockHash)
-    val headers = probe.expectMsgType[Seq[BlockHeader]](5.seconds)
+    val headersReply = probe.expectMsgType[BlockHeaderSyncActor.GetHeadersReply](5.seconds)
     //note the hash we started the sync at is not included in the expected blockheaders we recevie from our peer
     val expectedHashes = Seq(firstBlockHash,secondBlockHash,thirdBlockHash,fourthBlockHash,fifthBlockHash)
-    val actualHashes = headers.map(_.hash)
+    val actualHashes = headersReply.headers.map(_.hash)
 
     actualHashes.size must be (expectedHashes.size)
     actualHashes must be (expectedHashes)
@@ -83,8 +83,8 @@ class BlockHeaderSyncActorTest extends TestKit(ActorSystem("BlockHeaderSyncActor
     b ! BlockHeaderSyncActor.StartHeaders(Seq(TestNetChainParams.genesisBlock.blockHeader))
     val headersMsg = HeadersMessage(TestUtil.firstFiveTestNetBlockHeaders)
     b ! headersMsg
-    val lastHeader = probe.expectMsgType[BlockHeader](7.seconds)
-    lastHeader must be (TestUtil.firstFiveTestNetBlockHeaders.last)
+    val reply = probe.expectMsgType[BlockHeaderSyncActor.SuccessfulSyncReply](7.seconds)
+    reply.lastHeader must be (TestUtil.firstFiveTestNetBlockHeaders.last)
     b ! PoisonPill
   }
 

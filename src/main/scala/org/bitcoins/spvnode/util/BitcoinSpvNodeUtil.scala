@@ -40,7 +40,7 @@ trait BitcoinSpvNodeUtil extends BitcoinSLogger {
     * Akka sends messages as one byte stream. There is not a 1 to 1 relationship between byte streams received and
     * bitcoin protocol messages. This function parses our byte stream into individual network messages
     * @param bytes the bytes that need to be parsed into individual messages
-    * @return the parsed [[NetworkMessage]]'s
+    * @return the parsed [[NetworkMessage]]'s and the unaligned bytes that did not parse to a message
     */
   def parseIndividualMessages(bytes: Seq[Byte]): (Seq[NetworkMessage],Seq[Byte]) = {
     @tailrec

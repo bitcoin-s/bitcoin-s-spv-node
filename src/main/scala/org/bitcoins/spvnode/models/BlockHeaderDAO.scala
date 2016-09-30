@@ -27,6 +27,7 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
       handleBlockHeaderDAORequest(msg)
   }
 
+  /** Function designed to handle all [[BlockHeaderDAO.BlockHeaderDAORequest]] messages we can receive */
   private def handleBlockHeaderDAORequest(message: BlockHeaderDAO.BlockHeaderDAORequest) = message match {
     case createMsg: BlockHeaderDAO.Create =>
       val createdBlockHeader = create(createMsg.blockHeader).map(BlockHeaderDAO.CreateReply(_))(context.dispatcher)
@@ -75,8 +76,9 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
   }(context.dispatcher)
 
   def create(blockHeader: BlockHeader): Future[BlockHeader] = {
-    //make an exception if the block header is the genesis block
     val action = if (blockHeader == Constants.chainParams.genesisBlock.blockHeader) {
+      //we need to make an exception for the genesis block, it does not have a previous hash
+      //so we remove that invariant in this sql statement
       sqlu"insert into block_headers values(0, ${blockHeader.hash.hex}, ${blockHeader.version.underlying}, ${blockHeader.previousBlockHash.hex}, ${blockHeader.merkleRootHash.hex}, ${blockHeader.time.underlying}, ${blockHeader.nBits.underlying}, ${blockHeader.nonce.underlying}, ${blockHeader.hex})".andThen(DBIO.successful(blockHeader))
     } else insertStatement(blockHeader)
     database.run(action)
@@ -99,7 +101,7 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
     sqlu"insert into block_headers (height, hash, version, previous_block_hash, merkle_root_hash, time,n_bits,nonce,hex) select height + 1, ${blockHeader.hash.hex}, ${blockHeader.version.underlying}, ${blockHeader.previousBlockHash.hex}, ${blockHeader.merkleRootHash.hex}, ${blockHeader.time.underlying}, ${blockHeader.nBits.underlying}, ${blockHeader.nonce.underlying}, ${blockHeader.hex}  from block_headers where hash = ${blockHeader.previousBlockHash.hex}"
         .flatMap { rowsAffected =>
           if (rowsAffected == 0) {
-            val exn = new IllegalArgumentException("Failed to insert blockHeader: " + BitcoinSUtil.flipEndianness(blockHeader.hash.bytes) + " prevHash: " + blockHeader.previousBlockHash)
+            val exn = new IllegalArgumentException("Failed to insert blockHeader: " + BitcoinSUtil.flipEndianness(blockHeader.hash.bytes) + " prevHash: " + BitcoinSUtil.flipEndianness(blockHeader.previousBlockHash.bytes))
             DBIO.failed(exn)
           }
           else DBIO.successful(blockHeader)
@@ -135,6 +137,7 @@ sealed trait BlockHeaderDAO extends CRUDActor[BlockHeader,DoubleSha256Digest] {
     result.map(_.getOrElse(0L))(context.dispatcher)
   }
 
+  /** Returns the last saved header in the database */
   def lastSavedHeader: Future[Seq[BlockHeader]] = {
     implicit val c = context.dispatcher
     val max = maxHeight
@@ -156,7 +159,7 @@ object BlockHeaderDAO {
   /** The message to create a [[BlockHeader]] */
   case class Create(blockHeader: BlockHeader) extends BlockHeaderDAORequest
   /** The message that is sent as a reply to [[Create]] */
-  case class CreateReply(header: BlockHeader) extends BlockHeaderDAOMessageReplies
+  case class CreateReply(blockHeader: BlockHeader) extends BlockHeaderDAOMessageReplies
 
   /** The message to create all [[BlockHeader]]s in our persistent storage */
   case class CreateAll(blockHeaders: Seq[BlockHeader]) extends BlockHeaderDAORequest

@@ -34,7 +34,8 @@ object GetHeadersMessage extends Factory[GetHeadersMessage] {
   }
 
   /** Creates a [[GetHeadersMessage]] with no hash stop set, this requests all possible blocks
-    * if we need more than 500 block headers, we will have to send another [[GetHeadersMessage]] */
+    * if we need more than 500 block headers, we will have to send another [[GetHeadersMessage]]
+    * [[https://bitcoin.org/en/developer-reference#getheaders]] */
   def apply(hashes: Seq[DoubleSha256Digest]): GetHeadersMessage = {
     val zeroBytes = for { _ <- 0 until 32 } yield 0.toByte
     //The header hash of the last header hash being requested; set to all zeroes to request an inv message with all
