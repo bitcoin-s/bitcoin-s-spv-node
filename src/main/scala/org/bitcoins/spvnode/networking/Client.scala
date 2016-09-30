@@ -66,8 +66,6 @@ sealed trait Client extends Actor with BitcoinSLogger {
     case Tcp.Bound(localAddress) =>
       logger.debug("Actor is now bound to the local address: " + localAddress)
       context.parent ! Tcp.Bound(localAddress)
-    case Tcp.CommandFailed(w: Tcp.Write) =>
-      logger.debug("Client write command failed: " + Tcp.CommandFailed(w))
     case Tcp.CommandFailed(command) =>
       logger.debug("Client Command failed:" + command)
     case Tcp.Connected(remote, local) =>
