@@ -53,7 +53,7 @@ trait BitcoinSpvNodeUtil extends BitcoinSLogger {
             if (message.header.payloadSize.toInt != message.payload.bytes.size) {
               //this means our tcp frame was not aligned, therefore put the message back in the
               //buffer and wait for the remaining bytes
-                (accum.reverse,remainingBytes)
+              (accum.reverse,remainingBytes)
             } else {
               val newRemainingBytes = remainingBytes.slice(message.bytes.length, remainingBytes.length)
               loop(newRemainingBytes, message +: accum)
