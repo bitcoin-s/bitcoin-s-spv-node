@@ -40,7 +40,7 @@ trait BitcoinSpvNodeUtil extends BitcoinSLogger {
     * Akka sends messages as one byte stream. There is not a 1 to 1 relationship between byte streams received and
     * bitcoin protocol messages. This function parses our byte stream into individual network messages
     * @param bytes the bytes that need to be parsed into individual messages
-    * @return the parsed [[NetworkMessage]]'s
+    * @return the parsed [[NetworkMessage]]'s and the unaligned bytes that did not parse to a message
     */
   def parseIndividualMessages(bytes: Seq[Byte]): (Seq[NetworkMessage],Seq[Byte]) = {
     @tailrec
@@ -50,11 +50,17 @@ trait BitcoinSpvNodeUtil extends BitcoinSLogger {
         val messageTry = Try(NetworkMessage(remainingBytes))
         messageTry match {
           case Success(message) =>
-            val newRemainingBytes = remainingBytes.slice(message.bytes.length, remainingBytes.length)
-            loop(newRemainingBytes, message +: accum)
+            if (message.header.payloadSize.toInt != message.payload.bytes.size) {
+              //this means our tcp frame was not aligned, therefore put the message back in the
+              //buffer and wait for the remaining bytes
+              (accum.reverse,remainingBytes)
+            } else {
+              val newRemainingBytes = remainingBytes.slice(message.bytes.length, remainingBytes.length)
+              loop(newRemainingBytes, message +: accum)
+            }
           case Failure(exception) =>
-            logger.error("Failed to parse network message, could be because tcp frame isn't aligned")
-            logger.error(exception.getMessage)
+            logger.debug("Failed to parse network message, could be because tcp frame isn't aligned")
+            logger.debug(exception.getMessage)
             //this case means that our TCP frame was not aligned with bitcoin protocol
             //return the unaligned bytes so we can apply them to the next tcp frame of bytes we receive
             //http://stackoverflow.com/a/37979529/967713
@@ -62,7 +68,7 @@ trait BitcoinSpvNodeUtil extends BitcoinSLogger {
         }
       }
     }
-    val (messages,remainingBytes) = loop(bytes, Seq())
+    val (messages,remainingBytes) = loop(bytes, Nil)
     logger.debug("Parsed messages: " + messages)
     (messages,remainingBytes)
   }

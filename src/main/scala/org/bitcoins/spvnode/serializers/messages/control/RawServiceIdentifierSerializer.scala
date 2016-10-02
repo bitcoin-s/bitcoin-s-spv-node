@@ -19,7 +19,7 @@ trait RawServiceIdentifierSerializer extends RawBitcoinSerializer[ServiceIdentif
     ServiceIdentifier(UInt64(serviceBytes.reverse))
   }
 
-  def write(serviceIdentifier: ServiceIdentifier) : String = BitcoinSUtil.flipEndianess(serviceIdentifier.num.hex)
+  def write(serviceIdentifier: ServiceIdentifier) : String = BitcoinSUtil.flipEndianness(serviceIdentifier.num.hex)
 
 }
 

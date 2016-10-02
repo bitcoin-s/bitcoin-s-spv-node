@@ -1,6 +1,6 @@
 package org.bitcoins.spvnode.gen
 
-import org.bitcoins.core.gen.{CryptoGenerators, TransactionGenerators}
+import org.bitcoins.core.gen.{BlockchainElementsGenerator, CryptoGenerators, TransactionGenerators}
 import org.bitcoins.core.number.UInt32
 import org.bitcoins.spvnode.messages._
 import org.bitcoins.spvnode.messages.data.{GetDataMessage, GetHeadersMessage, InventoryMessage, MerkleBlockMessage, _}
@@ -28,6 +28,11 @@ trait DataMessageGenerator {
     hashStop <- CryptoGenerators.doubleSha256Digest
   } yield GetHeadersMessage(version,hashes,hashStop)
 
+  def headersMessage: Gen[HeadersMessage] = for {
+    randomNum <- Gen.choose(1,10)
+    //we have a maximum of 2000 block headers in a HeadersMessage
+    blockHeaders <- Gen.listOfN(randomNum,BlockchainElementsGenerator.blockHeader).suchThat(_.size <= 10)
+  } yield HeadersMessage(blockHeaders)
 
   /**
     * Generates a random [[TypeIdentifier]]

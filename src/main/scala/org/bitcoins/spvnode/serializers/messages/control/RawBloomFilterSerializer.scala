@@ -16,9 +16,9 @@ trait RawBloomFilterSerializer extends RawBitcoinSerializer[BloomFilter] {
     val filterSize = CompactSizeUInt.parseCompactSizeUInt(bytes)
     val filter = bytes.slice(filterSize.size.toInt, filterSize.size.toInt + filterSize.num.toInt)
     val hashFuncsIndex = (filterSize.size + filterSize.num.toInt).toInt
-    val hashFuncs = UInt32(BitcoinSUtil.flipEndianess(bytes.slice(hashFuncsIndex,hashFuncsIndex + 4)))
+    val hashFuncs = UInt32(BitcoinSUtil.flipEndianness(bytes.slice(hashFuncsIndex,hashFuncsIndex + 4)))
     val tweakIndex = hashFuncsIndex + 4
-    val tweak = UInt32(BitcoinSUtil.flipEndianess(bytes.slice(tweakIndex, tweakIndex + 4)))
+    val tweak = UInt32(BitcoinSUtil.flipEndianness(bytes.slice(tweakIndex, tweakIndex + 4)))
     val flags = BloomFlag(bytes(tweakIndex+4))
     BloomFilter(filterSize,filter,hashFuncs,tweak,flags)
 
@@ -26,8 +26,8 @@ trait RawBloomFilterSerializer extends RawBitcoinSerializer[BloomFilter] {
 
   override def write(bloomFilter: BloomFilter): String = {
     bloomFilter.filterSize.hex + BitcoinSUtil.encodeHex(bloomFilter.data) +
-      BitcoinSUtil.flipEndianess(bloomFilter.hashFuncs.hex) +
-      BitcoinSUtil.flipEndianess(bloomFilter.tweak.hex) +
+      BitcoinSUtil.flipEndianness(bloomFilter.hashFuncs.hex) +
+      BitcoinSUtil.flipEndianness(bloomFilter.tweak.hex) +
       BitcoinSUtil.encodeHex(bloomFilter.flags.byte)
   }
 }

@@ -13,11 +13,11 @@ import org.bitcoins.spvnode.messages.TypeIdentifier
 trait RawTypeIdentifierSerializer extends RawBitcoinSerializer[TypeIdentifier] {
 
   override def read(bytes: List[Byte]): TypeIdentifier = {
-    TypeIdentifier(UInt32(BitcoinSUtil.flipEndianess(bytes)))
+    TypeIdentifier(UInt32(BitcoinSUtil.flipEndianness(bytes)))
   }
 
   override def write(typeIdentifier: TypeIdentifier): String = {
-    BitcoinSUtil.flipEndianess(typeIdentifier.num.bytes)
+    BitcoinSUtil.flipEndianness(typeIdentifier.num.bytes)
   }
 }
 object RawTypeIdentifierSerializer extends RawTypeIdentifierSerializer

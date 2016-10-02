@@ -4,6 +4,11 @@ jdk:
   - oraclejdk8
 scala: 
   - 2.11.7
-
+addons:
+  postgresql: "9.4"
+services:
+  - postgresql
+before_script: 
+  - psql -c 'create database "bitcoins-spv-node-unit-test";' -U postgres
 script: "sbt clean coverage test"
 after_success: "sbt coverageReport coveralls"

@@ -2,7 +2,7 @@ package org.bitcoins.spvnode.networking
 
 import java.net.InetSocketAddress
 
-import akka.actor.{Actor, ActorRef, ActorRefFactory, Props}
+import akka.actor.{Actor, ActorRef, ActorRefFactory, PoisonPill, Props}
 import akka.event.LoggingReceive
 import akka.io.Tcp
 import akka.util.ByteString
@@ -26,38 +26,39 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
   lazy val peer: ActorRef = context.actorOf(Client.props,BitcoinSpvNodeUtil.createActorName(this.getClass))
 
   def receive = LoggingReceive {
-    case message : Tcp.Message => handleTcpMessage(message, Nil, sender)
+    case connectedMsg: Tcp.Connected =>
+      //for the case where the first message we receive is a Tcp.Connected message
+      context.become(awaitConnected(Nil,Nil))
+      self.forward(connectedMsg)
+    case message : Tcp.Message =>
+      val remainingBytes = handleTcpMessage(message, Nil, sender)
+      context.become(awaitConnected(Nil,remainingBytes))
     case msg: NetworkMessage =>
       logger.info("Switching to awaitConnected from default receive")
       context.become(awaitConnected(Seq((sender,msg)), Nil))
     case networkPayload: NetworkPayload =>
-      val networkMessage = NetworkMessage(Constants.networkParameters,networkPayload)
-      self.tell(networkMessage,sender)
-    case msg =>
-      logger.error("Unknown message inside of PeerMessageHandler: " + msg)
-      throw new IllegalArgumentException("Unknown message inside of PeerMessageHandler: " + msg)
+      self.forward(NetworkMessage(Constants.networkParameters,networkPayload))
   }
 
-
+  /** Waits for us to receive a [[Tcp.Connected]] message from our [[Client]] */
   def awaitConnected(requests: Seq[(ActorRef,NetworkMessage)], unalignedBytes: Seq[Byte]): Receive = LoggingReceive {
     case Tcp.Connected(remote,local) =>
       val versionMsg = VersionMessage(Constants.networkParameters,local.getAddress)
       peer ! versionMsg
       logger.info("Switching to awaitVersionMessage from awaitConnected")
       context.become(awaitVersionMessage(requests, unalignedBytes))
-
     case msg: Tcp.Message =>
       val newUnalignedBytes = handleTcpMessage(msg, unalignedBytes,sender)
       context.become(awaitConnected(requests, newUnalignedBytes))
     case msg: NetworkMessage =>
       logger.debug("Received another peer request while waiting for Tcp.Connected: " + msg)
       context.become(awaitConnected((sender,msg) +: requests, unalignedBytes))
-    case msg =>
-      logger.error("Expected a Tcp.Connected message, got: " + msg)
-      throw new IllegalArgumentException("Unknown message in awaitConnected: " + msg)
+    case payload: NetworkPayload =>
+      self ! NetworkMessage(Constants.networkParameters,payload)
   }
 
 
+  /** Waits for a peer on the network to send us a [[VersionMessage]] */
   private def awaitVersionMessage(requests: Seq[(ActorRef,NetworkMessage)], unalignedBytes: Seq[Byte]): Receive = LoggingReceive {
     case networkMessage : NetworkMessage => networkMessage.payload match {
       case _ : VersionMessage =>
@@ -71,11 +72,11 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
     case msg: Tcp.Message =>
       val newUnalignedBytes = handleTcpMessage(msg, unalignedBytes,sender)
       context.become(awaitVersionMessage(requests,newUnalignedBytes))
-    case msg =>
-      logger.error("Unknown message inside of awaitVersionMessage: " + msg)
-      throw new IllegalArgumentException("Unknown message inside of awaitVersionMessage: " + msg)
+    case payload: NetworkPayload =>
+      self ! NetworkMessage(Constants.networkParameters,payload)
   }
 
+  /** Waits for our peer on the network to send us a [[VerAckMessage]] */
   private def awaitVerack(requests: Seq[(ActorRef,NetworkMessage)], unalignedBytes: Seq[Byte]): Receive = LoggingReceive {
     case networkMessage : NetworkMessage => networkMessage.payload match {
       case VerAckMessage =>
@@ -90,9 +91,8 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
     case msg: Tcp.Message =>
       val newUnalignedBytes = handleTcpMessage(msg,unalignedBytes,sender)
       context.become(awaitVerack(requests,newUnalignedBytes))
-    case msg =>
-      logger.error("Unknown message inside of awaitVerack: " + msg)
-      throw new IllegalArgumentException("Unknown message inside of awaitVerack: " + msg)
+    case payload: NetworkPayload =>
+      self ! NetworkMessage(Constants.networkParameters,payload)
   }
 
   /**
@@ -134,30 +134,24 @@ sealed trait PeerMessageHandler extends Actor with BitcoinSLogger {
     */
   private def handleEvent(event : Tcp.Event, unalignedBytes: Seq[Byte], sender: ActorRef): Seq[Byte] = event match {
     case Tcp.Received(byteString: ByteString) =>
-      logger.debug("Received byte string in peerMessageHandler " + BitcoinSUtil.encodeHex(byteString.toArray))
+      //logger.debug("Received byte string in peerMessageHandler " + BitcoinSUtil.encodeHex(byteString.toArray))
+      //logger.debug("Unaligned bytes: " + BitcoinSUtil.encodeHex(unalignedBytes))
       //this means that we receive a bunch of messages bundled into one [[ByteString]]
       //need to parse out the individual message
       val bytes: Seq[Byte] = unalignedBytes ++ byteString.toArray.toSeq
+      //logger.debug("Bytes for message parsing: " + BitcoinSUtil.encodeHex(bytes))
       val (messages,remainingBytes) = BitcoinSpvNodeUtil.parseIndividualMessages(bytes)
       for {m <- messages} yield self.tell(m,sender)
       remainingBytes
-    case Tcp.CommandFailed(w: Tcp.Write) =>
-      logger.debug("Peer message Handler command failed: " + Tcp.CommandFailed(w))
-      unalignedBytes
-    case Tcp.CommandFailed(command) =>
-      logger.debug("PeerMessageHandler command failed: " + command)
-      unalignedBytes
-    case Tcp.Received(data) =>
-      logger.debug("Received data from our peer on the network: " + Tcp.Received(data))
-      unalignedBytes
-    case Tcp.Connected(remote, local) =>
+    case x @ (_ : Tcp.CommandFailed | _ : Tcp.Received | _ : Tcp.Connected) =>
+      logger.debug("Received TCP event the peer message handler actor should not have received: " + x)
       unalignedBytes
     case Tcp.PeerClosed =>
-      context.stop(self)
+      self ! PoisonPill
       unalignedBytes
     case closed @ (Tcp.ConfirmedClosed | Tcp.Closed | Tcp.Aborted | Tcp.PeerClosed) =>
       context.parent ! closed
-      context.stop(self)
+      self ! PoisonPill
       unalignedBytes
   }
 
@@ -273,7 +267,7 @@ object PeerMessageHandler {
   }
 
   def props: Props = {
-    val seed = new InetSocketAddress(Constants.networkParameters.dnsSeeds(0), Constants.networkParameters.port)
+    val seed = new InetSocketAddress(Constants.networkParameters.dnsSeeds(2), Constants.networkParameters.port)
     props(seed)
   }
 

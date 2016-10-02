@@ -19,7 +19,7 @@ class RawHeadersMessageSerializerTest extends FlatSpec with MustMatchers with Bi
     "9d10aa52ee949386ca9385695f04ede270dda20810decd12bc9b048aaab31471" +
     "24d95a54" +
     "30c31b18" +
-    "fe9f0864"
+    "fe9f0864" + "00"
   "RawHeadersMessageSerializer" must "deserialize a list of block headers" in {
     val headersMsg = RawHeadersMessageSerializer.read(hex)
     val header = headersMsg.headers.head
@@ -27,8 +27,8 @@ class RawHeadersMessageSerializerTest extends FlatSpec with MustMatchers with Bi
     header.previousBlockHash must be (DoubleSha256Digest("b6ff0b1b1680a2862a30ca44d346d9e8910d334beb48ca0c0000000000000000"))
     header.merkleRootHash must be (DoubleSha256Digest("9d10aa52ee949386ca9385695f04ede270dda20810decd12bc9b048aaab31471"))
     header.time must be (UInt32(1415239972))
-    header.nBits must be (UInt32(BitcoinSUtil.flipEndianess("30c31b18")))
-    header.nonce must be (UInt32(BitcoinSUtil.flipEndianess("fe9f0864")))
+    header.nBits must be (UInt32(BitcoinSUtil.flipEndianness("30c31b18")))
+    header.nonce must be (UInt32(BitcoinSUtil.flipEndianness("fe9f0864")))
   }
 
   it must "read then write a HeaderMessage" in {
@@ -41,13 +41,13 @@ class RawHeadersMessageSerializerTest extends FlatSpec with MustMatchers with Bi
     val headersMsg = RawHeadersMessageSerializer.read(hex)
     val first = headersMsg.headers.head
     logger.debug("Headers: " + headersMsg.headers)
-    first.previousBlockHash.hex must be (BitcoinSUtil.flipEndianess("000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943"))
-    first.hash.hex must be (BitcoinSUtil.flipEndianess("00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206"))
-    first.merkleRootHash.hex must be (BitcoinSUtil.flipEndianess("f0315ffc38709d70ad5647e22048358dd3745f3ce3874223c80a7c92fab0c8ba"))
+    first.previousBlockHash.hex must be (BitcoinSUtil.flipEndianness("000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943"))
+    first.hash.hex must be (BitcoinSUtil.flipEndianness("00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206"))
+    first.merkleRootHash.hex must be (BitcoinSUtil.flipEndianness("f0315ffc38709d70ad5647e22048358dd3745f3ce3874223c80a7c92fab0c8ba"))
     logger.debug("Second header: " + headersMsg.headers(1))
     val second = headersMsg.headers(1)
-    second.previousBlockHash.hex must be (BitcoinSUtil.flipEndianess("00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206"))
-    second.hash.hex must be (BitcoinSUtil.flipEndianess("000000006c02c8ea6e4ff69651f7fcde348fb9d557a06e6957b65552002a7820"))
-    second.merkleRootHash.hex must be (BitcoinSUtil.flipEndianess("20222eb90f5895556926c112bb5aa0df4ab5abc3107e21a6950aec3b2e3541e2"))
+    second.previousBlockHash.hex must be (BitcoinSUtil.flipEndianness("00000000b873e79784647a6c82962c70d228557d24a747ea4d1b8bbe878e1206"))
+    second.hash.hex must be (BitcoinSUtil.flipEndianness("000000006c02c8ea6e4ff69651f7fcde348fb9d557a06e6957b65552002a7820"))
+    second.merkleRootHash.hex must be (BitcoinSUtil.flipEndianness("20222eb90f5895556926c112bb5aa0df4ab5abc3107e21a6950aec3b2e3541e2"))
   }
 }
