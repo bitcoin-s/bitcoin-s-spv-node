@@ -43,3 +43,11 @@ chris@chris-870Z5E-880Z5E-680Z5E:~/dev/bitcoins-spv-node$ sbt run
 ```
 
 After that, you should start seeing headers being synced to your node. The headers are stored inside of a file called `block_headers.dat` file inside of `src/main/resources`. Note that this does not use any checkpointing system, so to sync up all ~930,000 headers on TestNet3 will take awhile. 
+
+### Perisistent storage
+
+For more information on how we store block headers in our spv node, please read [database_documentation](https://github.com/Christewart/bitcoin-s-spv-node/blob/database_documentation/doc/database_setup.md)
+
+### Syncing our node 
+
+For more information on syncing our node with the peer to peer network, please read [header_sync](https://github.com/Christewart/bitcoin-s-spv-node/blob/database_documentation/doc/header_sync.md)
