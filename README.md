@@ -46,7 +46,7 @@ After that, you should start seeing headers being synced to your node. The heade
 
 ### Perisistent storage
 
-For more information on how we store block headers in our spv node, please read [database_documentation](https://github.com/Christewart/bitcoin-s-spv-node/blob/database_documentation/doc/database_setup.md]
+For more information on how we store block headers in our spv node, please read [database_documentation](https://github.com/Christewart/bitcoin-s-spv-node/blob/database_documentation/doc/database_setup.md)
 
 ### Syncing our node 
 
