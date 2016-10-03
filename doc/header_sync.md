@@ -29,9 +29,9 @@ object Main extends App {
 
     //create a BlockHeaderSyncActor
     val blockHeaderSyncActor: ActorRef = BlockHeaderSyncActor(Constants.actorSystem, Constants.dbConfig, Constants.networkParameters)
-    val gensisBlockHash = TestNetChainParams.genesisBlock.blockHeader.hash
+    val genesisBlockHash = TestNetChainParams.genesisBlock.blockHeader.hash
     //indicates to start the header sync at the genesis hash
-    val startHeader = BlockHeaderSyncActor.StartHeaders(Seq(gensisBlockHash))
+    val startHeader = BlockHeaderSyncActor.StartHeaders(Seq(genesisBlockHash))
     //send the block header sync actor a message indicating to start the sync
     blockHeaderSyncActor ! startHeader
   }
